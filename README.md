@@ -88,7 +88,6 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 | Integrante | Rol |
 |---|---|
-| Maria Fatima Soares Gomes | Project Manager |
 | Demian Naon | Full Stack Developer |
 | Alexis Albarenga | Backend Developer |
 | Juan Espinosa | Backend Developer |
@@ -96,6 +95,7 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 | Thiago Viana Santos | Software Engineer |
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
+| Maria Fatima Soares Gomes | Project Manager |
 
 ---
 
