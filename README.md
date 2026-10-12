@@ -6,7 +6,6 @@
 **Sector:** Developer Tools / Servicios de Consultoría Tech (B2B)
 
 ![Estado](https://img.shields.io/badge/estado-en%20planificaci%C3%B3n-blue)
-![Licencia](https://img.shields.io/badge/licencia-por%20definir-lightgrey)
 
 ---
 
