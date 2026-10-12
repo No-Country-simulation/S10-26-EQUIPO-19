@@ -86,16 +86,18 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 ## 👥 Equipo
 
+## 👥 Equipo
+
 | Integrante | Rol |
 |---|---|
-| Demian Naon | Full Stack Developer |
 | Alexis Albarenga | Backend Developer |
-| Juan Espinosa | Backend Developer |
-| Melina Daniela Martinez | Backend Developer |
-| Thiago Viana Santos | Software Engineer |
+| Demian Naon | Full Stack Developer |
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
+| Juan Espinosa | Backend Developer |
 | Maria Fatima Soares Gomes | Project Manager |
+| Melina Daniela Martinez | Backend Developer |
+| Thiago Viana Santos | Software Engineer |
 
 ---
 
