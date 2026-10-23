@@ -95,6 +95,7 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
 | Juan Espinosa | Backend Developer |
+| Martin Valdes | Ethical Hacker |
 | Maria Fatima Soares Gomes | Project Manager |
 | Melina Daniela Martinez | Backend Developer |
 | Thiago Viana Santos | Software Engineer |
