@@ -78,11 +78,82 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 ## 📁 Estructura del repositorio
 
-> 🚧 Por definir con el equipo.
+```text
+├── app/                  # Código fuente del backend (FastAPI)
+│   ├── schemas/          # Modelos de validación Pydantic
+│   ├── main.py           # Instancia de FastAPI, configuración de CORS y rutas base
+│   └── __init__.py
+├── docs/                 # Documentación técnica de desarrollo
+│   └── api-contract.md   # Especificación del contrato de API REST
+├── documentacion/        # Documentos oficiales del proyecto (consigna, WBS, arquitectura)
+├── .env.example          # Plantilla de variables de entorno (sin secretos)
+├── requirements.txt      # Dependencias de Python
+└── README.md             # Documentación general del proyecto
+```
 
 ## ⚙️ Instalación y ejecución
 
-> 🚧 Se completará cuando el proyecto tenga su primera versión funcional.
+### 🚀 Backend (FastAPI)
+
+#### Requisitos previos
+- [Python 3.10+](https://www.python.org/)
+- Git
+
+#### 1. Clonar el repositorio y navegar a la carpeta raíz
+```bash
+git clone <url-del-repositorio>
+cd S10-26-EQUIPO-19
+```
+
+#### 2. Crear y activar el entorno virtual
+
+- **En Windows (PowerShell):**
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
+  ```
+  *(Si PowerShell restringe la ejecución de scripts, podés habilitarlo temporalmente con `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`).*
+
+- **En Linux / macOS:**
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  ```
+
+#### 3. Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Configurar variables de entorno
+Copiar la plantilla `.env.example` para generar tu archivo local `.env`:
+
+- **En Windows (PowerShell):**
+  ```powershell
+  copy .env.example .env
+  ```
+- **En Linux / macOS:**
+  ```bash
+  cp .env.example .env
+  ```
+> ⚠️ El archivo `.env` nunca debe subirse al repositorio. Las credenciales de desarrollo se comparten de forma segura por canales internos del equipo.
+
+#### 5. Iniciar el servidor de desarrollo
+```bash
+uvicorn app.main:app --reload
+```
+La API quedará escuchando en: `http://127.0.0.1:8000`
+
+#### 6. Verificación de funcionamiento
+- **Ruta de verificación (Health Check):**  
+  Navegar a [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) en el navegador. Debe responder:
+  ```json
+  {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
+  ```
+- **Documentación interactiva (Swagger UI):**  
+  Disponible en [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) para explorar y probar todos los endpoints documentados.
+- **Documentación alternativa (Redoc):**  
+  Disponible en [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ## 👥 Equipo
 
@@ -103,3 +174,4 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 ---
 
 <p align="center">Hecho con 💙 por el <b>S10-26-equipo 19</b> · Simulación Laboral NoCountry · 2026</p>
+
