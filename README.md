@@ -86,8 +86,6 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 ## 👥 Equipo
 
-## 👥 Equipo
-
 | Integrante | Rol |
 |---|---|
 | Alexis Albarenga | Backend Developer |
