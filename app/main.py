@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-# Importo los esquemas que cree en la carpeta schemas
+from app.routers import categories
 from app.schemas import (
     CategoryResponse,
     RepositoryListItem,
@@ -16,23 +16,22 @@ from app.schemas import (
     ChatSource,
 )
 
-# 1. Instanciamos la aplicación FastAPI
 app = FastAPI(
     title="OpenBridge API",
     description="Catálogo inteligente de herramientas Open Source y Asistente RAG",
     version="1.0.0",
 )
 
-# 2. Habilitamos CORS para que el frontend (Next.js) pueda consultar la API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En desarrollo permitimos todos los orígenes
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- DATOS DE PRUEBA (MOCKS) ---
+app.include_router(categories.router)
+
 MOCK_CATEGORIES = [
     CategoryResponse(id=1, name="Bases de Datos Vectoriales", repositories_count=5),
     CategoryResponse(id=2, name="Frameworks de IA & LLMs", repositories_count=8),
@@ -77,25 +76,10 @@ MOCK_REPOSITORIES_LIST = [
 ]
 
 
-# --- ENDPOINTS DEL SISTEMA ---
-
 @app.get("/health", tags=["Health Check"])
 def health_check():
     """Ruta básica de verificación del estado del servidor."""
     return {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
-
-
-# --- ENDPOINTS DEL CONTRATO DE API (/api/v1) ---
-
-@app.get(
-    "/api/v1/categories",
-    response_model=list[CategoryResponse],
-    tags=["Categorías"],
-    summary="Listar categorías del catálogo",
-)
-def get_categories():
-    """Obtiene la lista de todas las categorías disponibles con su conteo de repositorios."""
-    return MOCK_CATEGORIES
 
 
 @app.get(
@@ -135,7 +119,6 @@ def search_repositories(
     page_size: int = Query(default=10, ge=1, le=50),
 ):
     """Permite filtrar el catálogo combinando búsqueda de texto y filtros facetados."""
-    # En este mock devolvemos los datos de prueba
     return RepositoryPaginationResponse(
         total=len(MOCK_REPOSITORIES_LIST),
         page=page,
@@ -153,12 +136,10 @@ def search_repositories(
 )
 def get_repository_detail(id: int):
     """Devuelve el detalle exhaustivo de una herramienta open source por su ID interno."""
-    # Buscamos en el mock
     repo = next((r for r in MOCK_REPOSITORIES_LIST if r.id == id), None)
     if not repo:
         raise HTTPException(status_code=404, detail=f"El repositorio con id {id} no fue encontrado.")
 
-    # Retornamos la ficha técnica completa con métricas detalladas e ideas de integración
     return RepositoryDetailResponse(
         id=repo.id,
         github_id=repo.github_id,
@@ -244,3 +225,4 @@ def chat_with_assistant(request: ChatRequest):
             "¿Cuáles son las diferencias de rendimiento entre Qdrant y Chroma?",
         ],
     )
+
