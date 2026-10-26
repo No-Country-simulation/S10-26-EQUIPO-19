@@ -31,13 +31,22 @@ def get_categories():
 
     if supabase:
         try:
-            response = supabase.table("categories").select("id, name").order("id").execute()
+            response = (
+                supabase.table("categories")
+                .select("id, name, repositories(count)")
+                .order("id")
+                .execute()
+            )
             if response.data:
                 return [
                     CategoryResponse(
                         id=item["id"],
                         name=item["name"],
-                        repositories_count=item.get("repositories_count", 0),
+                        repositories_count=(
+                            item["repositories"][0]["count"]
+                            if item.get("repositories")
+                            else 0
+                        ),
                     )
                     for item in response.data
                 ]
