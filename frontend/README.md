@@ -41,7 +41,7 @@ frontend/
 ├── data/mock.ts              # Datos de ejemplo alineados con el contrato de API
 ├── lib/api.ts                # Cliente de la API (categorías y búsqueda)
 ├── types/api.ts              # Tipos del contrato de API
-└── public/logo.png           # Logo de OpenBridge
+└── public/                   # logo-horizontal.png (encabezado) y logo.png (ícono)
 ```
 
 ## Guía de estilo
