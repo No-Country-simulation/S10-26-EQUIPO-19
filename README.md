@@ -81,12 +81,13 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 ```text
 S10-26-EQUIPO-19/
 ├── app/                  # Código fuente del backend (FastAPI)
+│   ├── routers/          # Endpoints de la API separados por dominio (categories, repositories)
 │   ├── schemas/          # Modelos de validación Pydantic
+│   ├── database.py       # Configuración y cliente de conexión a Supabase
 │   ├── main.py           # Instancia de FastAPI, configuración de CORS y rutas base
 │   └── __init__.py
 ├── docs/                 # Documentación técnica (guía de estilo, contrato de API)
 │   └── api-contract.md   # Especificación del contrato de API REST
-├── documentacion/        # Documentos oficiales del proyecto (consigna, WBS, arquitectura)
 ├── frontend/             # Interfaz web: Next.js + React + TypeScript + Tailwind CSS
 ├── .env.example          # Plantilla de variables de entorno del backend (sin secretos)
 ├── requirements.txt      # Dependencias de Python
