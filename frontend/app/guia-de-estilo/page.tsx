@@ -78,17 +78,17 @@ function CheckIcon() {
 
 /* Tarjetas de vista previa de los modos claro y oscuro (secciones 04 y 05).
    Usan solo tokens semánticos; el contenedor .light o .dark fija los valores. */
-function PreviewCard({ preview, title, token, hex, contrast, note }: {
-  preview: ReactNode; title: string; token: string; hex: string; contrast?: string; note: string;
+function PreviewCard({ mode, preview, title, token, hex, swatch, contrast, note }: {
+  mode: "light" | "dark"; preview: ReactNode; title: string; token: string; hex: string; swatch?: string; contrast?: string; note: string;
 }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-card">
-      <div className="m-2 flex h-32 flex-col justify-center gap-2 rounded-xl border border-border bg-surface p-4">{preview}</div>
+      <div className={`${mode} m-2 flex h-40 flex-col justify-center gap-3 rounded-xl border border-border bg-surface p-5 text-text`}>{preview}</div>
       <div className="flex flex-col gap-1 p-4 pt-2 text-xs">
         <p className="text-sm font-semibold">{title}</p>
         <p className="font-mono text-text-muted">{token}</p>
         <p className="mt-1 flex items-center gap-2 font-medium">
-          <Swatch hex={hex} /> {hex}
+          <Swatch hex={swatch ?? hex} /> {hex}
         </p>
         {contrast && <p className="text-text-muted">Contraste {contrast} sobre el fondo</p>}
         <p className="mt-2 text-text-muted">{note}</p>
@@ -101,38 +101,56 @@ function ModePalette({ mode }: { mode: "light" | "dark" }) {
   const d = mode === "dark";
   const v = (light: string, dark: string) => (d ? dark : light);
   return (
-    <div className={`${mode} grid grid-cols-1 gap-4 rounded-[var(--radius-card)] bg-surface p-4 text-text sm:grid-cols-2 lg:grid-cols-4`}>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <PreviewCard
+        mode={mode}
         title="Fondo de la página" token="surface" hex={v("#F8FAFC", "#0B1220")} note="Lienzo general detrás de todo."
         preview={<div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"><span className="h-1.5 w-12 rounded bg-text" /><span className="h-1 w-full rounded bg-text-muted" /><span className="h-1 w-2/3 rounded bg-text-muted" /></div>}
       />
       <PreviewCard
+        mode={mode}
         title="Fondo secundario" token="surface-muted" hex={v("#F1F5F9", "#131C2E")} note="Paneles, barras y zonas de apoyo."
         preview={<div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-muted p-3"><span className="text-xs">Panel de filtros</span><span className="h-1 w-full rounded bg-text-muted" /><span className="h-1 w-2/3 rounded bg-text-muted" /></div>}
       />
       <PreviewCard
+        mode={mode}
         title="Hover" token="surface-hover" hex={v("#EEF0FE", "#1E2A44")} note="Filas y elementos al pasar el cursor."
         preview={<><span className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs">Supabase</span><span className="flex justify-between rounded-lg bg-surface-hover px-3 py-1.5 text-xs"><span>Meilisearch</span><span className="text-text-muted">hover</span></span></>}
       />
       <PreviewCard
+        mode={mode}
         title="Bordes y separadores" token="border" hex={v("#E2E8F0", "#24314A")} note="Líneas de campos, tarjetas y divisores."
         preview={<><span className="rounded-lg border-2 border-border bg-card px-3 py-1.5 text-xs text-text-muted">Buscar…</span><span className="mt-1 h-0.5 w-full bg-border" /><span className="text-[10px] text-text-muted">Divisor de sección</span></>}
       />
       <PreviewCard
+        mode={mode}
         title="Texto principal" token="text" hex={v("#0F172A", "#F1F5F9")} contrast="17,1:1" note="Títulos y cuerpo de texto."
         preview={<><span className="text-base font-bold">Título principal</span><span className="text-xs">Texto de cuerpo en Poppins regular a 16 px.</span></>}
       />
       <PreviewCard
+        mode={mode}
         title="Texto secundario" token="text-muted" hex={v("#475569", "#94A3B8")} contrast={v("7,2:1", "7,3:1")} note="Metadatos, ayudas y pies."
         preview={<><span className="text-xs text-text-muted">Última actualización hace 2 días · MIT</span><span className="text-[10px] text-text-muted">Metadatos y ayudas</span></>}
       />
       <PreviewCard
+        mode={mode}
         title="Primario" token="primary" hex={v("#4F46E5", "#818CF8")} contrast={v("6,0:1", "6,3:1")} note="Botones, enlaces y foco."
         preview={<><span className="flex items-center gap-3"><span className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-contrast">Ver ficha</span><span className="text-xs text-primary underline">Enlace</span></span><span className="rounded-lg border-2 border-primary bg-card px-3 py-1 text-xs text-text-muted">Foco</span></>}
       />
       <PreviewCard
-        title="Acentos y etiquetas" token="accent" hex={v("#C0027A", "#FC0395 · #C0027A")} contrast={v("5,7:1", "5,0:1")} note="Etiquetas destacadas e indicadores."
-        preview={<><span className={`w-fit rounded-[var(--radius-pill)] px-3 py-1 text-xs text-accent ${d ? "border-2 border-accent" : "bg-brand-pink-soft"}`}>Destacado</span><span className="flex items-center gap-3"><span className="rounded-[var(--radius-pill)] bg-brand-pink-deep px-3 py-1 text-xs text-white">Nuevo</span><span className={`h-3 w-3 rounded-full ${d ? "border-2 border-brand-pink" : "bg-brand-pink-deep"}`} /></span></>}
+        mode={mode}
+        title="Acentos y etiquetas" token="accent" hex={v("#C0027A", "#FC0395 · #C0027A")} swatch={v("#C0027A", "#FC0395")} contrast={v("5,7:1", "5,0:1")} note="Etiquetas destacadas e indicadores."
+        preview={d ? (
+          <>
+            <span className="flex items-center gap-3"><span className="h-3 w-3 rounded-full bg-brand-pink" /><span className="rounded-[var(--radius-pill)] border-2 border-accent px-4 py-1 text-xs text-accent">Destacado</span></span>
+            <span className="flex items-center gap-4"><span className="rounded-[var(--radius-pill)] bg-brand-pink-deep px-4 py-1 text-xs font-semibold text-white">Nuevo</span><span className="h-4 w-4 rounded-full border-2 border-brand-pink" /></span>
+          </>
+        ) : (
+          <>
+            <span className="w-fit rounded-[var(--radius-pill)] bg-brand-pink-soft px-4 py-1 text-xs text-accent">Destacado</span>
+            <span className="flex items-center gap-4"><span className="rounded-[var(--radius-pill)] bg-brand-pink-deep px-4 py-1 text-xs font-semibold text-white">Nuevo</span><span className="h-3 w-3 rounded-full bg-brand-pink-deep" /></span>
+          </>
+        )}
       />
     </div>
   );

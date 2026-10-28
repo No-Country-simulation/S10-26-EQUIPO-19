@@ -5,9 +5,11 @@
 
 /*
  * Design tokens de OpenBridge (tarea 5.2).
+ * "@theme inline" hace que las utilidades lean var(--surface), etc. en cada elemento,
+ * para que una sección con clase .light o .dark muestre sus propios colores.
  * Detalle y reglas de uso: docs/guia-de-estilo.md
  */
-@theme {
+@theme inline {
   /* Tipografía de la marca (se carga con next/font en app/layout.tsx) */
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
