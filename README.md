@@ -78,11 +78,35 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 ## 📁 Estructura del repositorio
 
-> 🚧 Por definir con el equipo.
+```text
+S10-26-EQUIPO-19/
+├── docs/        # Documentación del proyecto (por ahora, la guía de estilo)
+├── frontend/    # Interfaz web: Next.js + React + TypeScript + Tailwind CSS
+└── README.md
+```
+
+> 🚧 La carpeta del backend se agregará cuando se integre a la rama principal.
 
 ## ⚙️ Instalación y ejecución
 
-> 🚧 Se completará cuando el proyecto tenga su primera versión funcional.
+### Frontend
+
+**Requisitos:** Node.js 20.9 o superior y npm.
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local   # en Windows (PowerShell): copy .env.example .env.local
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000). Por defecto usa datos de ejemplo (`NEXT_PUBLIC_USE_MOCK=true`), así que no necesita el backend para funcionar.
+
+Más detalles (variables de entorno y estructura del frontend) en [`frontend/README.md`](frontend/README.md).
+
+### Backend
+
+> 🚧 Se completará cuando el backend se integre a la rama principal.
 
 ## 👥 Equipo
 
