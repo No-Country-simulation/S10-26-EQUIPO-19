@@ -79,33 +79,51 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 ## 📁 Estructura del repositorio
 
 ```text
+S10-26-EQUIPO-19/
 ├── app/                  # Código fuente del backend (FastAPI)
 │   ├── schemas/          # Modelos de validación Pydantic
 │   ├── main.py           # Instancia de FastAPI, configuración de CORS y rutas base
 │   └── __init__.py
-├── docs/                 # Documentación técnica de desarrollo
+├── docs/                 # Documentación técnica (guía de estilo, contrato de API)
 │   └── api-contract.md   # Especificación del contrato de API REST
 ├── documentacion/        # Documentos oficiales del proyecto (consigna, WBS, arquitectura)
-├── .env.example          # Plantilla de variables de entorno (sin secretos)
+├── frontend/             # Interfaz web: Next.js + React + TypeScript + Tailwind CSS
+├── .env.example          # Plantilla de variables de entorno del backend (sin secretos)
 ├── requirements.txt      # Dependencias de Python
 └── README.md             # Documentación general del proyecto
 ```
 
 ## ⚙️ Instalación y ejecución
 
-### 🚀 Backend (FastAPI)
+### 📥 Clonar el repositorio
 
-#### Requisitos previos
-- [Python 3.10+](https://www.python.org/)
-- Git
-
-#### 1. Clonar el repositorio y navegar a la carpeta raíz
 ```bash
 git clone <url-del-repositorio>
 cd S10-26-EQUIPO-19
 ```
 
-#### 2. Crear y activar el entorno virtual
+### 🖥️ Frontend
+
+**Requisitos:** Node.js 20.9 o superior y npm.
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local   # en Windows (PowerShell): copy .env.example .env.local
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000). Por defecto usa datos de ejemplo (`NEXT_PUBLIC_USE_MOCK=true`), así que no necesita el backend para funcionar.
+
+Más detalles (variables de entorno y estructura del frontend) en [`frontend/README.md`](frontend/README.md).
+
+### 🚀 Backend (FastAPI)
+
+**Requisitos previos:** [Python 3.10+](https://www.python.org/) y Git.
+
+#### 1. Crear y activar el entorno virtual
+
+Desde la carpeta raíz del repositorio:
 
 - **En Windows (PowerShell):**
   ```powershell
@@ -120,12 +138,12 @@ cd S10-26-EQUIPO-19
   source venv/bin/activate
   ```
 
-#### 3. Instalar dependencias
+#### 2. Instalar dependencias
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 4. Configurar variables de entorno
+#### 3. Configurar variables de entorno
 Copiar la plantilla `.env.example` para generar tu archivo local `.env`:
 
 - **En Windows (PowerShell):**
@@ -138,13 +156,13 @@ Copiar la plantilla `.env.example` para generar tu archivo local `.env`:
   ```
 > ⚠️ El archivo `.env` nunca debe subirse al repositorio. Las credenciales de desarrollo se comparten de forma segura por canales internos del equipo.
 
-#### 5. Iniciar el servidor de desarrollo
+#### 4. Iniciar el servidor de desarrollo
 ```bash
 uvicorn app.main:app --reload
 ```
 La API quedará escuchando en: `http://127.0.0.1:8000`
 
-#### 6. Verificación de funcionamiento
+#### 5. Verificación de funcionamiento
 - **Ruta de verificación (Health Check):**  
   Navegar a [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) en el navegador. Debe responder:
   ```json
@@ -157,8 +175,6 @@ La API quedará escuchando en: `http://127.0.0.1:8000`
 
 ## 👥 Equipo
 
-## 👥 Equipo
-
 | Integrante | Rol |
 |---|---|
 | Alexis Albarenga | Backend Developer |
@@ -166,6 +182,7 @@ La API quedará escuchando en: `http://127.0.0.1:8000`
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
 | Juan Espinosa | Backend Developer |
+| Martin Valdes | Ethical Hacker |
 | Maria Fatima Soares Gomes | Project Manager |
 | Melina Daniela Martinez | Backend Developer |
 | Thiago Viana Santos | Software Engineer |
@@ -173,4 +190,3 @@ La API quedará escuchando en: `http://127.0.0.1:8000`
 ---
 
 <p align="center">Hecho con 💙 por el <b>S10-26-equipo 19</b> · Simulación Laboral NoCountry · 2026</p>
-

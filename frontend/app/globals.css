@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* Modo oscuro por clase: se activa con <html class="dark"> (selector de tema). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens de OpenBridge (tarea 5.2).
+ * "@theme inline" hace que las utilidades lean var(--surface), etc. en cada elemento,
+ * para que una sección con clase .light o .dark muestre sus propios colores.
+ * Detalle y reglas de uso: docs/guia-de-estilo.md
+ */
+@theme inline {
+  /* Tipografía de la marca (se carga con next/font en app/layout.tsx) */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Paleta de marca */
+  --color-brand-pink: #fc0395;
+  --color-brand-indigo: #6366f1;
+  --color-brand-cyan: #07bceb;
+  --color-brand-teal: #1bdbc5;
+  --color-brand-slate: #64748b;
+  --color-brand-pink-soft: #ffe4f3;
+  --color-brand-indigo-soft: #eef0fe;
+
+  /* Rosa profundo: fondo con formas y texto en blanco (5,9:1); el rosa #FC0395 es solo color de forma */
+  --color-brand-pink-deep: #c0027a;
+  /* Índigo accesible para texto y botones (contraste AA sobre fondo claro) */
+  --color-brand-indigo-strong: #4f46e5;
+
+  /* Colores semánticos: cambian entre modo claro y oscuro (ver :root y .dark) */
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-accent: var(--accent);
+
+  /* Nivel de mantenimiento (health_status) */
+  --color-status-active: var(--status-active);
+  --color-status-active-bg: var(--status-active-bg);
+  --color-status-risk: var(--status-risk);
+  --color-status-risk-bg: var(--status-risk-bg);
+  --color-status-abandoned: var(--status-abandoned);
+  --color-status-abandoned-bg: var(--status-abandoned-bg);
+  --color-status-unknown: var(--status-unknown);
+  --color-status-unknown-bg: var(--status-unknown-bg);
+
+  /* Radios */
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+}
+
+:root,
+.light {
+  --surface: #f8fafc;
+  --surface-muted: #f1f5f9;
+  --surface-hover: #eef0fe;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --primary: #4f46e5;
+  --primary-contrast: #ffffff;
+  --accent: #c0027a;
+
+  --status-active: #0f766e;
+  --status-active-bg: #ccfbf1;
+  --status-risk: #b45309;
+  --status-risk-bg: #fef3c7;
+  --status-abandoned: #9d0264;
+  --status-abandoned-bg: #ffe4f3;
+  --status-unknown: #475569;
+  --status-unknown-bg: #e2e8f0;
+
+  color-scheme: light;
+}
+
+.dark {
+  --surface: #0b1220;
+  --surface-muted: #131c2e;
+  --surface-hover: #1e2a44;
+  --card: #131c2e;
+  --border: #24314a;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --primary: #818cf8;
+  --primary-contrast: #0b1220;
+  /* En modo oscuro el rosa de marca sirve para texto y formas de acento (5,0:1); los fondos siguen en #C0027A */
+  --accent: #fc0395;
+
+  --status-active: #5eead4;
+  --status-active-bg: #12333a;
+  --status-risk: #fcd34d;
+  --status-risk-bg: #3a2e12;
+  --status-abandoned: #ff8fcf;
+  --status-abandoned-bg: #3d1230;
+  --status-unknown: #cbd5e1;
+  --status-unknown-bg: #283257;
+
+  color-scheme: dark;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
