@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 class CategoryBase(BaseModel):
-    name: str = Field(..., description="Nombre único de la categoría", examples=["Bases de Datos Vectoriales"])
+    name: str = Field(..., description="Nombre único de la categoría", examples=["Búsqueda Vectorial"])
 
 class CategoryResponse(CategoryBase):
     id: int = Field(..., description="Identificador único de la categoría", examples=[1])
