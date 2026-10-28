@@ -73,6 +73,8 @@ class RepositoryPaginationResponse(BaseModel):
 
 class RepositoryDetailResponse(RepositoryListItem):
     homepage: str | None = Field(default=None, description="Sitio web oficial", examples=["https://qdrant.tech"])
+    detected_stack: list[str] = Field(default=[], description="Tecnologías detectadas en el repositorio", examples=[["Rust", "Docker", "REST API", "gRPC"]])
+    integration_methods_suggested: list[str] = Field(default=[], description="Métodos de integración sugeridos", examples=[["API REST", "SDK / librería", "Docker"]])
     open_issues: int = Field(default=0, description="Cantidad de issues abiertos", examples=[120])
     has_issues: bool = Field(default=True, description="Indica si usa GitHub Issues")
     issues_url: str | None = Field(default=None, description="URL del sistema de incidencias si no usa GitHub Issues")
