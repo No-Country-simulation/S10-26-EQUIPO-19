@@ -177,7 +177,7 @@ Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.
 ---
 
 ### 2.4 Ficha Técnica de Repositorio (Detalle)
-Devuelve la ficha completa con métricas detalladas e ideas de integración relacionadas. Cada idea incluye los cinco campos que pide la consigna: tipo de integración, disparadores o webhooks, snippet de ejemplo, compatibilidad de stack y nivel de dificultad.
+Devuelve la ficha completa con métricas detalladas e ideas de integración relacionadas. Incluye además `detected_stack` e `integration_methods_suggested`, que usa el asistente para recomendar y conectar herramientas. Cada idea incluye los cinco campos que pide la consigna: tipo de integración, disparadores o webhooks, snippet de ejemplo, compatibilidad de stack y nivel de dificultad.
 
 - **Método:** `GET`
 - **Ruta:** `/repositories/{id}`
@@ -197,6 +197,8 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
   "license": "Apache-2.0",
   "language": "Rust",
   "topics": ["vector-search", "database", "rust", "machine-learning"],
+  "detected_stack": ["Rust", "Docker", "REST API", "gRPC"],
+  "integration_methods_suggested": ["API REST", "SDK / librería", "Docker"],
   "stars": 19500,
   "forks": 1400,
   "open_issues": 120,
@@ -282,7 +284,7 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
 ## 3. Asistente Consultor (RAG)
 
 ### 3.1 Consultar al Asistente
-Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con recomendaciones, fuentes citadas y la arquitectura recomendada en formato estructurado (componentes y conexiones) para que el frontend la dibuje con React Flow.
+Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con recomendaciones y fuentes citadas. Devuelve además la arquitectura recomendada en formato estructurado (componentes y conexiones) para que el frontend la dibuje con React Flow. Cada conexión indica si corresponde a una idea de integración aprobada del catálogo (`verified: true` e `integration_code`) o si es una propuesta de la IA (`verified: false`). El bloque `architecture` puede ser `null` cuando la consulta no genera una arquitectura.
 
 - **Método:** `POST`
 - **Ruta:** `/assistant/chat`
