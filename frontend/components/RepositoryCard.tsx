@@ -25,7 +25,7 @@ export default function RepositoryCard({ repo }: { repo: RepositoryListItem }) {
         <div><dt className="inline font-semibold text-text">Actualizado: </dt><dd className="inline">{formatDate(repo.last_commit_at)}</dd></div>
       </dl>
       <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="rounded-[var(--radius-pill)] bg-brand-indigo-soft px-3 py-1 text-xs font-medium text-brand-indigo-strong dark:bg-surface-muted dark:text-primary">
+        <span className="rounded-[var(--radius-pill)] bg-brand-indigo-soft px-3 py-1 text-xs font-medium text-brand-indigo-strong dark:bg-surface-hover dark:text-primary">
           {repo.category.name}
         </span>
         <a href={repo.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">

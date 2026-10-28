@@ -20,7 +20,7 @@ export default function NavLinks() {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={`inline-flex h-11 items-center rounded-[var(--radius-pill)] px-5 font-semibold ${
-              active ? "bg-primary text-primary-contrast" : "text-text-muted hover:bg-surface-muted"
+              active ? "bg-primary text-primary-contrast" : "text-text-muted hover:bg-surface-hover"
             }`}
           >
             {link.label}

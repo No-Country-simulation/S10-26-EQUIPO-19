@@ -21,13 +21,15 @@
   --color-brand-pink-soft: #ffe4f3;
   --color-brand-indigo-soft: #eef0fe;
 
-  /* Tonos accesibles para texto y botones (contraste AA sobre fondo claro) */
-  --color-brand-pink-strong: #c0027a;
+  /* Rosa profundo: fondo con formas y texto en blanco (5,9:1); el rosa #FC0395 es solo color de forma */
+  --color-brand-pink-deep: #c0027a;
+  /* Índigo accesible para texto y botones (contraste AA sobre fondo claro) */
   --color-brand-indigo-strong: #4f46e5;
 
   /* Colores semánticos: cambian entre modo claro y oscuro (ver :root y .dark) */
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
   --color-card: var(--card);
   --color-border: var(--border);
   --color-text: var(--text);
@@ -51,12 +53,14 @@
   --radius-pill: 999px;
 }
 
-:root {
+:root,
+.light {
   --surface: #f8fafc;
-  --surface-muted: #eef2f7;
+  --surface-muted: #f1f5f9;
+  --surface-hover: #eef0fe;
   --card: #ffffff;
   --border: #e2e8f0;
-  --text: #1e293b;
+  --text: #0f172a;
   --text-muted: #475569;
   --primary: #4f46e5;
   --primary-contrast: #ffffff;
@@ -75,15 +79,17 @@
 }
 
 .dark {
-  --surface: #0b1020;
-  --surface-muted: #111833;
-  --card: #151d3b;
-  --border: #283257;
+  --surface: #0b1220;
+  --surface-muted: #131c2e;
+  --surface-hover: #1e2a44;
+  --card: #131c2e;
+  --border: #24314a;
   --text: #f1f5f9;
-  --text-muted: #a5b0c8;
+  --text-muted: #94a3b8;
   --primary: #818cf8;
-  --primary-contrast: #0b1020;
-  --accent: #ff5cb8;
+  --primary-contrast: #0b1220;
+  /* En modo oscuro el rosa de marca sirve para texto y formas de acento (5,0:1); los fondos siguen en #C0027A */
+  --accent: #fc0395;
 
   --status-active: #5eead4;
   --status-active-bg: #12333a;

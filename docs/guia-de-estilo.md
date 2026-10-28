@@ -6,15 +6,24 @@ Tarea 5.2. Define cómo se aplica la identidad visual de OpenBridge (tarea 5.1) 
 
 | Nombre | Hex | Token Tailwind | Uso |
 |---|---|---|---|
-| Rosa | `#FC0395` | `brand-pink` | Acento de marca en elementos grandes (ilustraciones, bordes, fondos de destaque). |
+| Rosa | `#FC0395` | `brand-pink` | Color de forma: íconos, puntos, líneas, gráficos e indicadores. Nunca como fondo. |
 | Índigo | `#6366F1` | `brand-indigo` | Color principal de marca. |
 | Cian | `#07BCEB` | `brand-cyan` | Apoyo en gráficos y decoración. |
 | Turquesa | `#1BDBC5` | `brand-teal` | Apoyo en gráficos y decoración. |
 | Pizarra | `#64748B` | `brand-slate` | Neutro de marca. |
 | Rosa suave | `#FFE4F3` | `brand-pink-soft` | Fondos de avisos y etiquetas. |
-| Índigo suave | `#EEF0FE` | `brand-indigo-soft` | Fondos de secciones y etiquetas de categoría. |
+| Índigo suave | `#EEF0FE` | `brand-indigo-soft` | Fondos de secciones, etiquetas de categoría y hover en modo claro. |
+| Rosa profundo | `#C0027A` | `brand-pink-deep` | Fondo de botones, etiquetas y tarjetas destacadas, con formas, íconos y texto en blanco. |
 
-**Contraste:** el rosa y el índigo puros no alcanzan el contraste mínimo (4,5:1) para texto pequeño sobre blanco. Para texto y botones se usan sus versiones fuertes: `brand-pink-strong` (`#C0027A`) y `brand-indigo-strong` (`#4F46E5`).
+**Rosa: forma o fondo, nunca los dos.**
+
+- `#FC0395` es color de **forma**. Como fondo no sirve: el texto blanco encima tiene un contraste de 3,8:1, insuficiente para texto normal (mínimo 4,5:1), y en superficies grandes vibra y cansa la vista, sobre todo en modo oscuro.
+- `#C0027A` sí puede ser **fondo**, con formas, íconos y texto en blanco encima (contraste 5,9:1, pasa AA).
+- Como color de texto, el acento es `#C0027A` en modo claro (5,7:1 sobre el fondo) y `#FC0395` en modo oscuro (5,0:1 sobre el fondo). Por eso los componentes usan el token `accent` y no el color de marca directamente.
+
+**Saturación y luminosidad.** Los colores muy saturados y luminosos (rosa, cian, turquesa, índigo) "expanden": parecen más grandes y, sobre fondo oscuro, brillan más. Los de poca luminosidad o saturación (rosa profundo, pizarra, azul noche) "contraen". Regla práctica: superficies grandes en colores que contraen; acentos, íconos y detalles en colores que expanden, con trazos algo más finos en modo oscuro.
+
+Para texto y botones el índigo se usa en su versión accesible, `brand-indigo-strong` (`#4F46E5`).
 
 ## 2. Colores semánticos (modo claro y oscuro)
 
@@ -22,16 +31,17 @@ Los componentes usan estos tokens, no los colores de marca directamente, para qu
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `surface` | `#F8FAFC` | `#0B1020` | Fondo de la página |
-| `surface-muted` | `#EEF2F7` | `#111833` | Fondos secundarios y hover |
-| `card` | `#FFFFFF` | `#151D3B` | Tarjetas y paneles |
-| `border` | `#E2E8F0` | `#283257` | Bordes y separadores |
-| `text` | `#1E293B` | `#F1F5F9` | Texto principal |
-| `text-muted` | `#475569` | `#A5B0C8` | Texto secundario |
-| `primary` | `#4F46E5` | `#818CF8` | Botones, enlaces y foco |
-| `accent` | `#C0027A` | `#FF5CB8` | Acentos y etiquetas destacadas |
+| `surface` | `#F8FAFC` | `#0B1220` | Fondo de la página |
+| `surface-muted` | `#F1F5F9` | `#131C2E` | Fondo secundario: paneles, barras y zonas de apoyo |
+| `surface-hover` | `#EEF0FE` | `#1E2A44` | Filas y elementos al pasar el cursor |
+| `card` | `#FFFFFF` | `#131C2E` | Tarjetas y paneles |
+| `border` | `#E2E8F0` | `#24314A` | Bordes y separadores |
+| `text` | `#0F172A` | `#F1F5F9` | Texto principal (17,1:1) |
+| `text-muted` | `#475569` | `#94A3B8` | Texto secundario (7,2:1 / 7,3:1) |
+| `primary` | `#4F46E5` | `#818CF8` | Botones, enlaces y foco (6,0:1 / 6,3:1) |
+| `accent` | `#C0027A` | `#FC0395` | Acentos, etiquetas e indicadores (5,7:1 / 5,0:1) |
 
-Ejemplo: `bg-card text-text border-border`.
+Los contrastes indicados se miden sobre el fondo de la página (`surface`). Ejemplo de uso: `bg-card text-text border-border`.
 
 ## 3. Nivel de mantenimiento
 
@@ -69,17 +79,21 @@ Fuente: **Poppins** (Google Fonts), cargada con `next/font` en `app/layout.tsx`.
 ## 6. Componentes base
 
 - **Botón principal:** `bg-primary text-primary-contrast`, alto mínimo 44 px, forma de píldora.
-- **Botón secundario:** borde `border-border`, fondo transparente, hover `bg-surface-muted`.
+- **Botón secundario:** borde `border-border`, fondo transparente, hover `bg-surface-hover`.
+- **Botón y etiqueta destacados ("Nuevo"):** `bg-brand-pink-deep text-white`.
+- **Etiqueta destacada con borde:** `border-2 border-accent text-accent`.
 - **Enlace:** `text-primary`, subrayado al pasar el cursor.
 - **Tarjeta de repositorio:** `components/RepositoryCard.tsx`.
 - **Selector de tema:** `components/ThemeToggle.tsx`.
 
 ## 7. Accesibilidad
 
-- Contraste mínimo 4,5:1 para texto normal.
+- Contraste mínimo 4,5:1 para texto normal y 3:1 para texto grande y elementos gráficos (WCAG 2.1 AA).
+- Se puede comprobar con Lighthouse (pestaña de las herramientas de desarrollo de Chrome, categoría Accesibilidad) o con la extensión axe DevTools.
 - Foco visible en todos los elementos interactivos (`:focus-visible` con `primary`).
 - Áreas táctiles de al menos 44 px.
-- Estados y niveles siempre con texto, no solo con color.
+- Estados y niveles siempre con texto o íconos, no solo con color.
+- Antes de aprobar un color, revisarlo en un monitor estándar, en una pantalla de gama amplia (Retina u OLED) y en el móvil con brillo alto y bajo: el mismo HEX se percibe más intenso en pantallas de gama amplia y en modo oscuro.
 - Interfaz en español (`<html lang="es">`).
 
 ## 8. Modo claro y modo oscuro (opcional 9.7)
