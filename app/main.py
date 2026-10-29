@@ -1,12 +1,11 @@
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import categories, repositories
 from app.schemas import (
     CategoryResponse,
     RepositoryListItem,
-    RepositoryPaginationResponse,
     RepositoryDetailResponse,
     MetricSummary,
     MetricDetail,
@@ -88,32 +87,6 @@ MOCK_REPOSITORIES_LIST = [
 def health_check():
     """Ruta básica de verificación del estado del servidor."""
     return {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
-
-
-@app.get(
-    "/api/v1/repositories/search",
-    response_model=RepositoryPaginationResponse,
-    tags=["Repositorios"],
-    summary="Búsqueda con filtros de repositorios",
-)
-def search_repositories(
-    q: str | None = Query(default=None, description="Texto a buscar en nombre, descripción o tópicos"),
-    category_id: int | None = Query(default=None, description="ID de la categoría a filtrar"),
-    language: str | None = Query(default=None, description="Lenguaje principal (ej. Python, Rust, TypeScript)"),
-    min_stars: int | None = Query(default=None, ge=0, description="Cantidad mínima de estrellas en GitHub"),
-    license: str | None = Query(default=None, description="Licencia declarada (ej. MIT, Apache-2.0)"),
-    health_status: str | None = Query(default=None, description="Nivel de mantenimiento: Activo, En riesgo o Abandonado"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=10, ge=1, le=50),
-):
-    """Permite filtrar el catálogo combinando búsqueda textual y los 5 filtros facetados."""
-    return RepositoryPaginationResponse(
-        total=len(MOCK_REPOSITORIES_LIST),
-        page=page,
-        page_size=page_size,
-        total_pages=1,
-        items=MOCK_REPOSITORIES_LIST,
-    )
 
 
 @app.get(
