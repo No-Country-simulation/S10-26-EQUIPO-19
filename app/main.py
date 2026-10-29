@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import categories, repositories
+from app.routers import categories, repositories, github_router, github_inventory_router
 from app.schemas import (
     CategoryResponse,
     RepositoryListItem,
@@ -35,6 +35,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(github_inventory_router.router)
+app.include_router(github_router.router)
 app.include_router(categories.router)
 app.include_router(repositories.router)
 
