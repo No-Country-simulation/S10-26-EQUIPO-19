@@ -26,7 +26,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen bg-surface font-sans text-text antialiased">
+      {/* suppressHydrationWarning: algunas extensiones del navegador agregan atributos al body antes de que cargue React. */}
+      <body className="min-h-screen bg-surface font-sans text-text antialiased" suppressHydrationWarning>
         <Header />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="border-t border-border px-4 py-6 text-center text-sm text-text-muted">
