@@ -58,16 +58,24 @@ Componente: `components/HealthBadge.tsx`.
 
 ## 4. Tipografía
 
-Fuente: **Poppins** (Google Fonts), cargada con `next/font` en `app/layout.tsx`. Código: fuente monoespaciada del sistema.
+Dos fuentes de Google Fonts, cargadas con `next/font` en `app/layout.tsx`:
 
-| Nivel | Clase Tailwind | Tamaño / peso |
-|---|---|---|
-| Título principal | `text-4xl font-bold` | 36 px · 700 |
-| Título de sección | `text-2xl font-semibold` | 24 px · 600 |
-| Subtítulo | `text-lg font-semibold` | 18 px · 600 |
-| Cuerpo | `text-base` | 16 px · 400 |
-| Secundario | `text-sm text-text-muted` | 14 px · 400 |
-| Código | `font-mono text-sm` | 14 px |
+- **Poppins** (`font-display`, variable `--font-display`): tipografía principal, solo para titulares en tamaño grande. `h1` a `h4` la usan por defecto (`app/globals.css`).
+- **Roboto** (`font-sans`, variable `--font-sans`): tipografía secundaria, para textos, botones, etiquetas y formularios. Es la fuente por defecto del `body`.
+- Código: fuente monoespaciada del sistema (`font-mono`).
+
+| Nivel | Fuente | Clase Tailwind | Tamaño / peso |
+|---|---|---|---|
+| Título principal | Poppins | `font-display text-4xl font-bold` | 36 px · 700 |
+| Título de sección | Poppins | `font-display text-2xl font-semibold` | 24 px · 600 |
+| Subtítulo | Poppins | `font-display text-lg font-semibold` | 18 px · 600 |
+| Cuerpo | Roboto | `text-base` | 16 px · 400 |
+| Secundario | Roboto | `text-sm text-text-muted` | 14 px · 400 |
+| Código | Monoespaciada | `font-mono text-sm` | 14 px · 400 |
+
+**Por qué dos fuentes.** Roboto es compatible y no genera problemas de visibilidad al cambiar de plataformas y dispositivos. Como es geométrica, combina con Poppins, pero permite una mejor lectura en pantalla en bloques de texto largos, ya que tiene una mejor ergonomía visual, sobre todo en tamaños reducidos y pantallas pequeñas. Esto lo facilitan las contraformas: en Roboto la «a» minúscula no se parece a la «o» minúscula, como sí ocurre en Poppins. Por eso Poppins queda solo para titulares en tamaño grande.
+
+**Atributos de Poppins** (la tipografía representa una voz): palo seco, sólida, san serif, estilo moderno, claro, formal, buen peso visual, ancho fijo, legibilidad, personalidad y trazos expresivos.
 
 ## 5. Espaciado, radios y sombras
 
