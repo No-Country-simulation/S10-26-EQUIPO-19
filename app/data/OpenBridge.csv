@@ -1,0 +1,313 @@
+id,categoria,full_name,licencia
+1,Autenticación,keycloak/keycloak,Apache-2.0
+2,Autenticación,nextauthjs/next-auth,ISC
+3,Autenticación,ory/kratos,Apache-2.0
+4,Autenticación,ory/hydra,Apache-2.0
+5,Autenticación,supertokens/supertokens-core,A verificar
+6,Autenticación,logto-io/logto,A verificar
+7,Autenticación,goauthentik/authentik,A verificar
+8,Autenticación,zitadel/zitadel,AGPL-3.0
+9,Autenticación,authelia/authelia,Apache-2.0
+10,Autenticación,better-auth/better-auth,MIT
+11,Base de Datos y Backend,supabase/supabase,Apache-2.0
+12,Base de Datos y Backend,postgres/postgres,PostgreSQL License
+13,Base de Datos y Backend,pocketbase/pocketbase,MIT
+14,Base de Datos y Backend,appwrite/appwrite,BSD
+15,Base de Datos y Backend,nhost/nhost,MIT
+16,Base de Datos y Backend,hasura/graphql-engine,A verificar
+17,Base de Datos y Backend,valkey-io/valkey,BSD
+18,Base de Datos y Backend,redis/redis,Revisar
+19,Base de Datos y Backend,cockroachdb/cockroach,A verificar
+20,Base de Datos y Backend,surrealdb/surrealdb,Revisar
+21,Base de Datos y Backend,duckdb/duckdb,MIT
+22,Base de Datos y Backend,prisma/orm,Apache-2.0
+23,Base de Datos y Backend,drizzle-team/drizzle-orm,Apache-2.0
+24,Base de Datos y Backend,parse-community/parse-server,Apache-2.0
+25,Búsqueda Vectorial,qdrant/qdrant,Apache-2.0
+26,Búsqueda Vectorial,pgvector/pgvector,PostgreSQL License
+27,Búsqueda Vectorial,weaviate/weaviate,A verificar
+28,Búsqueda Vectorial,milvus-io/milvus,Apache-2.0
+29,Búsqueda Vectorial,chroma-core/chroma,Apache-2.0
+30,Pagos y Comercio,killbill/killbill,Apache-2.0
+31,Pagos y Comercio,getlago/lago,AGPL-3.0
+32,Pagos y Comercio,juspay/hyperswitch,Apache-2.0
+33,Pagos y Comercio,invoiceninja/invoiceninja,Revisar
+34,Pagos y Comercio,medusajs/medusa,A verificar
+35,Pagos y Comercio,saleor/saleor,BSD
+36,Pagos y Comercio,btcpayserver/btcpayserver,MIT
+37,IA y LLM,ollama/ollama,MIT
+38,IA y LLM,langchain-ai/langchain,MIT
+39,IA y LLM,run-llama/llama_index,MIT
+40,IA y LLM,open-webui/open-webui,A verificar
+41,IA y LLM,langgenius/dify,A verificar
+42,IA y LLM,huggingface/transformers,Apache-2.0
+43,IA y LLM,vllm-project/vllm,Apache-2.0
+44,IA y LLM,ggml-org/llama.cpp,A verificar
+45,IA y LLM,FlowiseAI/Flowise,A verificar
+46,IA y LLM,langfuse/langfuse,A verificar
+47,IA y LLM,crewAIInc/crewAI,MIT
+48,Analítica,PostHog/posthog,MIT
+49,Analítica,plausible/analytics,AGPL-3.0
+50,Analítica,umami-software/umami,MIT
+51,Analítica,matomo-org/matomo,GPL-3.0
+52,Analítica,metabase/metabase,A verificar
+53,Analítica,apache/superset,Apache-2.0
+54,Analítica,getredash/redash,A verificar
+55,Analítica,openreplay/openreplay,AGPL-3.0
+56,Búsqueda,meilisearch/meilisearch,MIT
+57,Búsqueda,typesense/typesense,GPL-3.0
+58,Búsqueda,elastic/elasticsearch,Revisar
+59,Búsqueda,opensearch-project/OpenSearch,A verificar
+60,Búsqueda,quickwit-oss/quickwit,A verificar
+61,Búsqueda,manticoresoftware/manticoresearch,GPL-3.0
+62,Búsqueda,apache/solr,Apache-2.0
+63,Almacenamiento de Archivos,minio/minio,AGPL-3.0
+64,Almacenamiento de Archivos,seaweedfs/seaweedfs,Apache-2.0
+65,Almacenamiento de Archivos,nextcloud/server,A verificar
+66,Almacenamiento de Archivos,tus/tusd,MIT
+67,Almacenamiento de Archivos,transloadit/uppy,MIT
+68,Almacenamiento de Archivos,ceph/ceph,A verificar
+69,Mensajería y Colas,rabbitmq/rabbitmq-server,A verificar
+70,Mensajería y Colas,apache/kafka,A verificar
+71,Mensajería y Colas,nats-io/nats-server,Apache-2.0
+72,Mensajería y Colas,redpanda-data/redpanda,A verificar
+73,Mensajería y Colas,taskforcesh/bullmq,MIT
+74,Mensajería y Colas,celery/celery,BSD
+75,Notificaciones y Comunicación,novuhq/novu,MIT
+76,Notificaciones y Comunicación,knadh/listmonk,AGPL-3.0
+77,Notificaciones y Comunicación,mautic/mautic,A verificar
+78,Notificaciones y Comunicación,postalserver/postal,A verificar
+79,Notificaciones y Comunicación,RocketChat/Rocket.Chat,A verificar
+80,Notificaciones y Comunicación,mattermost/mattermost,A verificar
+81,Notificaciones y Comunicación,binwiederhier/ntfy,A verificar
+82,Notificaciones y Comunicación,gotify/server,MIT
+83,Automatización y Workflows,n8n-io/n8n,Revisar
+84,Automatización y Workflows,activepieces/activepieces,A verificar
+85,Automatización y Workflows,temporalio/temporal,MIT
+86,Automatización y Workflows,windmill-labs/windmill,A verificar
+87,Automatización y Workflows,triggerdotdev/trigger.dev,Apache-2.0
+88,Automatización y Workflows,apache/airflow,Apache-2.0
+89,Automatización y Workflows,PrefectHQ/prefect,Apache-2.0
+90,Automatización y Workflows,kestra-io/kestra,Apache-2.0
+91,Observabilidad y Monitoreo,grafana/grafana,AGPL-3.0
+92,Observabilidad y Monitoreo,prometheus/prometheus,Apache-2.0
+93,Observabilidad y Monitoreo,getsentry/sentry,Revisar
+94,Observabilidad y Monitoreo,SigNoz/signoz,A verificar
+95,Observabilidad y Monitoreo,open-telemetry/opentelemetry-collector,Apache-2.0
+96,Observabilidad y Monitoreo,louislam/uptime-kuma,MIT
+97,Observabilidad y Monitoreo,grafana/loki,AGPL-3.0
+98,Observabilidad y Monitoreo,jaegertracing/jaeger,Apache-2.0
+99,CMS y Contenido,strapi/strapi,MIT
+100,CMS y Contenido,directus/directus,Revisar
+101,CMS y Contenido,payloadcms/payload,MIT
+102,CMS y Contenido,TryGhost/Ghost,MIT
+103,CMS y Contenido,keystonejs/keystone,MIT
+104,CMS y Contenido,decaporg/decap-cms,MIT
+105,Feature Flags,Unleash/unleash,AGPL-3.0
+106,Feature Flags,growthbook/growthbook,A verificar
+107,Feature Flags,Flagsmith/flagsmith,BSD
+108,API Gateway y Proxy,Kong/kong,Apache-2.0
+109,API Gateway y Proxy,apache/apisix,Apache-2.0
+110,API Gateway y Proxy,traefik/traefik,MIT
+111,API Gateway y Proxy,caddyserver/caddy,Apache-2.0
+112,Despliegue (PaaS),coollabsio/coolify,Apache-2.0
+113,Despliegue (PaaS),dokku/dokku,MIT
+114,Despliegue (PaaS),caprover/caprover,Apache-2.0
+115,Autenticación,casdoor/casdoor,Apache-2.0
+116,Autenticación,teamhanko/hanko,AGPL-3.0
+117,Autenticación,dexidp/dex,Apache-2.0
+118,Autenticación,oauth2-proxy/oauth2-proxy,MIT
+119,Autenticación,openfga/openfga,Apache-2.0
+120,Autenticación,apache/casbin,Apache-2.0
+121,Autenticación,kanidm/kanidm,A verificar
+122,Autenticación,cerbos/cerbos,Apache-2.0
+123,Base de Datos y Backend,mysql/mysql-server,LGPL
+124,Base de Datos y Backend,MariaDB/server,GPL-2.0
+125,Base de Datos y Backend,ClickHouse/ClickHouse,Apache-2.0
+126,Base de Datos y Backend,timescale/timescaledb,A verificar
+127,Base de Datos y Backend,mongodb/mongo,Revisar
+128,Base de Datos y Backend,sqlite/sqlite,A verificar
+129,Base de Datos y Backend,tursodatabase/libsql,MIT
+130,Base de Datos y Backend,typeorm/typeorm,MIT
+131,Base de Datos y Backend,sequelize/sequelize,MIT
+132,Base de Datos y Backend,dragonflydb/dragonfly,Revisar
+133,Base de Datos y Backend,neondatabase/neon,Apache-2.0
+134,Base de Datos y Backend,electric-sql/electric,Apache-2.0
+135,Base de Datos y Backend,PostgREST/postgrest,MIT
+136,Base de Datos y Backend,apache/cassandra,Apache-2.0
+137,Búsqueda Vectorial,lancedb/lancedb,Apache-2.0
+138,Búsqueda Vectorial,marqo-ai/marqo,Apache-2.0
+139,Búsqueda Vectorial,vespa-engine/vespa,Apache-2.0
+140,Búsqueda Vectorial,facebookresearch/faiss,MIT
+141,Pagos y Comercio,bagisto/bagisto,MIT
+142,Pagos y Comercio,woocommerce/woocommerce,LGPL
+143,Pagos y Comercio,PrestaShop/PrestaShop,A verificar
+144,Pagos y Comercio,Sylius/Sylius,A verificar
+145,Pagos y Comercio,vendurehq/vendure,GPL-3.0
+146,Pagos y Comercio,spree/spree,BSD
+147,Pagos y Comercio,akaunting/akaunting,Revisar
+148,Pagos y Comercio,frappe/erpnext,GPL-3.0
+149,IA y LLM,mudler/LocalAI,MIT
+150,IA y LLM,langchain-ai/langgraph,MIT
+151,IA y LLM,microsoft/autogen,A verificar
+152,IA y LLM,deepset-ai/haystack,A verificar
+153,IA y LLM,BerriAI/litellm,A verificar
+154,IA y LLM,Mintplex-Labs/anything-llm,MIT
+155,IA y LLM,infiniflow/ragflow,Apache-2.0
+156,IA y LLM,stanfordnlp/dspy,MIT
+157,IA y LLM,Unstructured-IO/unstructured,Apache-2.0
+158,IA y LLM,mem0ai/mem0,Apache-2.0
+159,IA y LLM,docling-project/docling,MIT
+160,Analítica,lightdash/lightdash,A verificar
+161,Analítica,evidence-dev/evidence,MIT
+162,Analítica,rudderlabs/rudder-server,Revisar
+163,Analítica,cube-js/cube,Apache-2.0
+164,Analítica,Openpanel-dev/openpanel,AGPL-3.0
+165,Analítica,jitsucom/jitsu,MIT
+166,Búsqueda,valeriansaliou/sonic,A verificar
+167,Búsqueda,paradedb/paradedb,AGPL-3.0
+168,Búsqueda,oramasearch/orama,Apache-2.0
+169,Búsqueda,quickwit-oss/tantivy,MIT
+170,Almacenamiento de Archivos,filebrowser/filebrowser,Apache-2.0
+171,Almacenamiento de Archivos,haiwen/seafile,LGPL
+172,Almacenamiento de Archivos,rclone/rclone,MIT
+173,Almacenamiento de Archivos,juicedata/juicefs,Apache-2.0
+174,Mensajería y Colas,apache/pulsar,Apache-2.0
+175,Mensajería y Colas,emqx/emqx,Revisar
+176,Mensajería y Colas,hibiken/asynq,MIT
+177,Mensajería y Colas,riverqueue/river,A verificar
+178,Mensajería y Colas,centrifugal/centrifugo,Apache-2.0
+179,Mensajería y Colas,soketi/soketi,AGPL-3.0
+180,Notificaciones y Comunicación,zulip/zulip,Apache-2.0
+181,Notificaciones y Comunicación,element-hq/synapse,A verificar
+182,Notificaciones y Comunicación,caronc/apprise,BSD
+183,Notificaciones y Comunicación,chatwoot/chatwoot,MIT
+184,Notificaciones y Comunicación,resend/react-email,MIT
+185,Notificaciones y Comunicación,mjmlio/mjml,MIT
+186,Automatización y Workflows,huginn/huginn,MIT
+187,Automatización y Workflows,node-red/node-red,Apache-2.0
+188,Automatización y Workflows,dagster-io/dagster,Apache-2.0
+189,Automatización y Workflows,inngest/inngest,Revisar
+190,Automatización y Workflows,hatchet-dev/hatchet,MIT
+191,Observabilidad y Monitoreo,netdata/netdata,GPL-3.0
+192,Observabilidad y Monitoreo,VictoriaMetrics/VictoriaMetrics,Apache-2.0
+193,Observabilidad y Monitoreo,openobserve/openobserve,AGPL-3.0
+194,Observabilidad y Monitoreo,grafana/tempo,AGPL-3.0
+195,Observabilidad y Monitoreo,coroot/coroot,Apache-2.0
+196,Observabilidad y Monitoreo,healthchecks/healthchecks,BSD
+197,CMS y Contenido,wagtail/wagtail,BSD
+198,CMS y Contenido,WordPress/WordPress,LGPL
+199,CMS y Contenido,sanity-io/sanity,MIT
+200,CMS y Contenido,tinacms/tinacms,Apache-2.0
+201,CMS y Contenido,outline/outline,Revisar
+202,CMS y Contenido,BookStackApp/BookStack,MIT
+203,Feature Flags,open-feature/flagd,Apache-2.0
+204,Feature Flags,flipt-io/flipt,A verificar
+205,API Gateway y Proxy,envoyproxy/envoy,Apache-2.0
+206,API Gateway y Proxy,TykTechnologies/tyk,A verificar
+207,API Gateway y Proxy,nginx/nginx,BSD
+208,API Gateway y Proxy,haproxy/haproxy,A verificar
+209,API Gateway y Proxy,krakend/krakend-ce,Apache-2.0
+210,Herramientas para APIs,hoppscotch/hoppscotch,MIT
+211,Herramientas para APIs,usebruno/bruno,MIT
+212,Herramientas para APIs,swagger-api/swagger-ui,Apache-2.0
+213,Despliegue (PaaS),Dokploy/dokploy,A verificar
+214,Despliegue (PaaS),kubernetes/kubernetes,A verificar
+215,Despliegue (PaaS),k3s-io/k3s,Apache-2.0
+216,Despliegue (PaaS),portainer/portainer,A verificar
+217,Despliegue (PaaS),rancher/rancher,Apache-2.0
+218,Herramientas de Negocio,calcom/cal.diy,MIT
+219,Herramientas de Negocio,formbricks/formbricks,A verificar
+220,Herramientas de Negocio,documenso/documenso,AGPL-3.0
+221,Herramientas de Negocio,twentyhq/twenty,A verificar
+222,Herramientas de Negocio,makeplane/plane,AGPL-3.0
+223,Paneles Internos y Low-code,appsmithorg/appsmith,Apache-2.0
+224,Paneles Internos y Low-code,ToolJet/ToolJet,AGPL-3.0
+225,Paneles Internos y Low-code,nocodb/nocodb,Revisar
+226,Paneles Internos y Low-code,Budibase/budibase,Revisar
+227,Paneles Internos y Low-code,refinedev/refine,MIT
+228,Paneles Internos y Low-code,marmelab/react-admin,MIT
+229,Seguridad y Secretos,hashicorp/vault,Revisar
+230,Seguridad y Secretos,Infisical/infisical,A verificar
+231,Seguridad y Secretos,bitwarden/server,A verificar
+232,Seguridad y Secretos,trufflesecurity/trufflehog,AGPL-3.0
+233,Seguridad y Secretos,aquasecurity/trivy,Apache-2.0
+234,Seguridad y Secretos,crowdsecurity/crowdsec,MIT
+235,UI y Componentes,shadcn-ui/ui,MIT
+236,UI y Componentes,mui/material-ui,MIT
+237,UI y Componentes,chakra-ui/chakra-ui,MIT
+238,UI y Componentes,ant-design/ant-design,MIT
+239,UI y Componentes,recharts/recharts,MIT
+240,UI y Componentes,apache/echarts,Apache-2.0
+241,Geolocalización y Logística,Project-OSRM/osrm-backend,BSD
+242,Geolocalización y Logística,valhalla/valhalla,A verificar
+243,Geolocalización y Logística,graphhopper/graphhopper,Apache-2.0
+244,Geolocalización y Logística,google/or-tools,Apache-2.0
+245,Geolocalización y Logística,osm-search/Nominatim,GPL-3.0
+246,Geolocalización y Logística,postgis/postgis,GPL-2.0
+247,Geolocalización y Logística,traccar/traccar,Apache-2.0
+248,Geolocalización y Logística,openboxes/openboxes,EPL-1.0
+249,Geolocalización y Logística,maplibre/maplibre-gl-js,BSD
+250,Geolocalización y Logística,Leaflet/Leaflet,BSD
+251,Video y Tiempo Real,jitsi/jitsi-meet,Apache-2.0
+252,Video y Tiempo Real,livekit/livekit,Apache-2.0
+253,Video y Tiempo Real,Chocobozzz/PeerTube,AGPL-3.0
+254,Video y Tiempo Real,owncast/owncast,MIT
+255,Educación (LMS),moodle/moodle,GPL-3.0
+256,Educación (LMS),openedx/openedx-platform,AGPL-3.0
+257,Educación (LMS),instructure/canvas-lms,AGPL-3.0
+258,Educación (LMS),frappe/lms,AGPL-3.0
+259,IoT y Series de Tiempo,thingsboard/thingsboard,Revisar
+260,IoT y Series de Tiempo,influxdata/influxdb,Apache-2.0
+261,IoT y Series de Tiempo,eclipse-mosquitto/mosquitto,BSD
+262,Herramientas de Negocio,odoo/odoo,LGPL
+263,Herramientas de Negocio,docusealco/docuseal,A verificar
+264,Herramientas de Negocio,paperless-ngx/paperless-ngx,GPL-3.0
+265,Herramientas de Negocio,frappe/hrms,GPL-3.0
+312,Herramientas de Negocio,Qloapps/QloApps,OSL-3.0
+266,Pagos y Comercio,pretix/pretix,AGPL-3.0
+267,Pagos y Comercio,formancehq/ledger,A verificar
+311,Pagos y Comercio,tigerbeetle/tigerbeetle,Apache-2.0
+268,Notificaciones y Comunicación,discourse/discourse,GPL-2.0
+269,Notificaciones y Comunicación,mastodon/mastodon,AGPL-3.0
+270,IoT y Series de Tiempo,home-assistant/core,Apache-2.0
+271,IoT y Series de Tiempo,questdb/questdb,Apache-2.0
+272,IoT y Series de Tiempo,apache/iotdb,A verificar
+273,IoT y Series de Tiempo,taosdata/TDengine,AGPL-3.0
+274,IoT y Series de Tiempo,Koenkk/zigbee2mqtt,GPL-3.0
+275,IoT y Series de Tiempo,nanomq/nanomq,MIT
+276,IoT y Series de Tiempo,openremote/core,AGPL-3.0
+277,Mensajería y Colas,apache/rocketmq,Apache-2.0
+278,Mensajería y Colas,zeromq/libzmq,A verificar
+279,Mensajería y Colas,nsqio/nsq,MIT
+280,Mensajería y Colas,apache/artemis,Apache-2.0
+281,Feature Flags,featbit/featbit,MIT
+282,Feature Flags,thomaspoignant/go-feature-flag,MIT
+283,Feature Flags,openflagr/flagr,Apache-2.0
+284,Despliegue (PaaS),argoproj/argo-cd,Apache-2.0
+285,Despliegue (PaaS),helm/helm,Apache-2.0
+286,Despliegue (PaaS),basecamp/kamal,A verificar
+287,Despliegue (PaaS),kubero-dev/kubero,GPL-3.0
+288,Herramientas para APIs,Kong/insomnia,Apache-2.0
+289,Herramientas para APIs,mockoon/mockoon,MIT
+290,Herramientas para APIs,scalar/scalar,MIT
+291,Herramientas para APIs,Redocly/redoc,MIT
+292,Herramientas para APIs,OpenAPITools/openapi-generator,Apache-2.0
+293,Paneles Internos y Low-code,nocobase/nocobase,Revisar
+294,Paneles Internos y Low-code,teableio/teable,A verificar
+295,Paneles Internos y Low-code,lowcoder-org/lowcoder,AGPL-3.0
+296,Seguridad y Secretos,gitleaks/gitleaks,MIT
+297,Seguridad y Secretos,zaproxy/zaproxy,Apache-2.0
+298,Seguridad y Secretos,semgrep/semgrep,LGPL
+299,Seguridad y Secretos,anchore/grype,Apache-2.0
+300,Seguridad y Secretos,falcosecurity/falco,A verificar
+301,Seguridad y Secretos,openbao/openbao,MPL-2.0
+302,Video y Tiempo Real,bluenviron/mediamtx,MIT
+303,Video y Tiempo Real,versatica/mediasoup,ISC
+304,Video y Tiempo Real,pion/webrtc,A verificar
+305,Video y Tiempo Real,ossrs/srs,MIT
+306,Educación (LMS),bigbluebutton/bigbluebutton,LGPL
+307,Educación (LMS),oppia/oppia,Apache-2.0
+308,Educación (LMS),classroomio/classroomio,AGPL-3.0
+309,Educación (LMS),chamilo/chamilo-lms,GPL-3.0
+310,Educación (LMS),overhangio/tutor,AGPL-3.0

@@ -69,26 +69,6 @@ async def _get_last_commit_at(
     return committer.get("date") or author.get("date")
 
 
-async def get_repository_license(
-    owner: str,
-    repo: str,
-) -> dict | None:
-    """Obtiene la licencia detectada por GitHub."""
-    try:
-        payload, _ = await github_get(
-            f"/repos/{owner}/{repo}/license"
-        )
-    except ValueError:
-        return None
-
-    license_data = payload.get("license") or {}
-
-    return {
-        "name": license_data.get("name"),
-        "spdx_id": license_data.get("spdx_id"),
-    }
-
-
 def _parse_date(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -204,6 +184,7 @@ def _health_score(repo: dict) -> tuple[int, str, dict]:
 def simplify_repository(
     repo: dict,
     extra: dict | None = None,
+    license_from_inventory: str | None = None,
 ) -> dict:
     """Devuelve solo los campos principales del repositorio."""
     combined = {**repo, **(extra or {})}
@@ -219,14 +200,10 @@ def simplify_repository(
         and combined.get("commit_activity_status") == "available"
     )
 
-    license_data = repo.get("license") or {}
-    license_spdx_id = license_data.get("spdx_id")
-    license_name = license_data.get("name")
-
     license_value = (
-        license_name
-        if license_spdx_id in (None, "", "NOASSERTION")
-        else license_spdx_id
+        license_from_inventory.strip()
+        if license_from_inventory and license_from_inventory.strip()
+        else None
     )
 
     result = {
@@ -239,15 +216,6 @@ def simplify_repository(
         # Información general
         "description": repo.get("description"),
         "license": license_value,
-        "license_spdx_id": (
-            license_spdx_id
-            if license_spdx_id not in (
-                None,
-                "",
-                "NOASSERTION",
-            )
-            else None
-        ),
         "language": repo.get("language"),
         "topics": repo.get("topics", []),
         "homepage": repo.get("homepage"),
@@ -392,7 +360,11 @@ async def _repository_enrichment(
     }
 
 
-async def get_repository(owner: str, repo: str) -> dict:
+async def get_repository(
+    owner: str,
+    repo: str,
+    license_from_inventory: str | None = None,
+) -> dict:
     """Obtiene y prepara toda la información del repositorio."""
     data, rate_limit = await github_get(
         f"/repos/{owner}/{repo}"
@@ -407,7 +379,11 @@ async def get_repository(owner: str, repo: str) -> dict:
     )
 
     return {
-        "data": simplify_repository(data, extra),
+        "data": simplify_repository(
+            data,
+            extra,
+            license_from_inventory=license_from_inventory,
+        ),
         "rate_limit_headers": rate_limit,
     }
 

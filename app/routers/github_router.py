@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException
 from app.services.github_repository_service import (
     get_rate_limit,
     get_repository,
-    get_repository_license,
 )
 
 router = APIRouter(
@@ -62,34 +61,5 @@ async def rate_limit_endpoint():
     """Consulta los límites de uso de la API de GitHub."""
     try:
         return await get_rate_limit()
-    except (ValueError, RuntimeError, httpx.HTTPError) as exc:
-        _raise_http_error(exc)
-
-
-@router.get("/license/{owner}/{repo}")
-async def repository_license_endpoint(
-    owner: str,
-    repo: str,
-):
-    """Consulta la licencia detectada para un repositorio."""
-    try:
-        license_data = await get_repository_license(
-            owner,
-            repo,
-        )
-
-        if license_data is None:
-            raise HTTPException(
-                status_code=404,
-                detail=(
-                    "GitHub no detectó una licencia "
-                    "para este repositorio."
-                ),
-            )
-
-        return license_data
-
-    except HTTPException:
-        raise
     except (ValueError, RuntimeError, httpx.HTTPError) as exc:
         _raise_http_error(exc)

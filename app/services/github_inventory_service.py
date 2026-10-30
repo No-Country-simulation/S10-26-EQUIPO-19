@@ -1,18 +1,22 @@
+import csv
 import re
 import unicodedata
 from pathlib import Path
 
 import httpx
-import pandas as pd
 
 from app.services.github_repository_service import get_repository
+from app.services.github_db_service import (
+    save_repositories,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-EXCEL_PATH = BASE_DIR / "data" / "OpenBridge.xlsx"
+CSV_PATH = BASE_DIR / "data" / "OpenBridge.csv"
 
 
 def normalize_column(column: str) -> str:
+    """Normaliza nombres de columnas del CSV."""
     column = str(column).strip().lower()
     column = unicodedata.normalize("NFKD", column)
     column = "".join(
@@ -22,62 +26,96 @@ def normalize_column(column: str) -> str:
     return re.sub(r"\s+", "_", column)
 
 
-def read_excel(limit: int | None = None) -> dict:
-    if not EXCEL_PATH.exists():
+def read_csv(limit: int | None = None) -> dict:
+    """Lee el inventario desde un CSV."""
+    if not CSV_PATH.exists():
         raise FileNotFoundError(
-            f"No se encontró el Excel: {EXCEL_PATH}"
+            f"No se encontró el CSV: {CSV_PATH}"
         )
 
-    df = pd.read_excel(EXCEL_PATH)
-    df.columns = [normalize_column(col) for col in df.columns]
+    with CSV_PATH.open(
+        mode="r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as file:
+        reader = csv.DictReader(file)
 
-    required = {"id", "categoria", "full_name"}
-    missing = required - set(df.columns)
+        if not reader.fieldnames:
+            raise ValueError("El CSV no tiene encabezados.")
 
-    if missing:
-        raise ValueError(
-            f"Faltan columnas: {sorted(missing)}. "
-            f"Columnas detectadas: {list(df.columns)}"
-        )
+        original_columns = reader.fieldnames
+        normalized_columns = [
+            normalize_column(column)
+            for column in original_columns
+        ]
 
-    df = df.dropna(subset=["full_name"]).copy()
-    df["full_name"] = df["full_name"].astype(str).str.strip()
-    df = df[df["full_name"] != ""]
-    df = df.drop_duplicates(subset=["full_name"], keep="first")
+        if len(normalized_columns) != len(set(normalized_columns)):
+            raise ValueError(
+                "Hay nombres de columnas duplicados después "
+                "de normalizarlos."
+            )
 
-    repositories = []
+        required = {"id", "categoria", "full_name", "licencia"}
+        missing = required - set(normalized_columns)
 
-    for _, row in df.iterrows():
-        full_name = str(row["full_name"]).strip()
-        parts = full_name.split("/")
+        if missing:
+            raise ValueError(
+                f"Faltan columnas: {sorted(missing)}. "
+                f"Columnas detectadas: {normalized_columns}"
+            )
 
-        if len(parts) != 2 or not all(parts):
-            continue
+        repositories = []
+        seen_repositories = set()
 
-        raw_id = row["id"]
+        for row in reader:
+            normalized_row = {
+                normalize_column(key): value
+                for key, value in row.items()
+                if key is not None
+            }
 
-        if pd.isna(raw_id):
-            inventory_id = None
-        elif (
-            isinstance(raw_id, (int, float))
-            and float(raw_id).is_integer()
-        ):
-            inventory_id = int(raw_id)
-        else:
-            inventory_id = str(raw_id).strip()
+            full_name = (
+                normalized_row.get("full_name") or ""
+            ).strip()
 
-        category = row["categoria"]
+            if not full_name:
+                continue
 
-        if pd.isna(category) or not str(category).strip():
-            category = "Sin categorizar"
-        else:
-            category = str(category).strip()
+            parts = full_name.split("/")
 
-        repositories.append({
-            "inventory_id": inventory_id,
-            "categoria": category,
-            "full_name": full_name,
-        })
+            if len(parts) != 2 or not all(parts):
+                continue
+
+            if full_name in seen_repositories:
+                continue
+
+            seen_repositories.add(full_name)
+
+            raw_id = (normalized_row.get("id") or "").strip()
+
+            if not raw_id:
+                inventory_id = None
+            elif re.fullmatch(r"\d+", raw_id):
+                inventory_id = int(raw_id)
+            else:
+                inventory_id = raw_id
+
+            category = (
+                normalized_row.get("categoria") or ""
+            ).strip()
+
+            if not category:
+                category = "Sin categorizar"
+
+            repositories.append({
+                "inventory_id": inventory_id,
+                "categoria": category,
+                "full_name": full_name,
+                "licencia": (
+                    (normalized_row.get("licencia") or "").strip()
+                    or None
+                ),
+            })
 
     if limit is not None:
         repositories = repositories[:limit]
@@ -88,15 +126,22 @@ def read_excel(limit: int | None = None) -> dict:
     }
 
 
-async def enrich_github_inventory(limit: int | None = None) -> dict:
-    source = read_excel(limit=limit)
+async def enrich_github_inventory(
+    limit: int | None = None,
+) -> dict:
+    """Enriquece el inventario con información de GitHub."""
+    source = read_csv(limit=limit)
     results = []
 
     for repository in source["repositories"]:
         owner, repo_name = repository["full_name"].split("/", 1)
 
         try:
-            response = await get_repository(owner, repo_name)
+            response = await get_repository(
+                owner,
+                repo_name,
+                license_from_inventory=repository.get("licencia"),
+            )
             data = dict(response["data"])
 
             github_id = data.pop("id", None)
@@ -112,19 +157,24 @@ async def enrich_github_inventory(limit: int | None = None) -> dict:
         except (ValueError, RuntimeError, httpx.HTTPError) as exc:
             results.append({
                 **repository,
+                "licencia": None,
                 "enrichment_status": "error",
                 "enrichment_error": str(exc),
             })
 
+    # Guardar en Supabase solamente los enriquecimientos exitosos.
+    successful_repositories = [
+        repository
+        for repository in results
+        if repository["enrichment_status"] == "success"
+    ]
+
+    database_result = save_repositories(successful_repositories)
+
     return {
         "total": len(results),
-        "successful": sum(
-            item["enrichment_status"] == "success"
-            for item in results
-        ),
-        "failed": sum(
-            item["enrichment_status"] == "error"
-            for item in results
-        ),
+        "successful": len(successful_repositories),
+        "failed": len(results) - len(successful_repositories),
         "repositories": results,
+        "database": database_result,
     }
