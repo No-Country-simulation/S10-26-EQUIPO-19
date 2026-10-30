@@ -30,3 +30,21 @@ export function relativeTime(iso: string | null, now = Date.now()) {
   const years = Math.floor(days / 365);
   return years === 1 ? "hace 1 año" : `hace ${years} años`;
 }
+
+// documentation_url puede traer varios enlaces separados por " ; " (uno por cada repo de la integración).
+export function splitUrls(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(";")
+    .map((url) => url.trim())
+    .filter((url) => /^https?:\/\//.test(url));
+}
+
+// Nombre corto del sitio para mostrar en el enlace (sin "www.").
+export function urlHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}

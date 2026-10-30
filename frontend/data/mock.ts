@@ -110,7 +110,7 @@ const QDRANT_IDEA: Integration = {
   ],
   difficulty: "Media",
   role: "Almacenamiento y búsqueda de los fragmentos de los documentos",
-  documentation_url: "https://docs.langchain.com/oss/python/integrations/vectorstores/qdrant",
+  documentation_url: "https://docs.langchain.com/oss/python/integrations/vectorstores/qdrant ; https://qdrant.tech/documentation/",
   related_repositories: [
     { id: 107, full_name: "langchain-ai/langchain", role: "Orquestación del flujo RAG" },
     { id: 106, full_name: "ollama/ollama", role: "Embeddings y respuestas con un modelo local" },
