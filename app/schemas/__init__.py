@@ -18,3 +18,4 @@ from app.schemas.assistant import (
     ArchitectureProposal,
     ChatResponse,
 )
+from app.schemas.github import GithubInventoryResponse
