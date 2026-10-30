@@ -22,7 +22,7 @@ OUTPUT_PATH = BASE_DIR / "github_sync_preview.json"
 
 # Para probar con pocos repositorios.
 # Cambialo a None para procesar todos.
-LIMIT = 3
+LIMIT = None
 
 METRICS_INTERVAL = timedelta(days=7)
 
