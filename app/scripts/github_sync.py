@@ -10,7 +10,7 @@ from app.clients.github_client import github_get
 from app.services.github_repository_service import _health_score
 
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_PATH = BASE_DIR / "app" / "data" / "OpenBridge.csv"
 OUTPUT_PATH = BASE_DIR / "github_sync_preview.json"
 
