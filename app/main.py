@@ -1,13 +1,18 @@
 from datetime import datetime
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import categories, repositories
 from app.schemas import (
     CategoryResponse,
     RepositoryListItem,
+    RepositoryDetailResponse,
     RepositoryPaginationResponse,
     MetricSummary,
+    MetricDetail,
+    IntegrationSummary,
+    RelatedRepositoryItem,
+    BusinessCaseItem,
     ChatRequest,
     ChatResponse,
     ChatSource,
@@ -82,6 +87,8 @@ def health_check():
     return {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
 
 
+# IMPORTANTE: /search debe declararse ANTES que /{id}; si no, FastAPI intentaría
+# interpretar "search" como el id entero y devolvería un 422.
 @app.get(
     "/api/v1/repositories/search",
     response_model=RepositoryPaginationResponse,
@@ -105,6 +112,111 @@ def search_repositories(
         page_size=page_size,
         total_pages=1,
         items=MOCK_REPOSITORIES_LIST,
+    )
+
+
+@app.get(
+    "/api/v1/repositories/{id}",
+    response_model=RepositoryDetailResponse,
+    tags=["Repositorios"],
+    summary="Ficha técnica de un repositorio",
+)
+def get_repository_detail(id: int):
+    """Devuelve la ficha completa con métricas detalladas e ideas de integración relacionadas."""
+    repo = next((r for r in MOCK_REPOSITORIES_LIST if r.id == id), None)
+    if not repo:
+        raise HTTPException(status_code=404, detail=f"El repositorio con id {id} no fue encontrado.")
+
+    return RepositoryDetailResponse(
+        id=repo.id,
+        github_id=repo.github_id,
+        name=repo.name,
+        full_name=repo.full_name,
+        url=repo.url,
+        homepage="https://qdrant.tech" if repo.id == 101 else "https://trychroma.com",
+        description=repo.description,
+        description_es=repo.description_es,
+        language=repo.language,
+        license=repo.license,
+        stars=repo.stars,
+        forks=repo.forks,
+        open_issues=120,
+        has_issues=True,
+        issues_url=None,
+        archived=False,
+        maintainer_active=True,
+        topics=repo.topics,
+        last_commit_at=repo.last_commit_at,
+        pushed_at=repo.pushed_at,
+        synced_at=datetime.fromisoformat("2026-10-22T08:00:00"),
+        category=repo.category,
+        metrics=MetricDetail(
+            health_score=repo.metrics.health_score,
+            health_status=repo.metrics.health_status,
+            health_score_details={
+                "maintenance": 30,
+                "commit_activity": 21,
+                "popularity": 15,
+                "forks": 7,
+            },
+            commits_last_30_days=42,
+            commits_last_90_days=135,
+            commits_last_year=580,
+            commit_activity_status="available",
+            measured_at=datetime.fromisoformat("2026-10-22T08:00:00"),
+        ),
+        integrations=[
+            IntegrationSummary(
+                id=16,
+                code="INT-016",
+                purpose="Asistente que responde preguntas sobre documentos internos sin enviar datos a terceros.",
+                integration_type="SDK / librería",
+                triggers_or_webhooks="Al cargar documentos (indexación) y en cada pregunta del usuario.",
+                example_snippet=(
+                    'from langchain_ollama import OllamaEmbeddings, ChatOllama\n'
+                    'from langchain_qdrant import QdrantVectorStore\n\n'
+                    'emb = OllamaEmbeddings(model="nomic-embed-text", base_url="http://ollama:11434")\n'
+                    'store = QdrantVectorStore.from_documents(fragmentos, emb,\n'
+                    '    url="http://qdrant:6333", collection_name="docs_internos")\n'
+                    'llm = ChatOllama(model="llama3.1", base_url="http://ollama:11434")\n\n'
+                    'pregunta = "¿Cuál es la política de vacaciones?"\n'
+                    'contexto = store.similarity_search(pregunta, k=4)\n'
+                    'respuesta = llm.invoke(f"Responde solo con este contexto:\\n{contexto}\\n\\nPregunta: {pregunta}")'
+                ),
+                compatible_stack=["Python 3.10+", "LangChain", "Ollama", "Qdrant", "Docker"],
+                main_steps=[
+                    "Extraer y fragmentar los documentos.",
+                    "Indexarlos en Qdrant con embeddings de Ollama.",
+                    "Recuperar los fragmentos más parecidos a la pregunta.",
+                    "Generar la respuesta con el modelo local usando solo ese contexto.",
+                ],
+                difficulty="Media",
+                role="Almacenamiento y búsqueda de los fragmentos de los documentos",
+                documentation_url="https://docs.langchain.com/oss/python/integrations/vectorstores/qdrant",
+                related_repositories=[
+                    RelatedRepositoryItem(
+                        id=201,
+                        full_name="langchain-ai/langchain",
+                        role="Orquestación del flujo RAG",
+                    ),
+                    RelatedRepositoryItem(
+                        id=202,
+                        full_name="ollama/ollama",
+                        role="Embeddings y respuestas con un modelo local",
+                    ),
+                ],
+                business_cases=[
+                    BusinessCaseItem(
+                        id=13,
+                        name="Un asistente con IA que responde preguntas sobre documentos internos.",
+                    ),
+                    BusinessCaseItem(
+                        id=12,
+                        name="Una mesa de ayuda con chat y respuestas automáticas con IA.",
+                    ),
+                ],
+            )
+        ],
     )
 
 

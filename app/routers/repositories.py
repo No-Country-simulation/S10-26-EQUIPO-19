@@ -57,6 +57,60 @@ FALLBACK_REPOSITORIES = [
         category=CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
         metrics=MetricSummary(health_score=92, health_status="Activo"),
     ),
+    RepositoryListItem(
+        id=201,
+        github_id=51234890,
+        name="langchain",
+        full_name="langchain-ai/langchain",
+        url="https://github.com/langchain-ai/langchain",
+        description="Building applications with LLMs through composability",
+        description_es="Framework para desarrollar aplicaciones impulsadas por modelos de lenguaje y flujos RAG.",
+        language="Python",
+        license="MIT",
+        stars=92000,
+        forks=14800,
+        topics=["llm", "rag", "python", "agents"],
+        last_commit_at=datetime.fromisoformat("2026-10-22T09:00:00"),
+        pushed_at=datetime.fromisoformat("2026-10-22T10:00:00"),
+        category=CategoryResponse(id=4, name="IA y LLM", repositories_count=8),
+        metrics=MetricSummary(health_score=95, health_status="Activo"),
+    ),
+    RepositoryListItem(
+        id=202,
+        github_id=68912034,
+        name="ollama",
+        full_name="ollama/ollama",
+        url="https://github.com/ollama/ollama",
+        description="Get up and running with Llama 3, Mistral, Gemma, and other large language models.",
+        description_es="Ejecución local simplificada de modelos de lenguaje de gran tamaño.",
+        language="Go",
+        license="MIT",
+        stars=88000,
+        forks=6900,
+        topics=["llm", "go", "local-ai", "inference"],
+        last_commit_at=datetime.fromisoformat("2026-10-21T16:00:00"),
+        pushed_at=datetime.fromisoformat("2026-10-21T17:00:00"),
+        category=CategoryResponse(id=4, name="IA y LLM", repositories_count=8),
+        metrics=MetricSummary(health_score=94, health_status="Activo"),
+    ),
+    RepositoryListItem(
+        id=301,
+        github_id=77412390,
+        name="langfuse",
+        full_name="langfuse/langfuse",
+        url="https://github.com/langfuse/langfuse",
+        description="Open source LLM engineering platform: observability, metrics, evals, prompt management",
+        description_es="Plataforma open source de observabilidad, trazabilidad y evaluación para aplicaciones LLM.",
+        language="TypeScript",
+        license="MIT",
+        stars=4800,
+        forks=490,
+        topics=["observability", "llm", "typescript", "tracing"],
+        last_commit_at=datetime.fromisoformat("2026-06-15T12:00:00"),
+        pushed_at=datetime.fromisoformat("2026-06-15T14:00:00"),
+        category=CategoryResponse(id=11, name="Observabilidad y Monitoreo", repositories_count=6),
+        metrics=MetricSummary(health_score=74, health_status="En riesgo"),
+    ),
 ]
 
 
@@ -195,6 +249,54 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
             health_status=raw_metrics.get("health_status"),
         ),
     )
+
+
+def _filter_in_memory(
+    repos: list[RepositoryListItem],
+    q: str | None,
+    category_id: int | None,
+    language: str | None,
+    min_stars: int | None,
+    license_type: str | None,
+    health_status: str | None,
+) -> list[RepositoryListItem]:
+    """Filtra la colección de repositorios en memoria según los criterios especificados."""
+    results = []
+    q_clean = q.strip().lower() if q and q.strip() else None
+    lang_clean = language.strip().lower() if language and language.strip() else None
+    lic_clean = license_type.strip().lower() if license_type and license_type.strip() else None
+    status_clean = health_status.strip().lower() if health_status and health_status.strip() else None
+
+    for repo in repos:
+        if q_clean:
+            match_name = q_clean in repo.name.lower() or q_clean in repo.full_name.lower()
+            match_desc = bool(repo.description and q_clean in repo.description.lower())
+            match_desc_es = bool(repo.description_es and q_clean in repo.description_es.lower())
+            match_topics = any(q_clean in topic.lower() for topic in repo.topics)
+            if not (match_name or match_desc or match_desc_es or match_topics):
+                continue
+
+        if category_id is not None and repo.category.id != category_id:
+            continue
+
+        if lang_clean:
+            if not repo.language or repo.language.lower() != lang_clean:
+                continue
+
+        if min_stars is not None and repo.stars < min_stars:
+            continue
+
+        if lic_clean:
+            if not repo.license or lic_clean not in repo.license.lower():
+                continue
+
+        if status_clean:
+            if not repo.metrics.health_status or repo.metrics.health_status.lower() != status_clean:
+                continue
+
+        results.append(repo)
+
+    return results
 
 
 def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
@@ -345,6 +447,109 @@ def get_repositories(
     total = len(sorted_fallback)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_fallback[start : start + page_size]
+
+    return RepositoryPaginationResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        items=paginated_items,
+    )
+
+
+# IMPORTANTE: "/search" debe declararse ANTES que "/{id}"; si no, FastAPI
+# intentaría interpretar "search" como el id entero y devolvería un 422.
+@router.get(
+    "/search",
+    response_model=RepositoryPaginationResponse,
+    summary="Búsqueda con filtros de repositorios",
+    description="Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.",
+)
+def search_repositories(
+    q: str | None = Query(default=None, description="Texto a buscar en nombre, descripción o tópicos"),
+    category_id: int | None = Query(default=None, ge=1, description="ID de la categoría a filtrar"),
+    language: str | None = Query(default=None, description="Lenguaje principal (ej. Python, Rust, TypeScript)"),
+    min_stars: int | None = Query(default=None, ge=0, description="Cantidad mínima de estrellas en GitHub"),
+    license: str | None = Query(default=None, description="Licencia declarada (ej. MIT, Apache-2.0)"),
+    health_status: Literal["Activo", "En riesgo", "Abandonado"] | None = Query(
+        default=None,
+        description="Nivel de mantenimiento: Activo, En riesgo o Abandonado",
+    ),
+    page: int = Query(default=1, ge=1, description="Número de página"),
+    page_size: int = Query(default=10, ge=1, le=50, description="Cantidad de items por página"),
+):
+    """Filtra el catálogo combinando búsqueda textual y los 5 filtros facetados."""
+    supabase = get_supabase_client()
+    start = (page - 1) * page_size
+    end = start + page_size - 1
+
+    if supabase:
+        try:
+            metrics_rel = (
+                "metrics!inner(health_score, health_status)"
+                if health_status
+                else "metrics(health_score, health_status)"
+            )
+            query = supabase.table("repositories").select(
+                f"*, categories(id, name), {metrics_rel}",
+                count="exact",
+            )
+
+            if q and q.strip():
+                clean_q = q.strip()
+                query = query.or_(
+                    f"name.ilike.%{clean_q}%,"
+                    f"full_name.ilike.%{clean_q}%,"
+                    f"description.ilike.%{clean_q}%,"
+                    f"description_es.ilike.%{clean_q}%"
+                )
+
+            if category_id is not None:
+                query = query.eq("category_id", category_id)
+
+            if language and language.strip():
+                query = query.ilike("language", language.strip())
+
+            if min_stars is not None:
+                query = query.gte("stars", min_stars)
+
+            if license and license.strip():
+                query = query.ilike("license", f"%{license.strip()}%")
+
+            if health_status:
+                query = query.eq("metrics.health_status", health_status)
+
+            query = query.order("stars", desc=True)
+            response = query.range(start, end).execute()
+
+            if response.data is not None and (response.count or 0) > 0:
+                total = response.count or len(response.data)
+                total_pages = math.ceil(total / page_size) if total > 0 else 1
+                items = [_map_repository_row(row) for row in response.data]
+                return RepositoryPaginationResponse(
+                    total=total,
+                    page=page,
+                    page_size=page_size,
+                    total_pages=total_pages,
+                    items=items,
+                )
+        except Exception:
+            pass
+
+    filtered = _filter_in_memory(
+        repos=FALLBACK_REPOSITORIES,
+        q=q,
+        category_id=category_id,
+        language=language,
+        min_stars=min_stars,
+        license_type=license,
+        health_status=health_status,
+    )
+
+    sorted_filtered = sorted(filtered, key=lambda r: r.stars, reverse=True)
+    total = len(sorted_filtered)
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
+    paginated_items = sorted_filtered[start : start + page_size]
 
     return RepositoryPaginationResponse(
         total=total,
