@@ -125,7 +125,7 @@ function ModePalette({ mode }: { mode: "light" | "dark" }) {
       <PreviewCard
         mode={mode}
         title="Texto principal" token="text" hex={v("#0F172A", "#F1F5F9")} contrast="17,1:1" note="Títulos y cuerpo de texto."
-        preview={<><span className="text-base font-bold">Título principal</span><span className="text-xs">Texto de cuerpo en Poppins regular a 16 px.</span></>}
+        preview={<><span className="text-base font-bold">Título principal</span><span className="text-xs">Texto de cuerpo en Roboto regular a 16 px.</span></>}
       />
       <PreviewCard
         mode={mode}
@@ -161,7 +161,7 @@ export default function StyleGuidePage() {
     <div className="flex flex-col gap-12">
       <header className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold">Guía de estilo y design tokens</h1>
-        <p className="text-text-muted">Paleta de marca · Modo claro y modo oscuro · Percepción del color · Versión 1.0 · Octubre 2026</p>
+        <p className="text-text-muted">Paleta de marca · Modo claro y modo oscuro · Percepción del color · Versión 1.1 · Octubre 2026</p>
         <p className="max-w-3xl text-sm text-text-muted">
           Vista viva de los tokens definidos en <code className="font-mono">app/globals.css</code>. Las reglas de uso están en{" "}
           <code className="font-mono">docs/guia-de-estilo.md</code>.
@@ -189,16 +189,16 @@ export default function StyleGuidePage() {
         </div>
       </Section>
 
-      <Section num="02" kicker="Tipografía y componentes" title="Poppins y componentes base">
+      <Section num="02" kicker="Tipografía y componentes" title="Poppins, Roboto y componentes base">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <div className="flex flex-col gap-4">
             {[
-              ["text-4xl font-bold", "Título principal", "36 px · 700"],
-              ["text-2xl font-semibold", "Título de sección", "24 px · 600"],
-              ["text-lg font-semibold", "Subtítulo", "18 px · 600"],
-              ["text-base", "Texto de cuerpo", "16 px · 400"],
-              ["text-sm", "Texto secundario", "14 px · 400"],
-              ["font-mono text-sm", "Código · monoespaciada · 14 px", "14 px · 400"],
+              ["font-display text-4xl font-bold", "Título principal", "Poppins · 36 px · 700"],
+              ["font-display text-2xl font-semibold", "Título de sección", "Poppins · 24 px · 600"],
+              ["font-display text-lg font-semibold", "Subtítulo", "Poppins · 18 px · 600"],
+              ["text-base", "Texto de cuerpo", "Roboto · 16 px · 400"],
+              ["text-sm", "Texto secundario", "Roboto · 14 px · 400"],
+              ["font-mono text-sm", "Código · monoespaciada · 14 px", "Mono · 14 px · 400"],
             ].map(([cls, label, spec]) => (
               <div key={label} className="flex items-baseline justify-between gap-4">
                 <span className={cls}>{label}</span>
@@ -226,6 +226,44 @@ export default function StyleGuidePage() {
             <p className="text-sm text-text-muted">
               Los estados de salud usan colores de apoyo sobre fondos suaves. El texto siempre es legible y el color no es el único indicador.
             </p>
+          </div>
+        </div>
+        <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="flex flex-col gap-3 text-sm text-text-muted">
+            <p className="text-xs font-bold uppercase tracking-wider text-accent">Poppins y Roboto</p>
+            <p>
+              <strong className="text-text">Poppins</strong> es la tipografía principal y se usa solo en titulares, donde aparece en tamaño
+              grande. <strong className="text-text">Roboto</strong> es la tipografía secundaria: es compatible y no genera problemas de
+              visibilidad al cambiar de plataformas y dispositivos.
+            </p>
+            <p>
+              Como es geométrica, Roboto combina con Poppins, pero permite una mejor lectura en pantalla cuando son bloques de texto largos, ya
+              que tiene una mejor ergonomía visual, sobre todo en tamaños reducidos y pantallas pequeñas.
+            </p>
+            <p>
+              Esto lo facilitan las contraformas: en Roboto la «a» minúscula no se parece a la «o» minúscula, como sí ocurre en Poppins. Por eso
+              Poppins queda solo para titulares en tamaño grande, y no para bloques de texto.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-accent">Atributos de Poppins</p>
+            <p className="text-sm text-text-muted">La tipografía representa una voz.</p>
+            <ul className="flex flex-wrap gap-2">
+              {["palo seco", "sólida", "san serif", "estilo moderno", "claro", "formal", "buen peso visual", "ancho fijo", "legibilidad", "personalidad", "trazos expresivos"].map((a) => (
+                <li key={a} className="rounded-[var(--radius-pill)] bg-brand-indigo-soft px-3 py-1 text-xs font-medium text-[#0f172a]">{a}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs font-bold uppercase tracking-wider text-accent">Contraformas</p>
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-xl border border-border bg-surface px-4 py-2">
+                <p className="font-display text-3xl">a o</p>
+                <p className="text-xs text-text-muted">Poppins · titulares</p>
+              </div>
+              <div className="rounded-xl border border-border bg-surface px-4 py-2">
+                <p className="font-sans text-3xl">a o</p>
+                <p className="text-xs text-text-muted">Roboto · textos</p>
+              </div>
+            </div>
           </div>
         </div>
       </Section>

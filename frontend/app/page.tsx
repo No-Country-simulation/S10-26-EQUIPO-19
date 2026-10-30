@@ -13,7 +13,7 @@ export default function HomePage() {
       </section>
       {USE_MOCK && (
         <p className="rounded-xl bg-surface-muted px-4 py-2 text-xs text-text-muted">
-          Datos de ejemplo: las métricas y el health score no son reales. Para usar la API, cambia NEXT_PUBLIC_USE_MOCK a false en .env.local.
+          Prototipo con datos de ejemplo: las métricas y el health score no son reales.
         </p>
       )}
       <Catalog />

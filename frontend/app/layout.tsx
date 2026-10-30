@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Poppins, Roboto } from "next/font/google";
 import Link from "next/link";
 import Header from "@/components/Header";
 import "./globals.css";
@@ -8,6 +8,14 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-poppins",
+  display: "swap",
+});
+
+// Roboto para los textos y Poppins para los títulos (definido por Diseño).
+const roboto = Roboto({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-roboto",
   display: "swap",
 });
 
@@ -22,7 +30,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t===
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={poppins.variable} suppressHydrationWarning>
+    <html lang="es" className={`${poppins.variable} ${roboto.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

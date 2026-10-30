@@ -48,7 +48,7 @@ export default function CatalogFilters({
           type="search"
           value={filters.q}
           onChange={(e) => set("q", e.target.value)}
-          placeholder="Nombre, descripción o tema"
+          placeholder="Nombre o descripción"
           className={`${fieldClass} placeholder:text-text-muted`}
         />
       </label>
@@ -136,17 +136,24 @@ export default function CatalogFilters({
 }
 
 function CategoryChip({ label, count, pressed, onClick }: { label: string; count?: number | null; pressed: boolean; onClick: () => void }) {
+  // La última palabra va pegada al contador para que "· 1" nunca quede solo en otra línea.
+  const cut = label.lastIndexOf(" ");
+  const head = cut === -1 ? "" : label.slice(0, cut + 1);
+  const tail = cut === -1 ? label : label.slice(cut + 1);
   return (
     <button
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`rounded-[var(--radius-pill)] border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`rounded-[var(--radius-pill)] border px-3 py-1 text-left text-xs font-medium transition-colors ${
         pressed ? "border-brand-pink-deep bg-brand-pink-deep text-white" : "border-border bg-card text-text hover:bg-surface-hover"
       }`}
     >
-      {label}
-      {typeof count === "number" && <span className={pressed ? "text-white/80" : "text-text-muted"}> · {count}</span>}
+      {head}
+      <span className="whitespace-nowrap">
+        {tail}
+        {typeof count === "number" && <span className={pressed ? "text-white/80" : "text-text-muted"}> · {count}</span>}
+      </span>
     </button>
   );
 }

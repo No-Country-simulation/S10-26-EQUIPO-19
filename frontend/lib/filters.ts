@@ -15,8 +15,8 @@ export const LICENSES = [
 
 export const HEALTH_STATUSES: HealthStatus[] = ["Activo", "En riesgo", "Abandonado"];
 
-/** Nombre visible del filtro de nivel de mantenimiento (en el prototipo: "Estado"). */
-export const HEALTH_FILTER_LABEL = "Estado";
+/** Nombre visible del filtro de nivel de mantenimiento (definido por Diseño). */
+export const HEALTH_FILTER_LABEL = "Nivel de mantenimiento";
 
 /** Estrellas mínimas: el control va de 0 a 100 k, en pasos de 5 k. */
 export const STARS_STEP = 5000;

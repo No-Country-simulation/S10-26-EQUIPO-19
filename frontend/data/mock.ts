@@ -35,6 +35,11 @@ const SEEDS: Seed[] = [
   { id: 110, name: "novu", full_name: "novuhq/novu", description_es: "Infraestructura de notificaciones por correo, SMS, push y chat con una sola API.", language: "TypeScript", license: "MIT", stars: 35000, forks: 3500, topics: ["notifications", "email", "sms"], last_commit_at: "2026-10-21T08:00:00Z", category: cat("Notificaciones y Comunicación"), metrics: { health_score: 90, health_status: "Activo" } },
   { id: 111, name: "ejemplo-en-riesgo", full_name: "openbridge/ejemplo-en-riesgo", description_es: "Repositorio ficticio para mostrar el estado En riesgo.", language: "TypeScript", license: "MIT", stars: 1200, forks: 90, topics: ["ejemplo"], last_commit_at: "2026-06-15T12:00:00Z", category: cat("UI y Componentes"), metrics: { health_score: 48, health_status: "En riesgo" } },
   { id: 112, name: "ejemplo-sin-datos", full_name: "openbridge/ejemplo-sin-datos", description: "Fictional repository to show the unknown state.", description_es: null, language: "Go", license: null, stars: 3100, forks: 210, topics: [], last_commit_at: null, category: cat("Despliegue (PaaS)"), metrics: { health_score: 40, health_status: null } },
+  { id: 113, name: "next-auth", full_name: "nextauthjs/next-auth", description_es: "Autenticación para Next.js y otros frameworks, con decenas de proveedores.", language: "TypeScript", license: "ISC", stars: 25000, forks: 3600, topics: ["nextjs", "oauth", "authentication"], last_commit_at: "2026-10-19T10:00:00Z", category: cat("Autenticación"), metrics: { health_score: 88, health_status: "Activo" } },
+  { id: 114, name: "typesense", full_name: "typesense/typesense", description_es: "Búsqueda instantánea con filtros y facetas, pensada para catálogos.", language: "C++", license: "GPL-3.0", stars: 22000, forks: 700, topics: ["search", "facets", "instant-search"], last_commit_at: "2026-10-18T10:00:00Z", category: cat("Búsqueda"), metrics: { health_score: 87, health_status: "Activo" } },
+  { id: 115, name: "lago", full_name: "getlago/lago", description_es: "Facturación por consumo y suscripciones para productos B2B.", language: "Ruby", license: "AGPL-3.0", stars: 8000, forks: 400, topics: ["billing", "usage-based", "subscriptions"], last_commit_at: "2026-10-16T10:00:00Z", category: cat("Pagos y Comercio"), metrics: { health_score: 82, health_status: "Activo" } },
+  { id: 116, name: "umami", full_name: "umami-software/umami", description_es: "Analítica simple y autoalojada con panel propio.", language: "TypeScript", license: "MIT", stars: 30000, forks: 5000, topics: ["analytics", "self-hosted", "privacy"], last_commit_at: "2026-10-01T10:00:00Z", category: cat("Analítica"), metrics: { health_score: 66, health_status: "Activo" } },
+  { id: 117, name: "ejemplo-archivado", full_name: "openbridge/ejemplo-archivado", description_es: "Repositorio ficticio para mostrar un proyecto archivado.", language: "Go", license: "MIT", stars: 4100, forks: 300, topics: ["ejemplo"], last_commit_at: "2025-09-30T12:00:00Z", category: cat("Despliegue (PaaS)"), metrics: { health_score: 0, health_status: "Abandonado" } },
 ];
 
 export const MOCK_REPOSITORIES: RepositoryListItem[] = SEEDS.map((s, i) => ({
@@ -124,7 +129,7 @@ const DOCKER_IDEA = (repo: RepositoryListItem): Integration => ({
   main_steps: ["Agregar el servicio al docker-compose.", "Configurar las variables de entorno.", "Conectar el backend al servicio."],
   difficulty: "Baja",
   role: null,
-  documentation_url: null,
+  documentation_url: `https://github.com/${repo.full_name}#readme`,
   related_repositories: [],
   business_cases: [],
 });
@@ -141,12 +146,14 @@ export function getMockDetail(id: number): RepositoryDetail | null {
     open_issues: Math.round(repo.stars / 150),
     has_issues: true,
     issues_url: null,
-    archived: false,
-    maintainer_active: !unknown,
+    archived: repo.id === 117,
+    maintainer_active: unknown ? null : repo.id !== 117 && repo.id !== 111,
     synced_at: "2026-10-22T08:00:00Z",
     metrics: {
       ...repo.metrics,
-      health_score_details: unknown
+      health_score_details: repo.id === 117
+        ? { maintenance: 0, commit_activity: 0, popularity: 0, forks: 0 }
+        : unknown
         ? { maintenance: 5, commit_activity: null, popularity: 12, forks: 5 }
         : { maintenance: 30, commit_activity: 21, popularity: 15, forks: 7 },
       commits_last_30_days: unknown ? null : 42,
