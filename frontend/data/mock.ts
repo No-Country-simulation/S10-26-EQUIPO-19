@@ -66,13 +66,16 @@ function paginate(items: RepositoryListItem[], page = 1, page_size = 10): Pagina
   };
 }
 
-export function listMock(params: ListParams): PaginatedRepositories {
+function sortItems(items: RepositoryListItem[], params: ListParams) {
   const key = params.sort_by ?? "stars";
   const dir = params.order === "asc" ? 1 : -1;
   const value = (r: RepositoryListItem) =>
-    key === "health_score" ? r.metrics.health_score : key === "last_commit_at" ? Date.parse(r.last_commit_at ?? "0") : r[key];
-  const items = [...MOCK_REPOSITORIES].sort((a, b) => (value(a) - value(b)) * dir);
-  return paginate(items, params.page, params.page_size);
+    key === "health_score" ? r.metrics.health_score : key === "last_commit_at" ? Date.parse(r.last_commit_at ?? "1970-01-01") : r[key];
+  return [...items].sort((a, b) => (value(a) - value(b)) * dir);
+}
+
+export function listMock(params: ListParams): PaginatedRepositories {
+  return paginate(sortItems(MOCK_REPOSITORIES, params), params.page, params.page_size);
 }
 
 export function searchMock(params: SearchParams): PaginatedRepositories {
@@ -85,8 +88,8 @@ export function searchMock(params: SearchParams): PaginatedRepositories {
     if (params.health_status && r.metrics.health_status !== params.health_status) return false;
     if (params.min_stars && r.stars < params.min_stars) return false;
     return true;
-  }).sort((a, b) => b.stars - a.stars);
-  return paginate(items, params.page, params.page_size);
+  });
+  return paginate(sortItems(items, params), params.page, params.page_size);
 }
 
 // Idea de integración de ejemplo del contrato (INT-016), para la ficha de qdrant.

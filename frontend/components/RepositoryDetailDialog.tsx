@@ -144,7 +144,7 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
           {repo.archived && <span className="rounded-md bg-status-abandoned-bg px-2 py-0.5 font-semibold text-status-abandoned">Archivado</span>}
         </div>
         <div className="flex flex-col gap-1 pr-14">
-          <h2 id="ficha-titulo" className="break-words text-3xl font-bold leading-tight sm:text-4xl">{repo.name}</h2>
+          <h2 id="ficha-titulo" className="break-words text-3xl font-bold leading-tight first-letter:uppercase sm:text-4xl">{repo.name}</h2>
           <p className="text-sm text-text-muted">{repo.full_name}</p>
         </div>
         <p className="max-w-[70ch] text-lg text-text-muted">{description}</p>

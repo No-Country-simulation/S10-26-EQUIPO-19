@@ -5,13 +5,28 @@ import CatalogFilters, { EMPTY_FILTERS, type Filters } from "@/components/Catalo
 import RepositoryCard from "@/components/RepositoryCard";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { ApiError, getCategories, hasFilters, listRepositories, searchRepositories } from "@/lib/api";
-import type { Category, PaginatedRepositories, SearchParams } from "@/types/api";
+import type { Category, PaginatedRepositories, SearchParams, SortBy, SortOrder } from "@/types/api";
 
 const PAGE_SIZE = 12;
 
+type Sort = { sort_by: SortBy; order: SortOrder };
+const DEFAULT_SORT: Sort = { sort_by: "stars", order: "desc" };
+
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: "stars", label: "Estrellas" },
+  { value: "forks", label: "Forks" },
+  { value: "last_commit_at", label: "Última actualización" },
+  { value: "health_score", label: "Health score" },
+];
+
+function orderLabel(sort: Sort) {
+  if (sort.sort_by === "last_commit_at") return sort.order === "desc" ? "Más reciente primero" : "Más antiguo primero";
+  return sort.order === "desc" ? "Mayor a menor" : "Menor a mayor";
+}
+
 type Status = { kind: "loading" } | { kind: "ok"; data: PaginatedRepositories } | { kind: "error"; message: string };
 
-function toSearchParams(f: Filters, page: number): SearchParams {
+function toSearchParams(f: Filters, page: number, sort: Sort): SearchParams {
   return {
     q: f.q.trim() || undefined,
     category_id: f.categoryId ?? undefined,
@@ -21,6 +36,7 @@ function toSearchParams(f: Filters, page: number): SearchParams {
     min_stars: f.minStars || undefined,
     page,
     page_size: PAGE_SIZE,
+    ...sort,
   };
 }
 
@@ -38,7 +54,7 @@ export default function Catalog() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   // Lo que realmente se consulta: los filtros ya aplicados y la página.
-  const [request, setRequest] = useState<{ filters: Filters; page: number }>({ filters: EMPTY_FILTERS, page: 1 });
+  const [request, setRequest] = useState<{ filters: Filters; page: number; sort: Sort }>({ filters: EMPTY_FILTERS, page: 1, sort: DEFAULT_SORT });
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -50,7 +66,7 @@ export default function Catalog() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setRequest((prev) =>
-        JSON.stringify(prev.filters) === JSON.stringify(filters) ? prev : { filters, page: 1 },
+        JSON.stringify(prev.filters) === JSON.stringify(filters) ? prev : { ...prev, filters, page: 1 },
       );
     }, 300);
     return () => clearTimeout(timer);
@@ -58,11 +74,11 @@ export default function Catalog() {
 
   useEffect(() => {
     let cancelled = false;
-    const { filters: applied, page } = request;
-    const params = toSearchParams(applied, page);
+    const { filters: applied, page, sort } = request;
+    const params = toSearchParams(applied, page, sort);
     const filtered = hasFilters(params);
     setStatus({ kind: "loading" });
-    const call = filtered ? searchRepositories(params) : listRepositories({ page, page_size: PAGE_SIZE });
+    const call = filtered ? searchRepositories(params) : listRepositories({ page, page_size: PAGE_SIZE, ...sort });
     call
       .then((data) => !cancelled && setStatus({ kind: "ok", data }))
       .catch((err) => !cancelled && setStatus({ kind: "error", message: errorMessage(err, filtered) }));
@@ -72,6 +88,7 @@ export default function Catalog() {
   }, [request]);
 
   const goToPage = (page: number) => setRequest((prev) => ({ ...prev, page }));
+  const changeSort = (sort: Sort) => setRequest((prev) => ({ ...prev, sort, page: 1 }));
 
   const data = status.kind === "ok" ? status.data : null;
 
@@ -80,11 +97,35 @@ export default function Catalog() {
       <CatalogFilters filters={filters} categories={categories} onChange={setFilters} />
 
       <div className="flex flex-col gap-4">
-        <h2 id="resultados" className="text-sm text-text-muted" aria-live="polite">
-          {status.kind === "loading" && "Cargando herramientas…"}
-          {status.kind === "error" && "No se pudieron cargar las herramientas"}
-          {data && `${data.total} herramienta${data.total === 1 ? "" : "s"}`}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="resultados" className="text-sm text-text-muted" aria-live="polite">
+            {status.kind === "loading" && "Cargando herramientas…"}
+            {status.kind === "error" && "No se pudieron cargar las herramientas"}
+            {data && `${data.total} herramienta${data.total === 1 ? "" : "s"}`}
+          </h2>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs font-medium">
+              Ordenar por
+              <select
+                value={request.sort.sort_by}
+                onChange={(e) => changeSort({ ...request.sort, sort_by: e.target.value as SortBy })}
+                className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-text"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => changeSort({ ...request.sort, order: request.sort.order === "desc" ? "asc" : "desc" })}
+              aria-label={`Orden: ${orderLabel(request.sort)}. Cambiar orden`}
+              className="h-10 whitespace-nowrap rounded-xl border border-border bg-card px-3 text-sm text-text hover:bg-surface-hover"
+            >
+              {request.sort.order === "desc" ? "↓" : "↑"} {orderLabel(request.sort)}
+            </button>
+          </div>
+        </div>
 
         {status.kind === "error" && (
           <p role="alert" className="rounded-[var(--radius-card)] border border-dashed border-border p-8 text-center text-text-muted">

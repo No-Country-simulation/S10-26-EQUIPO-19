@@ -2,7 +2,10 @@
 
 /** 19500 → "19,5 k"; 100000 → "100 k". */
 export function compactNumber(value: number) {
-  return new Intl.NumberFormat("es-CL", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+  // Formato propio para que siempre diga "k" en minúscula (Intl mezcla "k" y "K" según el tamaño).
+  if (Math.abs(value) < 1000) return fullNumber(value);
+  const k = new Intl.NumberFormat("es-CL", { maximumFractionDigits: value < 100000 ? 1 : 0 }).format(value / 1000);
+  return `${k} k`;
 }
 
 export function fullNumber(value: number) {

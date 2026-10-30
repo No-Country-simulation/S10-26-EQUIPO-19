@@ -47,12 +47,15 @@ export type PaginatedRepositories = {
   items: RepositoryListItem[];
 };
 
+export type SortBy = "stars" | "forks" | "last_commit_at" | "health_score";
+export type SortOrder = "asc" | "desc";
+
 /** Parámetros del listado paginado (2.2). */
 export type ListParams = {
   page?: number;
   page_size?: number;
-  sort_by?: "stars" | "forks" | "last_commit_at" | "health_score";
-  order?: "asc" | "desc";
+  sort_by?: SortBy;
+  order?: SortOrder;
 };
 
 /** Parámetros de la búsqueda con filtros (2.3): los 5 filtros de la consigna más estrellas mínimas. */
@@ -65,6 +68,9 @@ export type SearchParams = {
   min_stars?: number;
   page?: number;
   page_size?: number;
+  /** Orden de los resultados. Pendiente de agregar a la búsqueda en la API (3.5); hoy solo lo usa el listado. */
+  sort_by?: SortBy;
+  order?: SortOrder;
 };
 
 /** Desglose del health score. Un componente que no se pudo calcular vale null. */
