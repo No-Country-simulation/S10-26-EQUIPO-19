@@ -7,7 +7,9 @@ import unicodedata
 from pathlib import Path
 
 from app.clients.github_client import github_get
+from app.services.github_db_service import save_repositories
 from app.services.github_repository_service import _health_score
+
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -265,12 +267,19 @@ async def main() -> None:
             })
             print(f"  ERROR - {exc}")
 
+    # Guardar en Supabase.
+    print("\nGuardando repositorios en Supabase...")
+
+    database_result = save_repositories(results)
+
+    # Generar JSON de preview.
     output = {
         "total": len(inventory),
         "successful": len(results),
         "failed": len(errors),
         "repositories": results,
         "errors": errors,
+        "database": database_result,
     }
 
     OUTPUT_PATH.write_text(
@@ -278,10 +287,19 @@ async def main() -> None:
         encoding="utf-8",
     )
 
-    print("\nSincronización de prueba finalizada.")
-    print(f"Correctos: {len(results)}")
-    print(f"Fallidos: {len(errors)}")
-    print(f"Resultado: {OUTPUT_PATH}")
+    # Mostrar resumen.
+    print("\nSincronización finalizada.")
+    print(f"Correctos en GitHub: {len(results)}")
+    print(f"Fallidos en GitHub: {len(errors)}")
+    print(f"Guardados en Supabase: {database_result['successful']}")
+    print(f"Fallidos en Supabase: {database_result['failed']}")
+    print(f"Preview generado: {OUTPUT_PATH}")
+
+    if database_result["errors"]:
+        print("\nErrores de Supabase:")
+
+        for error in database_result["errors"]:
+            print(f"  {error['full_name']}: {error['error']}")
 
 
 if __name__ == "__main__":
