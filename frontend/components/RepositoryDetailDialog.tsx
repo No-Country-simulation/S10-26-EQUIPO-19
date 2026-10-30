@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import HealthBadge from "@/components/HealthBadge";
 import { ApiError, getRepository } from "@/lib/api";
-import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
+import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
 
 type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; message: string };
@@ -129,7 +129,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id: number) => void }) {
   const description = repo.description_es || repo.description || "Sin descripción.";
-  const docsUrl = repo.homepage || repo.integrations.find((i) => i.documentation_url)?.documentation_url || null;
+  const docsUrl = repo.homepage || repo.integrations.flatMap((i) => splitUrls(i.documentation_url))[0] || null;
 
   // Casos de negocio y repositorios relacionados de todas las ideas, sin repetidos.
   const cases = [...new Map(repo.integrations.flatMap((i) => i.business_cases).map((c) => [c.id, c])).values()];
@@ -356,10 +356,19 @@ function IntegrationIdea({ idea }: { idea: Integration }) {
           <code>{idea.example_snippet}</code>
         </pre>
       )}
-      {idea.documentation_url && (
-        <a href={idea.documentation_url} target="_blank" rel="noreferrer" className="self-start text-sm font-semibold text-brand-indigo-strong hover:underline">
-          Documentación de la integración ↗
-        </a>
+      {splitUrls(idea.documentation_url).length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          <strong>Documentación de la integración</strong>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            {splitUrls(idea.documentation_url).map((url) => (
+              <li key={url}>
+                <a href={url} target="_blank" rel="noreferrer" title={url} className="font-semibold text-brand-indigo-strong hover:underline">
+                  {urlHost(url)} ↗
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </article>
   );
