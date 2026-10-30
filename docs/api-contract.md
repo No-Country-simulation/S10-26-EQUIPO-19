@@ -134,6 +134,8 @@ Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.
   - `min_stars` *(int, opcional)*: Cantidad mínima de estrellas en GitHub.
   - `license` *(string, opcional)*: Licencia (ej. `"MIT"`, `"Apache-2.0"`). Se compara con `repositories.license`.
   - `health_status` *(string, opcional)*: Nivel de mantenimiento: `Activo`, `En riesgo` o `Abandonado`. Se compara con `metrics.health_status`. Los repositorios con `health_status` en `null` (fecha del último commit desconocida) no aparecen al aplicar este filtro.
+  - `sort_by` *(string, default: "stars")*: Campo de ordenación: `stars`, `forks`, `last_commit_at` o `health_score`.
+  - `order` *(string, default: "desc")*: Dirección de ordenación: `asc` o `desc`.
   - `page` *(int, default: 1)*: Número de página.
   - `page_size` *(int, default: 10)*: Cantidad por página.
 - **Ejemplo de petición con los 5 filtros:**  

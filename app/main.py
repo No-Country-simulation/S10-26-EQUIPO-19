@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
@@ -9,15 +9,6 @@ from app.routers import (
     github_inventory_router,
 )
 from app.schemas import (
-    CategoryResponse,
-    RepositoryListItem,
-    RepositoryDetailResponse,
-    RepositoryPaginationResponse,
-    MetricSummary,
-    MetricDetail,
-    IntegrationSummary,
-    RelatedRepositoryItem,
-    BusinessCaseItem,
     ChatRequest,
     ChatResponse,
     ChatSource,
@@ -44,99 +35,12 @@ app.include_router(github_inventory_router.router)
 app.include_router(github_router.router)
 app.include_router(categories.router)
 app.include_router(repositories.router)
-MOCK_CATEGORIES = [
-    CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
-    CategoryResponse(id=4, name="IA y LLM", repositories_count=8),
-    CategoryResponse(id=11, name="Observabilidad y Monitoreo", repositories_count=6),
-]
-
-MOCK_REPOSITORIES_LIST = [
-    RepositoryListItem(
-        id=101,
-        github_id=10567832,
-        name="qdrant",
-        full_name="qdrant/qdrant",
-        url="https://github.com/qdrant/qdrant",
-        description="Vector Similarity Search Engine and Vector Database",
-        description_es="Motor de búsqueda por similitud vectorial y base de datos vectorial para IA de alto rendimiento.",
-        language="Rust",
-        license="Apache-2.0",
-        stars=19500,
-        forks=1400,
-        topics=["vector-search", "database", "rust", "machine-learning"],
-        last_commit_at=datetime.fromisoformat("2026-10-21T12:00:00"),
-        pushed_at=datetime.fromisoformat("2026-10-21T18:30:00"),
-        category=MOCK_CATEGORIES[0],
-        metrics=MetricSummary(health_score=91, health_status="Activo"),
-    ),
-    RepositoryListItem(
-        id=102,
-        github_id=23489110,
-        name="chroma",
-        full_name="chroma-core/chroma",
-        url="https://github.com/chroma-core/chroma",
-        description="the AI-native open-source embedding database",
-        description_es="Base de datos de embeddings nativa para inteligencia artificial, ligera y de fácil integración.",
-        language="Python",
-        license="Apache-2.0",
-        stars=14200,
-        forks=1150,
-        topics=["embedding", "database", "python", "ai"],
-        last_commit_at=datetime.fromisoformat("2026-10-20T12:00:00"),
-        pushed_at=datetime.fromisoformat("2026-10-20T14:15:00"),
-        category=MOCK_CATEGORIES[0],
-        metrics=MetricSummary(health_score=92, health_status="Activo"),
-    ),
-]
 
 
 @app.get("/health", tags=["Health Check"])
 def health_check():
     """Ruta básica de verificación del estado del servidor."""
     return {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
-
-
-# IMPORTANTE: /search debe declararse ANTES que /{id}; si no, FastAPI intentaría
-# interpretar "search" como el id entero y devolvería un 422.
-@app.get(
-    "/api/v1/repositories/search",
-    response_model=RepositoryPaginationResponse,
-    tags=["Repositorios"],
-    summary="Búsqueda con filtros de repositorios",
-)
-def search_repositories(
-    q: str | None = Query(default=None, description="Texto a buscar en nombre, descripción o tópicos"),
-    category_id: int | None = Query(default=None, description="ID de la categoría a filtrar"),
-    language: str | None = Query(default=None, description="Lenguaje principal (ej. Python, Rust, TypeScript)"),
-    min_stars: int | None = Query(default=None, ge=0, description="Cantidad mínima de estrellas en GitHub"),
-    license: str | None = Query(default=None, description="Licencia declarada (ej. MIT, Apache-2.0)"),
-    health_status: str | None = Query(default=None, description="Nivel de mantenimiento: Activo, En riesgo o Abandonado"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=10, ge=1, le=50),
-):
-    """Permite filtrar el catálogo combinando búsqueda textual y los 5 filtros facetados."""
-    return RepositoryPaginationResponse(
-        total=0,
-        page=page,
-        page_size=page_size,
-        total_pages=1,
-        items=[],
-    )
-
-
-@app.get(
-    "/api/v1/repositories/{id}",
-    response_model=RepositoryDetailResponse,
-    tags=["Repositorios"],
-    summary="Ficha técnica de un repositorio",
-)
-def get_repository_detail(id: int):
-    """Devuelve la ficha completa con métricas detalladas e ideas de integración relacionadas."""
-    raise HTTPException(status_code=404, detail=f"El repositorio con id {id} no fue encontrado.")
-
-
-app.include_router(categories.router)
-app.include_router(repositories.router)
 
 
 @app.post(
