@@ -1,37 +1,40 @@
 import HealthBadge from "@/components/HealthBadge";
+import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
 import type { RepositoryListItem } from "@/types/api";
 
-function formatDate(iso: string | null) {
-  if (!iso) return "Sin datos";
-  return new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-export default function RepositoryCard({ repo }: { repo: RepositoryListItem }) {
+// Tarjeta del catálogo (5.5), según el prototipo: al hacer clic abre la ficha técnica (5.6).
+export default function RepositoryCard({ repo, onOpen }: { repo: RepositoryListItem; onOpen: (id: number) => void }) {
   const description = repo.description_es || repo.description || "Sin descripción.";
   return (
-    <article className="flex h-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-lg font-semibold text-text">{repo.name}</h3>
-          <p className="truncate text-xs text-text-muted">{repo.full_name}</p>
-        </div>
-        <HealthBadge status={repo.metrics.health_status} score={repo.metrics.health_score} />
-      </div>
-      <p className="line-clamp-3 text-sm text-text-muted">{description}</p>
-      <dl className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-text-muted">
-        <div><dt className="inline font-semibold text-text">Lenguaje: </dt><dd className="inline">{repo.language ?? "Sin datos"}</dd></div>
-        <div><dt className="inline font-semibold text-text">Licencia: </dt><dd className="inline">{repo.license ?? "Sin datos"}</dd></div>
-        <div><dt className="inline font-semibold text-text">Estrellas: </dt><dd className="inline">{repo.stars.toLocaleString("es-CL")}</dd></div>
-        <div><dt className="inline font-semibold text-text">Actualizado: </dt><dd className="inline">{formatDate(repo.last_commit_at)}</dd></div>
-      </dl>
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="rounded-[var(--radius-pill)] bg-brand-indigo-soft px-3 py-1 text-xs font-medium text-brand-indigo-strong dark:bg-surface-hover dark:text-primary">
+    <button
+      type="button"
+      onClick={() => onOpen(repo.id)}
+      aria-label={`Ver la ficha de ${repo.name}`}
+      className="flex h-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary hover:bg-surface-hover"
+    >
+      <span className="flex min-w-0 items-center gap-2 text-xs">
+        <span title={repo.category.name} className="min-w-0 truncate rounded-md bg-brand-pink-soft px-2 py-0.5 font-medium text-[#0f172a]">
           {repo.category.name}
         </span>
-        <a href={repo.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">
-          Ver en GitHub
-        </a>
-      </div>
-    </article>
+        {repo.language && <span className="shrink-0 text-text-muted">{repo.language}</span>}
+      </span>
+      <span className="flex flex-col">
+        {/* El nombre viene de GitHub tal cual; solo se muestra con la primera letra en mayúscula. */}
+        <span className="truncate font-display text-lg font-semibold text-text first-letter:uppercase">{repo.name}</span>
+        <span className="truncate text-xs text-text-muted">{repo.full_name}</span>
+      </span>
+      <span className="line-clamp-3 flex-1 text-sm text-text-muted">{description}</span>
+      <span className="text-xs text-text-muted" title={formatDate(repo.last_commit_at)}>
+        {repo.last_commit_at ? `Actualizado ${relativeTime(repo.last_commit_at)}` : "Sin fecha de actualización"}
+      </span>
+      <span className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
+        <span className="flex items-center gap-2">
+          <span aria-label={`${fullNumber(repo.stars)} estrellas`}>★ {compactNumber(repo.stars)}</span>
+          <span aria-label={`${fullNumber(repo.forks)} forks`}>{compactNumber(repo.forks)} forks</span>
+          <span className="rounded-md bg-surface-hover px-2 py-0.5 font-medium text-text">{repo.license ?? "Sin licencia"}</span>
+        </span>
+        <HealthBadge status={repo.metrics.health_status} score={repo.metrics.health_score} />
+      </span>
+    </button>
   );
 }

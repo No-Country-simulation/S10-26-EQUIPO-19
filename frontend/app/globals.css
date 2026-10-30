@@ -10,8 +10,9 @@
  * Detalle y reglas de uso: docs/guia-de-estilo.md
  */
 @theme inline {
-  /* Tipografía de la marca (se carga con next/font en app/layout.tsx) */
-  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  /* Tipografía de la marca (se carga con next/font en app/layout.tsx): Roboto en textos, Poppins en títulos */
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Paleta de marca */
@@ -113,4 +114,12 @@ body {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* Títulos con Poppins; el resto del texto usa Roboto (font-sans). */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
 }
