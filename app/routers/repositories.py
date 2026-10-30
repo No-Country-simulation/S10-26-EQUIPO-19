@@ -39,7 +39,7 @@ FALLBACK_REPOSITORIES = [
         category=CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
         metrics=MetricSummary(health_score=91, health_status="Activo"),
     ),
-    RepositoryListItem(
+       RepositoryListItem(
         id=102,
         github_id=23489110,
         name="chroma",
@@ -51,7 +51,7 @@ FALLBACK_REPOSITORIES = [
         license="Apache-2.0",
         stars=14200,
         forks=1150,
-        topics=["embedding", "database", "python", "ai"],
+        topics=["embedding", "database", "python", "ai", "vector"],
         last_commit_at=datetime.fromisoformat("2026-10-20T12:00:00"),
         pushed_at=datetime.fromisoformat("2026-10-20T14:15:00"),
         category=CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
@@ -251,54 +251,6 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
     )
 
 
-def _filter_in_memory(
-    repos: list[RepositoryListItem],
-    q: str | None,
-    category_id: int | None,
-    language: str | None,
-    min_stars: int | None,
-    license_type: str | None,
-    health_status: str | None,
-) -> list[RepositoryListItem]:
-    """Filtra la colección de repositorios en memoria según los criterios especificados."""
-    results = []
-    q_clean = q.strip().lower() if q and q.strip() else None
-    lang_clean = language.strip().lower() if language and language.strip() else None
-    lic_clean = license_type.strip().lower() if license_type and license_type.strip() else None
-    status_clean = health_status.strip().lower() if health_status and health_status.strip() else None
-
-    for repo in repos:
-        if q_clean:
-            match_name = q_clean in repo.name.lower() or q_clean in repo.full_name.lower()
-            match_desc = bool(repo.description and q_clean in repo.description.lower())
-            match_desc_es = bool(repo.description_es and q_clean in repo.description_es.lower())
-            match_topics = any(q_clean in topic.lower() for topic in repo.topics)
-            if not (match_name or match_desc or match_desc_es or match_topics):
-                continue
-
-        if category_id is not None and repo.category.id != category_id:
-            continue
-
-        if lang_clean:
-            if not repo.language or repo.language.lower() != lang_clean:
-                continue
-
-        if min_stars is not None and repo.stars < min_stars:
-            continue
-
-        if lic_clean:
-            if not repo.license or lic_clean not in repo.license.lower():
-                continue
-
-        if status_clean:
-            if not repo.metrics.health_status or repo.metrics.health_status.lower() != status_clean:
-                continue
-
-        results.append(repo)
-
-    return results
-
-
 def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
     """Transforma un registro relacional completo de Supabase al esquema RepositoryDetailResponse."""
     base_item = _map_repository_row(row)
@@ -383,6 +335,54 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
     )
 
 
+def _filter_in_memory(
+    repos: list[RepositoryListItem],
+    q: str | None,
+    category_id: int | None,
+    language: str | None,
+    min_stars: int | None,
+    license_type: str | None,
+    health_status: str | None,
+) -> list[RepositoryListItem]:
+    """Aplica filtros en memoria sobre la lista de repositorios para modo offline o fallback."""
+    results = []
+    q_clean = q.strip().lower() if q else None
+    lang_clean = language.strip().lower() if language else None
+    lic_clean = license_type.strip().lower() if license_type else None
+    status_clean = health_status.strip().lower() if health_status else None
+
+    for repo in repos:
+        if q_clean:
+            match_name = q_clean in repo.name.lower() or q_clean in repo.full_name.lower()
+            match_desc = repo.description and q_clean in repo.description.lower()
+            match_desc_es = repo.description_es and q_clean in repo.description_es.lower()
+            match_topics = any(q_clean in topic.lower() for topic in repo.topics)
+            if not (match_name or match_desc or match_desc_es or match_topics):
+                continue
+
+        if category_id is not None and repo.category.id != category_id:
+            continue
+
+        if lang_clean:
+            if not repo.language or repo.language.lower() != lang_clean:
+                continue
+
+        if min_stars is not None and repo.stars < min_stars:
+            continue
+
+        if lic_clean:
+            if not repo.license or lic_clean not in repo.license.lower():
+                continue
+
+        if status_clean:
+            if not repo.metrics.health_status or repo.metrics.health_status.lower() != status_clean:
+                continue
+
+        results.append(repo)
+
+    return results
+
+
 @router.get(
     "",
     response_model=RepositoryPaginationResponse,
@@ -457,8 +457,6 @@ def get_repositories(
     )
 
 
-# IMPORTANTE: "/search" debe declararse ANTES que "/{id}"; si no, FastAPI
-# intentaría interpretar "search" como el id entero y devolvería un 422.
 @router.get(
     "/search",
     response_model=RepositoryPaginationResponse,
@@ -475,11 +473,20 @@ def search_repositories(
         default=None,
         description="Nivel de mantenimiento: Activo, En riesgo o Abandonado",
     ),
+    sort_by: Literal["stars", "forks", "last_commit_at", "health_score"] = Query(
+        default="stars",
+        description="Campo de ordenación: stars, forks, last_commit_at, health_score",
+    ),
+    order: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Dirección de ordenación: asc o desc",
+    ),
     page: int = Query(default=1, ge=1, description="Número de página"),
     page_size: int = Query(default=10, ge=1, le=50, description="Cantidad de items por página"),
 ):
-    """Filtra el catálogo combinando búsqueda textual y los 5 filtros facetados."""
+    """Filtra el catálogo combinando búsqueda textual, filtros facetados y ordenamiento."""
     supabase = get_supabase_client()
+    is_desc = order == "desc"
     start = (page - 1) * page_size
     end = start + page_size - 1
 
@@ -519,7 +526,11 @@ def search_repositories(
             if health_status:
                 query = query.eq("metrics.health_status", health_status)
 
-            query = query.order("stars", desc=True)
+            if sort_by == "health_score":
+                query = query.order("health_score", desc=is_desc, foreign_table="metrics")
+            else:
+                query = query.order(sort_by, desc=is_desc)
+
             response = query.range(start, end).execute()
 
             if response.data is not None and (response.count or 0) > 0:
@@ -546,7 +557,15 @@ def search_repositories(
         health_status=health_status,
     )
 
-    sorted_filtered = sorted(filtered, key=lambda r: r.stars, reverse=True)
+    sorted_filtered = sorted(
+        filtered,
+        key=lambda r: (
+            r.metrics.health_score
+            if sort_by == "health_score"
+            else getattr(r, sort_by) or 0
+        ),
+        reverse=is_desc,
+    )
     total = len(sorted_filtered)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_filtered[start : start + page_size]
