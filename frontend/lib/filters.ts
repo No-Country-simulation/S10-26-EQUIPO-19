@@ -9,8 +9,8 @@ export const LANGUAGES = [
 ];
 
 export const LICENSES = [
-  "Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0", "LGPL-3.0", "GPL-2.0", "GPL-3.0",
-  "AGPL-3.0", "Unlicense",
+  "Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0", "LGPL-2.1", "LGPL-3.0", "GPL-2.0",
+  "GPL-3.0", "AGPL-3.0", "EPL-1.0", "EPL-2.0", "OSL-3.0", "PostgreSQL", "Unlicense",
 ];
 
 export const HEALTH_STATUSES: HealthStatus[] = ["Activo", "En riesgo", "Abandonado"];
