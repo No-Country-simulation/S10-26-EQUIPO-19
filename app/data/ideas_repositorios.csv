@@ -1,0 +1,200 @@
+integration_code,repository_full_name,role
+INT-001,keycloak/keycloak,principal
+INT-001,nextauthjs/next-auth,se integra con
+INT-002,keycloak/keycloak,principal
+INT-002,apache/apisix,se integra con
+INT-003,keycloak/keycloak,principal
+INT-003,grafana/grafana,se integra con
+INT-004,Project-OSRM/osrm-backend,principal
+INT-004,google/or-tools,se integra con
+INT-005,calcom/cal.diy,principal
+INT-005,novuhq/novu,se integra con
+INT-006,keycloak/keycloak,principal
+INT-006,livekit/livekit,se integra con
+INT-007,openedx/openedx-platform,principal
+INT-007,Chocobozzz/PeerTube,se integra con
+INT-008,traccar/traccar,principal
+INT-008,centrifugal/centrifugo,se integra con
+INT-008,maplibre/maplibre-gl-js,se integra con
+INT-009,supabase/supabase,principal
+INT-009,typesense/typesense,se integra con
+INT-010,getlago/lago,principal
+INT-010,Unleash/unleash,se integra con
+INT-011,openbao/openbao,principal
+INT-011,juspay/hyperswitch,se integra con
+INT-012,osm-search/Nominatim,principal
+INT-012,typesense/typesense,se integra con
+INT-013,pretix/pretix,principal
+INT-013,knadh/listmonk,se integra con
+INT-014,odoo/odoo,principal
+INT-014,knadh/listmonk,se integra con
+INT-015,chatwoot/chatwoot,principal
+INT-015,Mintplex-Labs/anything-llm,se integra con
+INT-016,langchain-ai/langchain,principal
+INT-016,ollama/ollama,se integra con
+INT-016,qdrant/qdrant,se integra con
+INT-017,eclipse-mosquitto/mosquitto,principal
+INT-017,influxdata/influxdb,se integra con
+INT-017,grafana/grafana,se integra con
+INT-018,discourse/discourse,principal
+INT-018,keycloak/keycloak,se integra con
+INT-019,documenso/documenso,principal
+INT-019,frappe/hrms,se integra con
+INT-020,TryGhost/Ghost,principal
+INT-020,plausible/analytics,se integra con
+INT-021,owncast/owncast,principal
+INT-021,discourse/discourse,se integra con
+INT-022,paperless-ngx/paperless-ngx,principal
+INT-022,documenso/documenso,se integra con
+INT-023,strapi/strapi,principal
+INT-023,typesense/typesense,se integra con
+INT-024,Unleash/unleash,principal
+INT-024,Openpanel-dev/openpanel,se integra con
+INT-025,appsmithorg/appsmith,principal
+INT-025,kestra-io/kestra,se integra con
+INT-026,tigerbeetle/tigerbeetle,principal
+INT-026,juspay/hyperswitch,se integra con
+INT-027,Qloapps/QloApps,principal
+INT-027,novuhq/novu,se integra con
+INT-028,openreplay/openreplay,principal
+INT-028,chatwoot/chatwoot,se integra con
+INT-029,killbill/killbill,principal
+INT-029,novuhq/novu,se integra con
+INT-030,seaweedfs/seaweedfs,principal
+INT-030,strapi/strapi,se integra con
+INT-031,ory/hydra,principal
+INT-031,ory/kratos,se integra con
+INT-032,oauth2-proxy/oauth2-proxy,principal
+INT-032,dexidp/dex,se integra con
+INT-032,traefik/traefik,se integra con
+INT-033,authelia/authelia,principal
+INT-033,caddyserver/caddy,se integra con
+INT-034,mastodon/mastodon,principal
+INT-034,authelia/authelia,se integra con
+INT-035,zitadel/zitadel,principal
+INT-035,envoyproxy/envoy,se integra con
+INT-036,casdoor/casdoor,principal
+INT-036,BookStackApp/BookStack,se integra con
+INT-037,openfga/openfga,principal
+INT-037,better-auth/better-auth,se integra con
+INT-038,cerbos/cerbos,principal
+INT-038,prisma/orm,se integra con
+INT-039,postgres/postgres,principal
+INT-039,postgis/postgis,se integra con
+INT-040,refinedev/refine,principal
+INT-040,appwrite/appwrite,se integra con
+INT-040,ant-design/ant-design,se integra con
+INT-041,juicedata/juicefs,principal
+INT-041,valkey-io/valkey,se integra con
+INT-041,seaweedfs/seaweedfs,se integra con
+INT-042,paradedb/paradedb,principal
+INT-042,typeorm/typeorm,se integra con
+INT-043,apache/superset,principal
+INT-043,neondatabase/neon,se integra con
+INT-044,payloadcms/payload,principal
+INT-044,tursodatabase/libsql,se integra con
+INT-045,parse-community/parse-server,principal
+INT-045,meilisearch/meilisearch,se integra con
+INT-046,docling-project/docling,principal
+INT-046,milvus-io/milvus,se integra con
+INT-047,Unstructured-IO/unstructured,principal
+INT-047,chroma-core/chroma,se integra con
+INT-048,mudler/LocalAI,principal
+INT-048,lancedb/lancedb,se integra con
+INT-049,facebookresearch/faiss,principal
+INT-049,quickwit-oss/tantivy,se integra con
+INT-049,vllm-project/vllm,se integra con
+INT-050,infiniflow/ragflow,principal
+INT-050,zulip/zulip,se integra con
+INT-051,saleor/saleor,principal
+INT-051,triggerdotdev/trigger.dev,se integra con
+INT-052,btcpayserver/btcpayserver,principal
+INT-052,nsqio/nsq,se integra con
+INT-053,bagisto/bagisto,principal
+INT-053,umami-software/umami,se integra con
+INT-054,vendurehq/vendure,principal
+INT-054,taskforcesh/bullmq,se integra con
+INT-054,valkey-io/valkey,se integra con
+INT-055,PostHog/posthog,principal
+INT-055,openflagr/flagr,se integra con
+INT-056,recharts/recharts,principal
+INT-056,umami-software/umami,se integra con
+INT-057,jitsucom/jitsu,principal
+INT-057,postgres/postgres,se integra con
+INT-058,manticoresoftware/manticoresearch,principal
+INT-058,keystonejs/keystone,se integra con
+INT-059,apache/solr,principal
+INT-059,apache/airflow,se integra con
+INT-060,tus/tusd,principal
+INT-060,transloadit/uppy,se integra con
+INT-061,rclone/rclone,principal
+INT-061,healthchecks/healthchecks,se integra con
+INT-062,krakend/krakend-ce,principal
+INT-062,nats-io/nats-server,se integra con
+INT-063,apache/artemis,principal
+INT-063,prometheus/prometheus,se integra con
+INT-064,netdata/netdata,principal
+INT-064,prometheus/prometheus,se integra con
+INT-065,PrefectHQ/prefect,principal
+INT-065,caronc/apprise,se integra con
+INT-066,hatchet-dev/hatchet,principal
+INT-066,mudler/LocalAI,se integra con
+INT-067,louislam/uptime-kuma,principal
+INT-067,caronc/apprise,se integra con
+INT-068,coroot/coroot,principal
+INT-068,k3s-io/k3s,se integra con
+INT-069,open-feature/flagd,principal
+INT-069,argoproj/argo-cd,se integra con
+INT-070,featbit/featbit,principal
+INT-070,zulip/zulip,se integra con
+INT-071,Flagsmith/flagsmith,principal
+INT-071,chakra-ui/chakra-ui,se integra con
+INT-072,apache/echarts,principal
+INT-072,prometheus/prometheus,se integra con
+INT-073,coollabsio/coolify,principal
+INT-073,classroomio/classroomio,se integra con
+INT-074,dokku/dokku,principal
+INT-074,postgres/postgres,se integra con
+INT-075,rancher/rancher,principal
+INT-075,k3s-io/k3s,se integra con
+INT-076,kubero-dev/kubero,principal
+INT-076,k3s-io/k3s,se integra con
+INT-077,OpenAPITools/openapi-generator,principal
+INT-077,swagger-api/swagger-ui,se integra con
+INT-078,mockoon/mockoon,principal
+INT-078,Kong/insomnia,se integra con
+INT-079,hoppscotch/hoppscotch,principal
+INT-079,krakend/krakend-ce,se integra con
+INT-080,semgrep/semgrep,principal
+INT-080,gitleaks/gitleaks,se integra con
+INT-081,trufflesecurity/trufflehog,principal
+INT-081,makeplane/plane,se integra con
+INT-082,aquasecurity/trivy,principal
+INT-082,k3s-io/k3s,se integra con
+INT-083,anchore/grype,principal
+INT-083,zaproxy/zaproxy,se integra con
+INT-084,marmelab/react-admin,principal
+INT-084,mui/material-ui,se integra con
+INT-085,ToolJet/ToolJet,principal
+INT-085,openboxes/openboxes,se integra con
+INT-086,lowcoder-org/lowcoder,principal
+INT-086,postgres/postgres,se integra con
+INT-087,graphhopper/graphhopper,principal
+INT-087,maplibre/maplibre-gl-js,se integra con
+INT-088,jitsi/jitsi-meet,principal
+INT-088,zulip/zulip,se integra con
+INT-089,bluenviron/mediamtx,principal
+INT-089,home-assistant/core,se integra con
+INT-090,ossrs/srs,principal
+INT-090,owncast/owncast,se integra con
+INT-091,frappe/lms,principal
+INT-091,frappe/hrms,se integra con
+INT-092,chamilo/chamilo-lms,principal
+INT-092,keycloak/keycloak,se integra con
+INT-093,overhangio/tutor,principal
+INT-093,openedx/openedx-platform,se integra con
+INT-094,Koenkk/zigbee2mqtt,principal
+INT-094,home-assistant/core,se integra con
+INT-094,eclipse-mosquitto/mosquitto,se integra con
+INT-095,nanomq/nanomq,principal
+INT-095,openremote/core,se integra con
