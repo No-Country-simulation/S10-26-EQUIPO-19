@@ -11,7 +11,7 @@ const STYLES: Record<HealthStatus | "Sin datos", string> = {
 export default function HealthBadge({ status, score }: { status: HealthStatus | null; score?: number }) {
   const label = status ?? "Sin datos";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-3 py-1 text-xs font-semibold ${STYLES[label]}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[var(--radius-pill)] px-3 py-1 text-xs font-semibold ${STYLES[label]}`}>
       {label}
       {score !== undefined && <span className="font-normal">· {score}/100</span>}
     </span>
