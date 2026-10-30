@@ -4,12 +4,16 @@ import csv
 import json
 import re
 import unicodedata
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from app.clients.github_client import github_get
-from app.services.github_db_service import save_repositories
+from app.services.github_db_service import (
+    get_commit_metrics_record,
+    sync_repositories,
+    update_commit_metrics,
+)
 from app.services.github_repository_service import _health_score
-
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -19,6 +23,8 @@ OUTPUT_PATH = BASE_DIR / "github_sync_preview.json"
 # Para probar con pocos repositorios.
 # Cambialo a None para procesar todos.
 LIMIT = 3
+
+METRICS_INTERVAL = timedelta(days=7)
 
 
 def normalize_column(value: str) -> str:
@@ -151,22 +157,14 @@ def read_inventory() -> list[dict]:
     return repositories
 
 
-async def get_commit_metrics(
+async def get_last_commit_at(
     owner: str,
     repo_name: str,
-) -> dict:
-    """Obtiene el último commit y la actividad de los últimos 90 días."""
-    prefix = f"/repos/{owner}/{repo_name}"
-
-    result = {
-        "last_commit_at": None,
-        "commits_last_90_days": None,
-        "commit_activity_status": "unavailable",
-    }
-
+) -> str | None:
+    """Obtiene la fecha del último commit."""
     try:
         commits, _ = await github_get(
-            f"{prefix}/commits",
+            f"/repos/{owner}/{repo_name}/commits",
             params={"per_page": 1},
         )
 
@@ -175,36 +173,113 @@ async def get_commit_metrics(
             committer = commit.get("committer") or {}
             author = commit.get("author") or {}
 
-            result["last_commit_at"] = (
-                committer.get("date") or author.get("date")
-            )
+            return committer.get("date") or author.get("date")
 
     except Exception as exc:
         print(f"No se pudo obtener el último commit: {exc}")
 
+    return None
+
+
+async def get_commit_activity_metrics(
+    owner: str,
+    repo_name: str,
+) -> dict:
+    """Obtiene las métricas de actividad de commits."""
+    result = {
+        "commits_last_30_days": None,
+        "commits_last_90_days": None,
+        "commits_last_year": None,
+        "commit_activity_status": "unavailable",
+    }
+
     try:
         activity, _ = await github_get(
-            f"{prefix}/stats/commit_activity"
+            f"/repos/{owner}/{repo_name}/stats/commit_activity"
         )
 
-        if isinstance(activity, list):
-            weekly_totals = [
-                max(0, int(week.get("total", 0)))
-                for week in activity[-13:]
-                if isinstance(week, dict)
-            ]
+        if not isinstance(activity, list):
+            return result
 
-            result["commits_last_90_days"] = sum(weekly_totals)
-            result["commit_activity_status"] = "available"
+        now = datetime.now(UTC)
+        days_30 = now - timedelta(days=30)
+        days_90 = now - timedelta(days=90)
+        days_365 = now - timedelta(days=365)
+
+        commits_30 = 0
+        commits_90 = 0
+        commits_year = 0
+
+        for week in activity:
+            if not isinstance(week, dict):
+                continue
+
+            week_timestamp = week.get("week")
+
+            if week_timestamp is None:
+                continue
+
+            week_date = datetime.fromtimestamp(
+                week_timestamp,
+                tz=UTC,
+            )
+
+            total = max(0, int(week.get("total", 0)))
+
+            if week_date >= days_30:
+                commits_30 += total
+
+            if week_date >= days_90:
+                commits_90 += total
+
+            if week_date >= days_365:
+                commits_year += total
+
+        result.update({
+            "commits_last_30_days": commits_30,
+            "commits_last_90_days": commits_90,
+            "commits_last_year": commits_year,
+            "commit_activity_status": "available",
+        })
 
     except Exception as exc:
-        print(f"No se pudo obtener la actividad de commits: {exc}")
+        print(
+            f"No se pudo obtener la actividad de commits "
+            f"de {owner}/{repo_name}: {exc}"
+        )
 
     return result
 
 
+def should_sync_metrics(metrics_record: dict | None) -> bool:
+    """Comprueba si las métricas necesitan actualizarse."""
+    if not metrics_record:
+        return True
+
+    measured_at = metrics_record.get("measured_at")
+
+    if not measured_at:
+        return True
+
+    try:
+        measured_at = datetime.fromisoformat(
+            measured_at.replace("Z", "+00:00")
+        )
+
+        if measured_at.tzinfo is None:
+            measured_at = measured_at.replace(tzinfo=UTC)
+
+    except (TypeError, ValueError):
+        return True
+
+    return (
+        datetime.now(UTC) - measured_at
+        >= METRICS_INTERVAL
+    )
+
+
 async def sync_repository(repository: dict) -> dict:
-    """Obtiene los datos dinámicos de GitHub y conserva la licencia del CSV."""
+    """Obtiene los datos dinámicos de GitHub."""
     full_name = repository["full_name"]
     owner, repo_name = full_name.split("/", maxsplit=1)
 
@@ -212,11 +287,14 @@ async def sync_repository(repository: dict) -> dict:
         f"/repos/{owner}/{repo_name}"
     )
 
-    commit_metrics = await get_commit_metrics(owner, repo_name)
+    last_commit_at = await get_last_commit_at(
+        owner,
+        repo_name,
+    )
 
     score, status, score_details = _health_score({
         **data,
-        **commit_metrics,
+        "last_commit_at": last_commit_at,
     })
 
     return {
@@ -226,7 +304,7 @@ async def sync_repository(repository: dict) -> dict:
         "forks": data.get("forks_count", 0),
         "updated_at": data.get("updated_at"),
         "pushed_at": data.get("pushed_at"),
-        "last_commit_at": commit_metrics["last_commit_at"],
+        "last_commit_at": last_commit_at,
         "archived": data.get("archived", False),
         "disabled": data.get("disabled", False),
         "health_score": score,
@@ -267,10 +345,77 @@ async def main() -> None:
             })
             print(f"  ERROR - {exc}")
 
-    # Guardar en Supabase.
+    # Sincronización general en Supabase.
     print("\nGuardando repositorios en Supabase...")
 
-    database_result = save_repositories(results)
+    database_result = sync_repositories(results)
+
+    # Actualización semanal de métricas de commits.
+    print("\nComprobando métricas de commits...")
+
+    saved_by_name = {
+        item["full_name"]: item
+        for item in database_result["saved"]
+    }
+
+    metrics_results = []
+    metrics_errors = []
+
+    for repository in results:
+        full_name = repository["full_name"]
+        saved = saved_by_name.get(full_name)
+
+        if not saved:
+            continue
+
+        repository_id = saved["repository_id"]
+        owner, repo_name = full_name.split("/", maxsplit=1)
+
+        try:
+            metrics_record = get_commit_metrics_record(
+                repository_id
+            )
+
+            if not should_sync_metrics(metrics_record):
+                print(f"  OMITIDO - {full_name}: métricas actualizadas")
+                metrics_results.append({
+                    "full_name": full_name,
+                    "status": "skipped",
+                    "measured_at": metrics_record.get("measured_at"),
+                })
+                continue
+
+            print(f"  ACTUALIZANDO - {full_name}")
+
+            commit_metrics = await get_commit_activity_metrics(
+                owner,
+                repo_name,
+            )
+
+            if commit_metrics["commit_activity_status"] != "available":
+                raise RuntimeError(
+                    "GitHub no devolvió métricas de actividad disponibles."
+                )
+
+            update_commit_metrics(
+                repository_id,
+                commit_metrics,
+            )
+
+            metrics_results.append({
+                "full_name": full_name,
+                "status": "updated",
+                **commit_metrics,
+            })
+
+            print(f"  OK - métricas actualizadas para {full_name}")
+
+        except Exception as exc:
+            metrics_errors.append({
+                "full_name": full_name,
+                "error": str(exc),
+            })
+            print(f"  ERROR en métricas - {exc}")
 
     # Generar JSON de preview.
     output = {
@@ -280,6 +425,19 @@ async def main() -> None:
         "repositories": results,
         "errors": errors,
         "database": database_result,
+        "commit_metrics": {
+            "successful": sum(
+                item["status"] == "updated"
+                for item in metrics_results
+            ),
+            "skipped": sum(
+                item["status"] == "skipped"
+                for item in metrics_results
+            ),
+            "failed": len(metrics_errors),
+            "repositories": metrics_results,
+            "errors": metrics_errors,
+        },
     }
 
     OUTPUT_PATH.write_text(
@@ -293,13 +451,19 @@ async def main() -> None:
     print(f"Fallidos en GitHub: {len(errors)}")
     print(f"Guardados en Supabase: {database_result['successful']}")
     print(f"Fallidos en Supabase: {database_result['failed']}")
+    print(
+        "Métricas actualizadas: "
+        f"{output['commit_metrics']['successful']}"
+    )
+    print(
+        "Métricas omitidas: "
+        f"{output['commit_metrics']['skipped']}"
+    )
+    print(
+        "Errores de métricas: "
+        f"{output['commit_metrics']['failed']}"
+    )
     print(f"Preview generado: {OUTPUT_PATH}")
-
-    if database_result["errors"]:
-        print("\nErrores de Supabase:")
-
-        for error in database_result["errors"]:
-            print(f"  {error['full_name']}: {error['error']}")
 
 
 if __name__ == "__main__":
