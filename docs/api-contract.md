@@ -274,6 +274,7 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
   ]
 }
 ```
+- **Nota sobre `documentation_url`:** en cada idea de integración puede traer varios enlaces separados por ` ; ` (normalmente uno por cada repositorio de la integración). Ejemplo: `"https://docs.paperless-ngx.com/api ; https://docs.documenso.com/docs/developers/webhooks/events"`. El frontend los separa y muestra un enlace por cada uno.
 - **Respuesta `404 Not Found`:**
 ```json
 {
