@@ -338,7 +338,14 @@ function IntegrationIdea({ idea }: { idea: Integration }) {
         <span className="px-1 py-0.5 font-semibold text-brand-pink-deep">{idea.code}</span>
       </div>
       <h3 className="text-lg font-semibold">{idea.purpose}</h3>
-      {idea.role && <p><strong>Rol en la integración:</strong> {idea.role}</p>}
+      {idea.role && (
+        <p>
+          <strong>Rol en la integración:</strong>{" "}
+          {idea.role === "principal"
+            ? "herramienta principal"
+            : `se integra con ${idea.related_repositories?.find((r) => r.role === "principal")?.full_name ?? "la herramienta principal"}`}
+        </p>
+      )}
       {idea.triggers_or_webhooks && <p><strong>Disparadores:</strong> {idea.triggers_or_webhooks}</p>}
       {idea.compatible_stack.length > 0 && <p><strong>Compatible con:</strong> {idea.compatible_stack.join(", ")}</p>}
       {idea.main_steps.length > 0 && (
