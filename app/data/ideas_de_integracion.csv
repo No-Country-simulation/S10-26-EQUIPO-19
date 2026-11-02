@@ -1,0 +1,1402 @@
+﻿code,purpose,integration_type,triggers_or_webhooks,example_snippet,compatible_stack,difficulty,documentation_url,how_it_connects,main_steps,status
+INT-001,"Inicio de sesión único (SSO) en una aplicación web Next.js, sin construir un sistema de usuarios propio.",OIDC / OAuth2 / SAML,No aplica: la integración se activa cuando el usuario inicia sesión.,"import NextAuth from ""next-auth""
+ import Keycloak from ""next-auth/providers/keycloak""
+ 
+ export const { handlers, auth } = NextAuth({
+  providers: [Keycloak({
+  clientId: process.env.AUTH_KEYCLOAK_ID,
+  clientSecret: process.env.AUTH_KEYCLOAK_SECRET,
+  issuer: process.env.AUTH_KEYCLOAK_ISSUER,
+  })],
+ })","[""Next.js (App Router o Pages Router) con TypeScript o JavaScript"", ""Keycloak con un realm y cliente OIDC""]",Baja,https://authjs.dev/getting-started/providers/keycloak,OpenID Connect (OIDC). Auth.js trae un proveedor de Keycloak listo para usar.,"[""Crear un realm y un cliente en Keycloak con \""Client Authentication\"" activado."", ""Registrar la URL de retorno /api/auth/callback/keycloak."", ""Configurar en la app AUTH_KEYCLOAK_ID, AUTH_KEYCLOAK_SECRET y AUTH_KEYCLOAK_ISSUER (https://<host>/realms/<realm>).""]",Aprobada
+INT-002,Proteger todas las APIs de la startup en un solo punto: el gateway rechaza las peticiones sin un token válido antes de que lleguen a los servicios.,OIDC / OAuth2 / SAML,Cada petición a la API: el gateway valida el token de Keycloak antes de pasarla al servicio.,"""plugins"": {
+  ""openid-connect"": {
+  ""client_id"": ""apisix"",
+  ""client_secret"": ""<secreto>"",
+  ""discovery"": ""https://<keycloak>/realms/<realm>/.well-known/openid-configuration"",
+  ""bearer_only"": true
+  }
+ }","[""Cualquier backend HTTP detrás de APISIX (FastAPI, Node.js, Go, etc.)"", ""Keycloak con OIDC""]",Media,https://apisix.apache.org/docs/apisix/plugins/openid-connect/,OIDC en el gateway. El plugin openid-connect de APISIX valida el token de Keycloak (por introspección o con las claves públicas JWKS).,"[""Crear en Keycloak un cliente para el gateway."", ""Activar el plugin openid-connect en la ruta de APISIX con la URL de descubrimiento del realm."", ""Usar bearer_only = true para APIs que reciben tokens.""]",Aprobada
+INT-003,"Acceso con la misma cuenta corporativa a los paneles de monitoreo, con permisos según el rol del usuario (admin, editor o lector).",OIDC / OAuth2 / SAML,No aplica: la integración se activa cuando el usuario inicia sesión en Grafana.,"[auth.generic_oauth]
+ enabled = true
+ name = Keycloak
+ client_id = grafana-oauth
+ client_secret = <secreto>
+ scopes = openid email profile offline_access roles
+ auth_url = https://<keycloak>/realms/<realm>/protocol/openid-connect/auth
+ token_url = https://<keycloak>/realms/<realm>/protocol/openid-connect/token
+ api_url = https://<keycloak>/realms/<realm>/protocol/openid-connect/userinfo
+ email_attribute_path = email
+ login_attribute_path = username
+ role_attribute_path = contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'","[""Grafana autoalojado (Docker o binario)"", ""Keycloak con OIDC""]",Media,https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/keycloak/,OAuth2 genérico de Grafana ([auth.generic_oauth]) contra el realm de Keycloak; los roles se asignan con role_attribute_path.,"[""Crear en Keycloak el cliente grafana-oauth con la URL de retorno <grafana>/login/generic_oauth."", ""Crear los roles admin, editor y viewer."", ""Configurar generic_oauth en Grafana con las URLs del realm y la regla de roles.""]",Aprobada
+INT-004,"Planificar las rutas de reparto de varios vehículos con tiempos reales de calle, minimizando kilómetros y horas.",API REST,"Tarea programada al cerrar el lote de pedidos del día, o al ingresar un pedido urgente.","import requests
+ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
+ 
+ coords = "";"".join(f""{lon},{lat}"" for lat, lon in puntos) # depósito primero
+ m = requests.get(f""http://osrm:5000/table/v1/driving/{coords}"",
+  params={""annotations"": ""duration""}).json()[""durations""]
+ # Las celdas en null (sin ruta posible) deben tratarse antes de resolver
+ 
+ manager = pywrapcp.RoutingIndexManager(len(m), num_vehiculos, 0)
+ routing = pywrapcp.RoutingModel(manager)
+ cb = routing.RegisterTransitCallback(
+  lambda i, j: int(m[manager.IndexToNode(i)][manager.IndexToNode(j)]))
+ routing.SetArcCostEvaluatorOfAllVehicles(cb)
+ params = pywrapcp.DefaultRoutingSearchParameters()
+ params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+ solucion = routing.SolveWithParameters(params)","[""Python 3 (requests, ortools)"", ""OSRM en Docker o binario"", ""datos OSM por región (por ejemplo, Geofabrik)""]",Media,https://project-osrm.org/docs/v26.6.1/http ; https://developers.google.com/optimization/routing/vrp,El servicio Table de OSRM entrega la matriz de duraciones entre depósito y entregas; OR-Tools resuelve el problema de rutas de vehículos (VRP) con esa matriz.,"[""Levantar OSRM con un extracto OSM de la región (osrm-extract, osrm-partition, osrm-customize, osrm-routed --algorithm mld)."", ""Pedir /table/v1/driving con las coordenadas (depósito primero)."", ""Resolver el VRP en OR-Tools (agregar capacidad y ventanas horarias si aplica)."", ""Devolver el orden de paradas por vehículo.""]",Aprobada
+INT-005,"Enviar recordatorios automáticos de citas por email, SMS o push, sin programarlos a mano.",Webhooks / eventos,"BOOKING_CREATED, BOOKING_RESCHEDULED y BOOKING_CANCELLED (webhooks de Cal).","import { Novu } from ""@novu/api"";
+ const novu = new Novu({ secretKey: process.env.NOVU_SECRET_KEY });
+ 
+ app.post(""/webhooks/cal"", async (req, res) => {
+  const { triggerEvent, payload } = req.body; // validar antes el encabezado x-cal-signature-256
+  if (triggerEvent === ""BOOKING_CREATED"") {
+  const paciente = payload.attendees[0];
+  await novu.trigger({
+  workflowId: ""recordatorio-cita"",
+  to: { subscriberId: paciente.email, email: paciente.email },
+  payload: { inicio: payload.startTime, titulo: payload.title },
+  });
+  }
+  res.sendStatus(200);
+ });","[""Node.js o TypeScript (Express o Next.js)"", ""Cal y Novu autoalojados o en la nube""]",Baja,https://cal.com/docs/developing/guides/automation/webhooks ; https://docs.novu.co/platform/workflow/trigger-workflow,"El webhook de Cal llega a un endpoint del backend, que dispara un workflow de Novu con los datos de la cita; el workflow espera (paso delay) hasta 24 h antes y envía el aviso por cada canal.","[""En Cal, crear un webhook hacia /webhooks/cal con un secreto."", ""Validar la firma del webhook (encabezado x-cal-signature-256, HMAC SHA-256 con el secreto)."", ""En Novu, crear el workflow \""recordatorio-cita\"" con paso delay y pasos de email/SMS."", ""Disparar el workflow con el paciente como suscriptor.""]",Aprobada
+INT-006,"Videoconsultas solo para pacientes y profesionales autenticados, sin crear cuentas aparte en el sistema de video.",SDK / librería,"Al entrar a la videoconsulta (el usuario pulsa ""Entrar"").","import { AccessToken } from ""livekit-server-sdk"";
+ 
+ // req.user viene del middleware que valida el token de Keycloak
+ app.get(""/video/token/:citaId"", async (req, res) => {
+  const at = new AccessToken(process.env.LIVEKIT_API_KEY,
+  process.env.LIVEKIT_API_SECRET, {
+  identity: req.user.sub,
+  name: req.user.name,
+  });
+  at.addGrant({ roomJoin: true, room: `cita-${req.params.citaId}` });
+  res.json({ token: await at.toJwt() });
+ });","[""Node.js"", ""frontend React"", ""Keycloak con OIDC"", ""LiveKit autoalojado o en la nube""]",Media,https://docs.livekit.io/frontends/authentication/tokens/ ; https://www.keycloak.org,"El backend valida el token OIDC de Keycloak y emite un token de acceso de LiveKit para la sala de la cita, con la identidad del usuario.","[""Crear un cliente OIDC en Keycloak para la app."", ""Proteger el endpoint /video/token con el token de Keycloak (validación con JWKS del realm)."", ""Generar el token de LiveKit con permiso roomJoin a la sala de la cita."", ""Conectar el frontend con livekit-client o @livekit/components-react.""]",Aprobada
+INT-007,"Alojar los videos de los cursos en una plataforma propia, sin depender de YouTube o Vimeo.",Otro,No aplica: la inserción es estática. Opcional: subida automática por la API REST de PeerTube al publicar el curso.,"<iframe width=""560"" height=""315""
+  src=""https://videos.ejemplo.edu/videos/embed/<uuid-del-video>""
+  allowfullscreen
+  sandbox=""allow-same-origin allow-scripts allow-popups""></iframe>","[""Open edX (instalado con Tutor) con componente HTML"", ""PeerTube autoalojado""]",Baja,https://docs.joinpeertube.org/api/embed-player ; https://docs.openedx.org/en/latest/,Los videos se suben a PeerTube y se insertan en las unidades del curso de Open edX con el reproductor embebido de PeerTube (iframe).,"[""Crear un canal por curso en PeerTube."", ""Subir el video con privacidad \""no listado\"", para que el reproductor embebido funcione sin iniciar sesión en PeerTube."", ""En Studio, agregar un componente HTML con el iframe del video."", ""Revisar que la privacidad del video sea coherente con el acceso al curso (un video no listado lo puede ver quien tenga el enlace).""]",Aprobada
+INT-008,Mostrar al cliente la ubicación del repartidor en tiempo real.,Webhooks / eventos,Cada nueva posición GPS del dispositivo del repartidor.,"<!-- traccar.xml: reenviar cada posición al backend en JSON -->
+ <entry key='forward.url'>https://backend.ejemplo.com/traccar/posiciones</entry>
+ <entry key='forward.type'>json</entry>
+ 
+ // Backend: publicar la posición en el canal del pedido
+ await fetch(""http://centrifugo:8000/api/publish"", {
+  method: ""POST"",
+  headers: { ""X-API-Key"": process.env.CENTRIFUGO_API_KEY,
+  ""Content-Type"": ""application/json"" },
+  body: JSON.stringify({ channel: `pedido:${pedidoId}`,
+  data: { lat, lon, ts } }),
+ });
+ 
+ // Frontend: mover el marcador en el mapa
+ sub.on(""publication"", ({ data }) =>
+  marcador.setLngLat([data.lon, data.lat]));","[""Node.js"", ""frontend web con centrifuge-js y MapLibre GL JS"", ""Traccar y Centrifugo en Docker""]",Media,https://www.traccar.org/forward/ ; https://centrifugal.dev/docs/server/server_api ; https://maplibre.org/maplibre-gl-js/docs/,Traccar reenvía cada posición a un endpoint HTTP; el backend la publica en un canal de Centrifugo por pedido; el frontend se suscribe y mueve el marcador en un mapa MapLibre.,"[""Activar en Traccar el reenvío de posiciones con forward.url (endpoint del backend) y forward.type = json; opcional: forward.header para autenticar y forward.retry.enable para reintentos."", ""En el endpoint, asociar dispositivo con pedido y publicar en Centrifugo."", ""En el frontend, suscribirse con centrifuge-js y actualizar el marcador de MapLibre.""]",Aprobada
+INT-009,"Búsqueda instantánea y tolerante a errores de perfiles de freelancers, con filtros por habilidad y tarifa.",Webhooks / eventos,"INSERT, UPDATE y DELETE en la tabla perfiles (Database Webhooks de Supabase).","import Typesense from ""npm:typesense"";
+ const ts = new Typesense.Client({
+  nodes: [{ host: ""typesense"", port: 8108, protocol: ""http"" }],
+  apiKey: Deno.env.get(""TYPESENSE_ADMIN_KEY""),
+ });
+ 
+ Deno.serve(async (req) => {
+  const { type, record, old_record } = await req.json();
+  if (type === ""DELETE"") {
+  await ts.collections(""freelancers"").documents(String(old_record.id)).delete();
+  } else {
+  await ts.collections(""freelancers"").documents().upsert({
+  id: String(record.id), nombre: record.nombre,
+  habilidades: record.habilidades, tarifa: record.tarifa });
+  }
+  return new Response(""ok"");
+ });","[""Supabase (PostgreSQL) con Edge Functions (Deno)"", ""Typesense autoalojado""]",Media,https://supabase.com/docs/guides/database/webhooks ; https://typesense.org/docs/30.2/api/documents.html,Un Database Webhook de Supabase llama a una Edge Function en cada cambio de la tabla de perfiles; la función actualiza la colección de Typesense.,"[""Crear la colección \""freelancers\"" en Typesense."", ""Crear la Edge Function."", ""Configurar el Database Webhook de la tabla perfiles hacia la función, autenticado con la clave secreta del proyecto (la función se configura con verify_jwt = false)."", ""Hacer una carga inicial de los perfiles existentes.""]",Aprobada
+INT-010,"Activar funciones según el plan de suscripción pagado, sin desplegar código nuevo.",Webhooks / eventos,"subscription.started (inicio o cambio de plan) y subscription.terminated (término o fin del plan anterior), webhooks de Lago.","import { startUnleash } from ""unleash-client""; // módulo ES (permite await en el nivel superior)
+ // startUnleash espera la primera sincronización: antes de eso, todos los flags valen false
+ const unleash = await startUnleash({
+  url: ""https://unleash.ejemplo.com/api/"",
+  appName: ""saas-b2b"",
+  customHeaders: { Authorization: process.env.UNLEASH_API_TOKEN },
+ });
+ 
+ const habilitado = unleash.isEnabled(""reportes-avanzados"", {
+  userId: cliente.id,
+  properties: { plan: cliente.plan }, // ""starter"", ""pro"" o ""enterprise""
+ });","[""Node.js"", ""Lago y Unleash autoalojados"", ""funciona con cualquier frontend""]",Media,https://docs.getlago.com/api-reference/webhooks/messages ; https://github.com/Unleash/unleash-client-node,"Los webhooks de Lago actualizan el plan del cliente en la base de la app; el SDK de Unleash evalúa los flags con el plan como propiedad de contexto (restricción ""plan"" en la estrategia).","[""Configurar el webhook de Lago hacia el backend."", ""Guardar el plan vigente del cliente."", ""En Unleash, crear el flag con una restricción por la propiedad \""plan\""."", ""Evaluar el flag en el backend o en el frontend.""]",Aprobada
+INT-011,Guardar las claves de la pasarela de pagos fuera del código y rotarlas sin desplegar.,API REST,Al iniciar el servicio de pagos y en cada rotación de claves.,"# Guardar la clave (una vez, por un administrador)
+ bao kv put secret/pagos/hyperswitch api_key=<secreto>
+ 
+ # Leerla desde el servicio (API HTTP compatible con Vault)
+ curl -s -H ""X-Vault-Token: $BAO_TOKEN"" \
+  https://openbao.interno:8200/v1/secret/data/pagos/hyperswitch \
+  | jq -r .data.data.api_key","[""Cualquier backend (cliente HTTP o librería oficial api/v2 en Go)"", ""Hyperswitch autoalojado o en la nube""]",Media,https://openbao.org/docs/api/secret/kv/kv-v2/ ; https://openbao.org/docs/auth/approle/ ; https://hyperswitch.io/,"Las claves de Hyperswitch se guardan en el motor KV de OpenBao; el servicio de pagos las lee al arrancar con un token de corta duración (por ejemplo, AppRole) y una política de solo lectura.","[""Habilitar KV v2 y AppRole en OpenBao."", ""Guardar la clave de Hyperswitch."", ""Crear una política de solo lectura para el servicio."", ""Leer el secreto desde el servicio y usarlo en las llamadas a Hyperswitch.""]",Aprobada
+INT-012,Buscar propiedades por dirección y dentro de un radio en el mapa.,API REST,Al crear o editar una propiedad.,"import requests, typesense
+ 
+ geo = requests.get(""http://nominatim:8080/search"",
+  params={""q"": direccion, ""format"": ""jsonv2"", ""limit"": 1}).json()[0]
+ 
+ ts = typesense.Client({""api_key"": ""<secreto>"",
+  ""nodes"": [{""host"": ""typesense"", ""port"": ""8108"", ""protocol"": ""http""}]})
+ ts.collections[""propiedades""].documents.upsert({
+  ""id"": str(prop_id), ""titulo"": titulo, ""precio"": precio,
+  ""ubicacion"": [float(geo[""lat""]), float(geo[""lon""])]}) # geopoint
+ 
+ # Propiedades a menos de 3 km de un punto
+ ts.collections[""propiedades""].documents.search({
+  ""q"": ""*"", ""filter_by"": ""ubicacion:(-33.45, -70.66, 3 km)""})","[""Python 3"", ""Nominatim autoalojado (requiere PostgreSQL con PostGIS)"", ""Typesense"", ""MapLibre para el mapa""]",Media,https://nominatim.org/release-docs/latest/api/Search/ ; https://typesense.org/docs/30.1/api/geosearch.html,"Al publicar una propiedad, el backend geocodifica la dirección con Nominatim y guarda latitud y longitud como campo geopoint en Typesense; las búsquedas filtran por radio.","[""Autoalojar Nominatim con el extracto del país."", ""Crear la colección \""propiedades\"" con un campo ubicacion de tipo geopoint."", ""Geocodificar y guardar."", ""Buscar con filter_by por radio y mostrar resultados en MapLibre.""]",Aprobada
+INT-013,"Sumar a la lista de correo a quienes compran entradas y aceptan recibir novedades, para avisos del evento.",Webhooks / eventos,pretix.event.order.paid (pedido pagado).,"@app.post(""/webhooks/pretix"")
+ def pedido_pagado():
+  ev = request.json
+  if ev[""action""] == ""pretix.event.order.paid"":
+  pedido = requests.get(
+  f""{PRETIX}/api/v1/organizers/{ev['organizer']}/events/""
+  f""{ev['event']}/orders/{ev['code']}/"",
+  headers={""Authorization"": f""Token {PRETIX_TOKEN}""}).json()
+  requests.post(f""{LISTMONK}/api/subscribers"",
+  auth=(LISTMONK_USER, LISTMONK_TOKEN),
+  json={""email"": pedido[""email""], ""name"": pedido[""email""],
+  ""lists"": [ID_LISTA], ""status"": ""enabled""})
+  return """", 200","[""Python (Flask o FastAPI)"", ""pretix y listmonk autoalojados""]",Media,https://docs.pretix.eu/dev/api/resources/webhooks.html ; https://listmonk.app,El webhook de pretix avisa del pedido pagado; el backend obtiene el pedido por la API REST de pretix y crea el suscriptor en listmonk.,"[""Agregar en el checkout de pretix una casilla de consentimiento."", ""Configurar el webhook del organizador."", ""Consultar el pedido por la API REST de pretix."", ""Crear el suscriptor en la lista del evento en listmonk solo si dio su consentimiento.""]",Aprobada
+INT-014,Enviar campañas de correo a segmentos de clientes del CRM.,Otro,"Tarea programada (por ejemplo, cada noche) o acción automática de Odoo al etiquetar un contacto.","import xmlrpc.client, requests
+ 
+ common = xmlrpc.client.ServerProxy(f""{ODOO}/xmlrpc/2/common"")
+ uid = common.authenticate(DB, USUARIO, ""<secreto>"", {})
+ models = xmlrpc.client.ServerProxy(f""{ODOO}/xmlrpc/2/object"")
+ 
+ contactos = models.execute_kw(DB, uid, ""<secreto>"", ""res.partner"", ""search_read"",
+  [[[""category_id.name"", ""="", ""Newsletter""], [""email"", ""!="", False]]],
+  {""fields"": [""name"", ""email""]})
+ 
+ for c in contactos:
+  requests.post(f""{LISTMONK}/api/subscribers"",
+  auth=(LISTMONK_USER, LISTMONK_TOKEN),
+  json={""email"": c[""email""], ""name"": c[""name""], ""lists"": [ID_LISTA]})","[""Python 3"", ""Odoo Community con API externa"", ""listmonk autoalojado""]",Baja,https://www.odoo.com/documentation/18.0/developer/reference/external_api.html ; https://listmonk.app,"Una tarea programada lee los contactos de Odoo por su API externa (XML-RPC, search_read de res.partner con filtro por etiqueta) y los sincroniza en una lista de listmonk.","[""Crear en Odoo un usuario con clave de API."", ""Etiquetar los contactos del segmento."", ""Ejecutar la sincronización hacia la lista de listmonk."", ""Enviar la campaña desde listmonk.""]",Aprobada
+INT-015,Responder automáticamente las preguntas frecuentes con la base de conocimiento y derivar el resto a un agente humano.,Webhooks / eventos,message_created (mensaje entrante del cliente).,"@app.post(""/bot/chatwoot"")
+ def mensaje():
+  ev = request.json
+  if ev.get(""event"") == ""message_created"" and ev.get(""message_type"") == ""incoming"":
+  r = requests.post(f""{ANYTHINGLLM}/api/v1/workspace/soporte/chat"",
+  headers={""Authorization"": f""Bearer {ANYTHINGLLM_KEY}""},
+  json={""message"": ev[""content""], ""mode"": ""query""}).json()
+  conv, cuenta = ev[""conversation""][""display_id""], ev[""account""][""id""]
+  requests.post(
+  f""{CHATWOOT}/api/v1/accounts/{cuenta}/conversations/{conv}/messages"",
+  headers={""api_access_token"": CHATWOOT_BOT_TOKEN},
+  json={""content"": r[""textResponse""], ""message_type"": ""outgoing""})
+  return """", 200","[""Python"", ""Chatwoot y AnythingLLM autoalojados"", ""modelo local con Ollama o un proveedor externo""]",Media,https://www.chatwoot.com/docs/webhooks ; https://anythingllm.com,Un Agent Bot de Chatwoot envía cada mensaje entrante a un webhook; el backend consulta un workspace de AnythingLLM (RAG sobre manuales y FAQ) y responde en la conversación por la API de Chatwoot.,"[""Crear en AnythingLLM el workspace \""soporte\"" y cargar los documentos."", ""Crear un Agent Bot en Chatwoot con la URL del webhook."", ""Responder con la API de Chatwoot."", ""Definir la regla de derivación a humano cuando el bot no tenga respuesta.""]",Aprobada
+INT-016,Asistente que responde preguntas sobre documentos internos sin enviar datos a terceros.,SDK / librería,Al cargar documentos (indexación) y en cada pregunta del usuario.,"from langchain_ollama import OllamaEmbeddings, ChatOllama
+ from langchain_qdrant import QdrantVectorStore
+ 
+ emb = OllamaEmbeddings(model=""nomic-embed-text"", base_url=""http://ollama:11434"")
+ store = QdrantVectorStore.from_documents(fragmentos, emb,
+  url=""http://qdrant:6333"", collection_name=""docs_internos"")
+ llm = ChatOllama(model=""llama3.1"", base_url=""http://ollama:11434"")
+ 
+ pregunta = ""¿Cuál es la política de vacaciones?""
+ contexto = store.similarity_search(pregunta, k=4)
+ respuesta = llm.invoke(
+  f""Responde solo con este contexto:\n{contexto}\n\nPregunta: {pregunta}"")","[""Python 3.10+ (langchain, langchain-ollama, langchain-qdrant)"", ""Ollama (GPU recomendada)"", ""Qdrant en Docker""]",Media,https://docs.langchain.com/oss/python/integrations/vectorstores/qdrant ; https://ollama.com ; https://qdrant.tech,"LangChain orquesta el flujo RAG: Ollama genera embeddings y respuestas en local, y Qdrant guarda y busca los fragmentos de los documentos (extraídos antes con Docling o Unstructured).","[""Extraer y fragmentar los documentos."", ""Indexarlos en Qdrant con embeddings de Ollama."", ""Recuperar los fragmentos más parecidos a la pregunta."", ""Generar la respuesta con el modelo local usando solo ese contexto.""]",Aprobada
+INT-017,Guardar las lecturas de los sensores de cultivo para ver gráficos y generar alertas.,API REST,Cada mensaje publicado en el tópico sensores/+/lecturas.,"import json, requests, paho.mqtt.client as mqtt
+ 
+ def al_recibir(cliente, userdata, msg):
+  d = json.loads(msg.payload)
+  linea = f""suelo,sensor={d['id']} humedad={d['humedad']},temp={d['temp']}""
+  requests.post(""http://influxdb:8181/api/v3/write_lp"",
+  params={""db"": ""cultivos""},
+  headers={""Authorization"": ""Bearer <secreto>""}, data=linea)
+ 
+ cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+ cli.username_pw_set(""puente"", ""<secreto>"")
+ cli.on_message = al_recibir
+ cli.connect(""mosquitto"", 1883)
+ cli.subscribe(""sensores/+/lecturas"")
+ cli.loop_forever()","[""Python 3 (paho-mqtt 2.x, requests)"", ""Mosquitto"", ""InfluxDB 3 Core"", ""Grafana con fuente de datos InfluxDB""]",Media,https://docs.influxdata.com/influxdb3/core/write-data/http-api/v3-write-lp ; https://mosquitto.org ; https://grafana.com,Un puente suscrito a Mosquitto (paho-mqtt) convierte cada mensaje a line protocol y lo escribe en InfluxDB 3 por la API HTTP; Grafana consulta InfluxDB con SQL para los paneles y las alertas.,"[""Publicar las lecturas de los sensores en Mosquitto (con usuario y contraseña)."", ""Ejecutar el puente MQTT → InfluxDB."", ""Agregar InfluxDB como fuente de datos en Grafana."", ""Crear el panel y las alertas (por ejemplo, humedad bajo el umbral).""]",Aprobada
+INT-018,Inicio de sesión único en la comunidad con las mismas cuentas de la plataforma.,OIDC / OAuth2 / SAML,No aplica: la integración se activa cuando el usuario inicia sesión.,"# Ajustes de Discourse (Admin > Settings)
+ openid_connect_enabled: true
+ openid_connect_discovery_document: https://<keycloak>/realms/<realm>/.well-known/openid-configuration
+ openid_connect_client_id: discourse
+ openid_connect_client_secret: <secreto>
+ openid_connect_authorize_scope: ""openid email profile""","[""Discourse (instalación oficial con Docker)"", ""Keycloak con OIDC""]",Baja,https://meta.discourse.org/t/discourse-openid-connect-oidc/103632,El plugin OpenID Connect de Discourse se conecta a un cliente OIDC del realm de Keycloak.,"[""Crear el cliente \""discourse\"" en Keycloak con la URL de retorno <foro>/auth/oidc/callback."", ""En Discourse, activar OpenID Connect y cargar el documento de descubrimiento del realm."", ""Opcional: desactivar el registro local.""]",Aprobada
+INT-019,Firmar electrónicamente los contratos laborales y archivarlos solos en la ficha del empleado.,Webhooks / eventos,Documento firmado por todas las partes (evento de documento completado de Documenso).,"@app.post(""/webhooks/documenso"")
+ def firmado():
+  ev = request.json # validar antes el encabezado X-Documenso-Secret
+  if ev[""event""] == ""DOCUMENT_COMPLETED"":
+  pdf = descargar_pdf_firmado(ev[""payload""][""id""]) # API de Documenso
+  requests.post(f""{FRAPPE}/api/method/upload_file"",
+  headers={""Authorization"": f""token {API_KEY}:{API_SECRET}""},
+  files={""file"": (""contrato.pdf"", pdf)},
+  data={""doctype"": ""Employee"", ""docname"": empleado_id,
+  ""is_private"": 1})
+  return """", 200","[""Python"", ""Documenso y Frappe HRMS autoalojados""]",Media,https://docs.documenso.com/docs/developers/webhooks/events ; https://frappe.io/hr,Documenso envía un webhook cuando todas las partes firman; el backend descarga el PDF firmado y lo adjunta al registro Employee de Frappe HRMS con su API REST (upload_file).,"[""Crear la plantilla del contrato en Documenso."", ""Configurar el webhook de documento completado."", ""Descargar el PDF firmado."", ""Adjuntarlo a la ficha del empleado en Frappe HRMS.""]",Aprobada
+INT-020,Medir lecturas y conversiones a suscriptores sin cookies y sin ceder datos de los lectores a terceros.,Otro,Cada visita a una página; objetivo cumplido al llegar a la página de confirmación de suscripción.,"<!-- Ghost: Settings → Advanced → Code injection → Site header -->
+ <!-- Pegar el snippet que entrega Plausible para el sitio; ejemplo con el formato clásico: -->
+ <script defer data-domain=""medio.ejemplo.com""
+  src=""https://plausible.ejemplo.com/js/script.js""></script>","[""Ghost autoalojado"", ""Plausible Community Edition autoalojado""]",Baja,https://plausible.io/docs/ghost-integration ; https://plausible.io/docs/plausible-script,El script de Plausible se inserta en todas las páginas con la inyección de código de Ghost; en Plausible se configuran objetivos (goals) para las páginas de suscripción.,"[""Autoalojar Plausible y agregar el sitio."", ""Copiar el snippet que entrega Plausible (configuración del sitio → General → Tracking → Site installation) y pegarlo en Ghost (Settings → Advanced → Code injection → Site header)."", ""Crear en Plausible los objetivos de suscripción."", ""Revisar el panel por artículo y fuente.""]",Aprobada
+INT-021,Avisar a la comunidad apenas empieza una transmisión en vivo.,Webhooks / eventos,STREAM_STARTED (inicio de la transmisión).,"@app.post(""/webhooks/owncast"")
+ def en_vivo():
+  ev = request.json # validar antes el encabezado owncast-signature
+  if ev[""type""] == ""STREAM_STARTED"":
+  requests.post(f""{FORO}/posts.json"",
+  headers={""Api-Key"": DISCOURSE_KEY, ""Api-Username"": ""sistema""},
+  json={""title"": ""¡Estamos en vivo!"",
+  ""raw"": f""La transmisión comenzó: {OWNCAST_URL}"",
+  ""category"": ID_CATEGORIA})
+  return """", 200","[""Python"", ""Owncast y Discourse autoalojados""]",Media,https://owncast.online/docs/api/webhooks ; https://docs.discourse.org,El webhook de Owncast avisa del inicio de la transmisión; el backend crea un tema en Discourse por su API con el enlace al directo.,"[""Configurar en Owncast (/admin/webhooks) el webhook con el evento STREAM_STARTED y validar el encabezado owncast-signature (desde la v0.3.0)."", ""Crear en Discourse una clave de API para un usuario del sistema."", ""Publicar el tema en la categoría de anuncios.""]",Aprobada
+INT-022,Archivar y hacer buscables (con OCR) los documentos firmados del estudio.,API REST,Documento firmado por todas las partes en Documenso.,"requests.post(f""{PAPERLESS}/api/documents/post_document/"",
+  headers={""Authorization"": f""Token {PAPERLESS_TOKEN}""},
+  files={""document"": (""contrato_firmado.pdf"", pdf)},
+  data={""title"": f""Contrato {cliente}"", ""tags"": [ID_TAG_CONTRATOS]})","[""Python"", ""Paperless-ngx (Docker Compose oficial)"", ""Documenso autoalojado""]",Baja,https://docs.paperless-ngx.com/api ; https://docs.documenso.com/docs/developers/webhooks/events ; https://paperless-ngx-docs.readthedocs.io/en/latest/api.html,"Cuando se completa una firma en Documenso, el backend sube el PDF a Paperless-ngx con etiquetas de cliente y tipo; Paperless aplica OCR y lo indexa para búsqueda.","[""Crear en Paperless-ngx las etiquetas y un token de API."", ""Recibir el webhook de Documenso."", ""Subir el PDF con post_document."", ""Buscar luego por cliente, fecha o texto completo.""]",Aprobada
+INT-023,"Buscador de alojamientos por texto, precio y ubicación, con el contenido gestionado en el CMS.",Webhooks / eventos,"entry.publish, entry.update, entry.unpublish y entry.delete (webhooks de Strapi).","app.post(""/webhooks/strapi"", async (req, res) => {
+  const { event, model, entry } = req.body;
+  if (model !== ""alojamiento"") return res.sendStatus(204);
+  if (event === ""entry.unpublish"" || event === ""entry.delete"") {
+  await ts.collections(""alojamientos"").documents(entry.documentId).delete();
+  } else {
+  await ts.collections(""alojamientos"").documents().upsert({
+  id: entry.documentId, nombre: entry.nombre,
+  precio: entry.precio, ubicacion: [entry.lat, entry.lon] });
+  }
+  res.sendStatus(200);
+ });","[""Node.js"", ""Strapi Community Edition"", ""Typesense autoalojado""]",Media,https://docs.strapi.io/cms/backend-customization/webhooks ; https://typesense.org/docs/30.2/api/documents.html,"Los webhooks de Strapi avisan de cada publicación, cambio o retiro de un alojamiento; el backend actualiza la colección de Typesense.","[""Crear el tipo de contenido \""alojamiento\"" en Strapi (con latitud y longitud)."", ""Configurar el webhook hacia el backend con un encabezado de autorización propio (Strapi no firma los webhooks)."", ""Sincronizar con Typesense."", ""Buscar con filtros por precio y radio.""]",Aprobada
+INT-024,Medir el efecto de una función nueva comparando a quienes la ven con quienes no.,SDK / librería,Al mostrar la pantalla con la función y al completar la acción objetivo.,"const variante = unleash.getVariant(""nuevo-checkout"").name; // ""control"" o ""nuevo""
+ op.track(""checkout_visto"", { variante });
+ 
+ // ...al confirmar la compra
+ op.track(""compra_completada"", { variante });","[""Web o React Native"", ""Unleash con Frontend API"", ""OpenPanel autoalojado""]",Baja,https://openpanel.dev/docs/sdks/javascript ; https://www.getunleash.io,"La app evalúa el flag con el SDK de Unleash y envía a OpenPanel eventos con la variante asignada, para comparar la conversión por grupo.","[""Crear el flag con variantes en Unleash."", ""Integrar los SDK de Unleash (Frontend API) y OpenPanel en la app."", ""Enviar los eventos con la variante."", ""Comparar la conversión por variante en OpenPanel.""]",Aprobada
+INT-025,"Que el equipo de operaciones lance procesos (reprocesar pedidos, generar reportes) desde un panel, sin pedir ayuda a desarrollo.",Webhooks / eventos,Clic en el botón del panel (llamada al webhook de Kestra).,"# Flujo de Kestra con disparador webhook
+ id: reprocesar-pedidos
+ namespace: operaciones
+ tasks:
+  - id: reprocesar
+  type: io.kestra.plugin.scripts.python.Script
+  script: |
+  print(""Reprocesando pedido {{ trigger.body.pedido }}"")
+ triggers:
+  - id: desde_panel
+  type: io.kestra.plugin.core.trigger.Webhook
+  key: ""{{ secret('WEBHOOK_KEY') }}"" # la clave se guarda como secreto de Kestra
+ 
+ # Appsmith: consulta REST (POST) llamada desde el botón
+ # URL: https://kestra.interno/api/v1/main/executions/webhook/operaciones/reprocesar-pedidos/<secreto>
+ # Body: {""pedido"": {{Tabla1.selectedRow.id}}}","[""Appsmith y Kestra autoalojados (Docker)""]",Baja,https://kestra.io/docs/workflow-components/triggers/webhook-trigger ; https://www.appsmith.com,Un botón de Appsmith llama al disparador webhook de un flujo de Kestra con los parámetros de la fila seleccionada; Kestra ejecuta las tareas y Appsmith muestra el resultado.,"[""Crear el flujo en Kestra con un disparador Webhook y una clave secreta."", ""En Appsmith, crear una consulta REST (POST) a la URL del webhook."", ""Asociarla al botón con el id de la fila seleccionada."", ""Mostrar el estado de la ejecución.""]",Aprobada
+INT-026,"Registrar cada pago en un libro contable de partida doble, con saldos consistentes y auditables.",Webhooks / eventos,Pago exitoso (evento de pago completado de Hyperswitch).,"const { createClient, id } = require(""tigerbeetle-node"");
+ const tb = createClient({ cluster_id: 0n, replica_addresses: [""3000""] });
+ 
+ app.post(""/webhooks/hyperswitch"", async (req, res) => {
+  const ev = req.body; // validar la firma del webhook antes
+  if (ev.event_type === ""payment_succeeded"") {
+  // Devuelve un resultado por transferencia (created, exists o failed): revisar su estado
+  const resultados = await tb.createTransfers([{
+  // con id() cada reintento del webhook crearía otra transferencia: en producción,
+  // usar un ID fijo derivado del pago (por ejemplo, de payment_id) para que el reintento devuelva exists
+  id: id(), debit_account_id: cuentaCliente(ev),
+  credit_account_id: CUENTA_COMERCIO,
+  amount: BigInt(ev.content.object.amount), ledger: 1, code: 1,
+  pending_id: 0n, user_data_128: 0n, user_data_64: 0n,
+  user_data_32: 0, timeout: 0, flags: 0, timestamp: 0n }]);
+  // si el resultado es failed, responder con error para que Hyperswitch reintente
+  }
+  res.sendStatus(200);
+ });","[""Node.js (tigerbeetle-node)"", ""TigerBeetle (clúster de varias réplicas en producción)"", ""Hyperswitch autoalojado o en la nube""]",Media,https://docs.tigerbeetle.com/coding/clients/node/ ; https://docs.hyperswitch.io/explore-hyperswitch/payment-orchestration/quickstart/webhooks,"El webhook de Hyperswitch avisa del pago exitoso; el backend crea en TigerBeetle una transferencia de la cuenta del cliente a la cuenta del comercio, con el monto del pago.","[""Levantar TigerBeetle y crear las cuentas (clientes y comercio) en el mismo ledger."", ""Configurar el webhook de Hyperswitch y validar su firma."", ""Crear la transferencia con el cliente oficial de TigerBeetle."", ""Consultar saldos con lookup_accounts.""]",Aprobada
+INT-027,"Enviar al huésped la confirmación de su reserva y un recordatorio antes de la llegada, por email, SMS o WhatsApp.",API REST,"Tarea programada (por ejemplo, cada 5 minutos) que detecta reservas nuevas.","const auth = ""Basic "" + Buffer.from(`${process.env.QLO_WS_KEY}:`).toString(""base64"");
+ const r = await fetch(`${QLO}/api/orders?output_format=JSON&display=full`,
+  { headers: { Authorization: auth } });
+ const { orders = [] } = await r.json();
+ 
+ for (const o of orders.filter(esNueva)) {
+  await novu.trigger({
+  workflowId: ""confirmacion-reserva"",
+  to: { subscriberId: String(o.id_customer) },
+  payload: { reserva: o.reference, total: o.total_paid },
+  });
+ }","[""Node.js"", ""QloApps (PHP y MySQL) con webservice activado"", ""Novu autoalojado o en la nube""]",Media,https://docs.qloapps.com ; https://docs.novu.co,Una tarea programada consulta las reservas nuevas por la API (webservice) de QloApps y dispara en Novu un workflow de confirmación con un recordatorio programado antes de la fecha de llegada.,"[""Activar el webservice de QloApps y crear una clave con permisos de solo lectura."", ""Consultar los pedidos o reservas nuevas."", ""Disparar el workflow \""confirmacion-reserva\"" de Novu (confirmación inmediata y recordatorio con paso delay).""]",Aprobada
+INT-028,"Que el agente de soporte vea la grabación de la sesión del cliente desde la conversación, sin pedirle capturas.",SDK / librería,Al cargar el widget de Chatwoot (evento chatwoot:ready).,"import Tracker from ""@openreplay/tracker"";
+ 
+ const tracker = new Tracker({
+  projectKey: ""<clave-del-proyecto>"",
+  ingestPoint: ""https://openreplay.ejemplo.com/ingest"",
+ });
+ await tracker.start();
+ tracker.setUserID(usuario.email);
+ 
+ window.addEventListener(""chatwoot:ready"", () => {
+  window.$chatwoot.setUser(usuario.id, { email: usuario.email, name: usuario.nombre });
+  window.$chatwoot.setCustomAttributes({ openreplay_sesion: tracker.getSessionURL() });
+ });","[""Aplicación web (JavaScript o React)"", ""OpenReplay y Chatwoot autoalojados""]",Baja,https://docs.openreplay.com/en/sdk/methods/ ; https://www.chatwoot.com/hc/user-guide/articles/1677587234-how-to-send-additional-user-information-to-chatwoot-using-sdk,"La app inicia el tracker de OpenReplay y, cuando se abre el chat de Chatwoot, guarda la URL de la sesión como atributo personalizado del contacto; el agente la abre desde la conversación.","[""Crear en Chatwoot el atributo personalizado \""openreplay_sesion\"" (de contacto): setCustomAttributes solo acepta atributos ya definidos."", ""Instalar el tracker de OpenReplay con el enmascarado de datos activado."", ""Identificar al usuario en ambos sistemas."", ""Al cargar el widget (chatwoot:ready), guardar la URL de la sesión en ese atributo.""]",Aprobada
+INT-029,"Avisar automáticamente al cliente cuando se emite una factura, se cobra una suscripción o falla un pago, sin programar cada aviso a mano.",Webhooks / eventos,"Eventos de Kill Bill (ExtBusEventType), por ejemplo: INVOICE_CREATION (nueva factura), INVOICE_PAYMENT_SUCCESS e INVOICE_PAYMENT_FAILED (pago de una factura exitoso o fallido), PAYMENT_FAILED (intento de pago fallido), SUBSCRIPTION_CREATION y SUBSCRIPTION_CANCEL (alta y cancelación de una suscripción).","# 1) Registrar el webhook en Kill Bill (respuesta esperada: 201)
+  curl -v -u admin:<secreto> \
+  -H ""X-Killbill-ApiKey: <api_key>"" \
+  -H ""X-Killbill-ApiSecret: <secreto>"" \
+  -H ""X-Killbill-CreatedBy: openbridge"" \
+  -X POST ""http://127.0.0.1:8080/1.0/kb/tenants/registerNotificationCallback?cb=https://<backend>/webhooks/killbill""
+  
+  # 2) Ejemplo del aviso que Kill Bill envía al backend (POST, JSON)
+  {
+  ""eventType"": ""INVOICE_PAYMENT_FAILED"",
+  ""objectType"": ""INVOICE"",
+  ""accountId"": ""<id de la cuenta>"",
+  ""objectId"": ""<id de la factura>"",
+  ""metaData"": ""<datos del evento>""
+  }","[""Kill Bill en Java (imágenes Docker oficiales) con MySQL o MariaDB"", ""su documentación también cubre PostgreSQL. El backend que recibe los avisos puede ser de cualquier lenguaje (por ejemplo, FastAPI). Novu autoalojado o en la nube""]",Media,https://docs.killbill.io/latest/push_notifications.html ; https://apidocs.killbill.io/tenant.html ; https://docs.killbill.io/latest/kill_bill_events,"Push notifications de Kill Bill: se registra una URL del backend como callback del tenant y Kill Bill envía por POST un JSON por cada evento de las cuentas (eventType, objectType, accountId, objectId y metaData). El backend lee eventType y llama a Novu para enviar el correo, SMS o notificación de la plantilla que corresponda. El backend debe responder con un código 2xx; si no, Kill Bill reintenta más tarde (por defecto 15m, 30m, 2h, 12h y 1d, configurable por tenant).","[""Levantar Kill Bill y Kaui con el docker-compose de la guía oficial (cambiar las credenciales por defecto)."", ""Crear el tenant y anotar su API key y API secret."", ""Registrar la URL del backend con POST /1.0/kb/tenants/registerNotificationCallback?cb=<url>."", ""En el backend, crear el endpoint que recibe el aviso, responde 2xx y según eventType llama a Novu."", ""Crear en Novu un workflow por evento (factura creada, pago fallido, etc.)."", ""Probar con una cuenta y una suscripción de prueba.""]",Aprobada
+INT-030,"Guardar las imágenes y archivos que se suben al CMS en un almacenamiento de objetos propio y compatible con S3, en vez del disco del servidor o de un servicio de almacenamiento pagado.",Plugin / extensión,No aplica: la integración se activa cada vez que se sube o se elimina un archivo en la biblioteca de medios de Strapi.,"# 1) SeaweedFS con su gateway compatible con S3 (Docker)
+  docker run -p 8333:8333 chrislusf/seaweedfs server -s3
+  
+  # 2) Crear el bucket con la CLI de AWS apuntando a SeaweedFS
+  aws --endpoint-url http://localhost:8333 s3 mb s3://strapi-media
+  
+  # 3) Instalar el proveedor oficial en Strapi
+  npm install @strapi/provider-upload-aws-s3 --save
+  
+  // 4) config/plugins.js (Strapi): credenciales en variables de entorno
+  module.exports = ({ env }) => ({
+  upload: {
+  config: {
+  provider: 'aws-s3',
+  providerOptions: {
+  s3Options: {
+  credentials: {
+  accessKeyId: env('S3_ACCESS_KEY'),
+  secretAccessKey: env('S3_SECRET_KEY'),
+  },
+  endpoint: env('S3_ENDPOINT'), // por ejemplo, http://seaweedfs:8333
+  region: env('S3_REGION', 'us-east-1'),
+  forcePathStyle: true,
+  requestChecksumCalculation: 'WHEN_REQUIRED', // recomendado por SeaweedFS
+  responseChecksumValidation: 'WHEN_REQUIRED',
+  params: { Bucket: env('S3_BUCKET') },
+  },
+  },
+  },
+  },
+  });","[""SeaweedFS en Go (imagen Docker oficial o binario)"", ""acepta cualquier cliente S3 (AWS SDK, boto3, AWS CLI). Strapi 5 en Node.js con el proveedor oficial aws-s3. Las credenciales van en variables de entorno, nunca en el código""]",Media,https://docs.strapi.io/cms/configurations/media-library-providers/amazon-s3 ; https://github.com/seaweedfs/seaweedfs/wiki/nodejs-with-Seaweed-S3,SeaweedFS expone una API compatible con Amazon S3 mediante su gateway S3. Strapi usa su proveedor oficial de subida (@strapi/provider-upload-aws-s3) apuntando al endpoint de SeaweedFS en lugar de AWS: los archivos que se suben desde el panel o la API de Strapi quedan en un bucket de SeaweedFS y Strapi guarda su URL.,"[""Levantar SeaweedFS con el gateway S3 y definir sus credenciales."", ""Crear el bucket para los archivos de Strapi."", ""Instalar en Strapi el proveedor @strapi/provider-upload-aws-s3."", ""Configurarlo en config/plugins.js con el endpoint de SeaweedFS y forcePathStyle: true (necesario en servicios compatibles con S3 como este)."", ""Agregar el host de SeaweedFS en img-src y media-src de la política de seguridad (config/middlewares.js), para que el panel muestre las vistas previas."", ""Subir una imagen desde el panel y verificar que aparece en el bucket.""]",Aprobada
+INT-031,"Ofrecer ""Iniciar sesión con"" la cuenta propia de la fintech a apps y socios externos (OAuth2/OIDC), con usuarios, contraseñas y 2FA gestionados en un solo lugar.",OIDC / OAuth2 / SAML,No aplica: el flujo se activa cuando una app cliente redirige al usuario a /oauth2/auth (Hydra envía login_challenge y consent_challenge).,"// Página de login (Node.js): Kratos autentica; Hydra emite los tokens
+ const challenge = req.query.login_challenge;
+ const sesion = await fetch(""http://kratos:4433/sessions/whoami"", {
+  headers: { cookie: req.headers.cookie },
+ }).then((r) => r.json());
+ if (!sesion?.identity) return res.redirect(""/self-service/login/browser"");
+ 
+ const { redirect_to } = await fetch(
+  `http://hydra:4445/admin/oauth2/auth/requests/login/accept?login_challenge=${challenge}`,
+  { method: ""PUT"", headers: { ""Content-Type"": ""application/json"" },
+  body: JSON.stringify({ subject: sesion.identity.id, remember: true }) }
+ ).then((r) => r.json());
+ res.redirect(redirect_to);","[""Ory Kratos y Ory Hydra (Go, imágenes Docker oficiales) con PostgreSQL"", ""app de login y consentimiento en Node.js, Next.js u otro lenguaje con cliente HTTP""]",Alta,https://www.ory.com/docs/oauth2-oidc/custom-login-consent/flow ; https://www.ory.sh/docs/kratos/self-service,"Hydra emite los tokens OAuth2/OIDC, pero no guarda usuarios: delega el login a una página propia. Esa página verifica la sesión de Kratos (/sessions/whoami) y acepta el login en la API de administración de Hydra con el ID de la identidad.","[""Levantar Kratos (identidades, login, 2FA) y Hydra con bases de datos separadas."", ""Configurar en Hydra urls.login y urls.consent hacia la app de login."", ""En la página de login, leer la sesión de Kratos y aceptar el login_challenge en Hydra."", ""En la página de consentimiento, aceptar los scopes."", ""Registrar los clientes OAuth2 en Hydra (hydra create oauth2-client).""]",Aprobada
+INT-032,"Proteger con inicio de sesión herramientas internas que no tienen login propio (por ejemplo, un panel de operaciones), usando las cuentas de la empresa.",OIDC / OAuth2 / SAML,No aplica: se activa en cada solicitud a las rutas protegidas.,"# docker-compose.yml (fragmento). Secretos en el archivo .env, nunca en el repositorio
+ oauth2-proxy:
+  image: quay.io/oauth2-proxy/oauth2-proxy
+  command:
+  - --provider=oidc
+  - --oidc-issuer-url=https://dex.ejemplo.com/dex
+  - --client-id=panel-interno
+  - --email-domain=ejemplo.com
+  - --reverse-proxy=true
+  - --set-xauthrequest=true
+  - --upstream=static://202
+  - --http-address=0.0.0.0:4180
+  environment:
+  OAUTH2_PROXY_CLIENT_SECRET: ${DEX_CLIENT_SECRET}
+  OAUTH2_PROXY_COOKIE_SECRET: ${COOKIE_SECRET}
+ 
+ panel:
+  labels:
+  - traefik.http.routers.panel.rule=Host(`panel.ejemplo.com`)
+  - traefik.http.routers.panel.middlewares=auth
+  - traefik.http.middlewares.auth.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth
+  - traefik.http.middlewares.auth.forwardauth.trustForwardHeader=true","[""Traefik v3 con Docker (labels)"", ""oauth2-proxy (imagen oficial)"", ""Dex con conector OIDC, GitHub o LDAP. Cualquier herramienta web detrás del proxy, sin cambios en su código""]",Media,https://oauth2-proxy.github.io/oauth2-proxy/next/configuration/integrations/ ; https://dexidp.io/docs/guides/using-dex/,"Traefik consulta a oauth2-proxy antes de cada solicitud (middleware forwardAuth). oauth2-proxy valida la cookie de sesión o redirige al login de Dex, que federa el proveedor de la empresa (Google Workspace, GitHub, LDAP).","[""Configurar en Dex un cliente estático para oauth2-proxy y el conector del proveedor de la empresa."", ""Levantar oauth2-proxy con --provider=oidc y el issuer de Dex."", ""Definir en Traefik el middleware forwardAuth hacia /oauth2/auth."", ""Asignar el middleware a los routers de las herramientas internas."", ""Exponer /oauth2/ en el mismo dominio para el inicio de sesión.""]",Aprobada
+INT-033,"Agregar inicio de sesión con segundo factor (TOTP o llave de seguridad) a aplicaciones autoalojadas, con HTTPS automático.",Otro,No aplica: se activa en cada solicitud al dominio protegido.,"# Caddyfile
+ auth.ejemplo.com {
+  reverse_proxy authelia:9091
+ }
+ 
+ docs.ejemplo.com {
+  forward_auth authelia:9091 {
+  uri /api/authz/forward-auth
+  copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+  }
+  reverse_proxy docs-app:8080
+ }","[""Caddy 2 (binario o Docker)"", ""Authelia (Docker) con Redis o Valkey para sesiones y PostgreSQL o SQLite como almacenamiento. Funciona con cualquier aplicación web detrás de Caddy""]",Baja,https://www.authelia.com/integration/proxies/caddy/ ; https://caddyserver.com/docs/caddyfile/directives/forward_auth,"Caddy consulta a Authelia antes de entregar cada solicitud (directiva forward_auth). Si no hay sesión válida, Authelia redirige a su portal de login; si la hay, Caddy recibe los encabezados Remote-User y Remote-Groups y los pasa a la aplicación.","[""Configurar Authelia (usuarios, reglas de acceso por dominio, 2FA y almacenamiento de sesiones)."", ""Publicar el portal de Authelia en su propio subdominio con Caddy."", ""Agregar forward_auth en los sitios protegidos."", ""Copiar a la app los encabezados de identidad."", ""Probar el acceso con y sin sesión.""]",Aprobada
+INT-034,Crear una red social o comunidad federada para un nicho profesional donde los miembros entran con su cuenta única de la organización.,OIDC / OAuth2 / SAML,No aplica: se activa cuando el usuario elige iniciar sesión con la organización.,"# .env.production de Mastodon (el secreto viene del gestor de secretos)
+ OIDC_ENABLED=true
+ OIDC_DISPLAY_NAME=Cuenta de la organización
+ OIDC_ISSUER=https://auth.ejemplo.com
+ OIDC_DISCOVERY=true
+ OIDC_SCOPE=openid,profile,email
+ OIDC_UID_FIELD=preferred_username
+ OIDC_CLIENT_ID=<id_de_cliente_aleatorio>
+ OIDC_CLIENT_SECRET=<secreto>
+ OIDC_REDIRECT_URI=https://social.ejemplo.com/auth/auth/openid_connect/callback
+ OIDC_SECURITY_ASSUME_EMAIL_IS_VERIFIED=true
+ OIDC_USE_PKCE=true","[""Mastodon (Ruby on Rails, Docker) con PostgreSQL y Redis"", ""Authelia como proveedor OIDC""]",Media,https://www.authelia.com/integration/openid-connect/clients/mastodon/ ; https://docs.joinmastodon.org/admin/config/,Authelia actúa como proveedor OpenID Connect. Mastodon trae soporte OIDC nativo (variables OIDC_*): el botón de inicio de sesión redirige a Authelia y la cuenta se crea o vincula con el usuario de Authelia.,"[""Registrar en Authelia el cliente \""mastodon\"" con la URL de retorno /auth/auth/openid_connect/callback."", ""Definir en Mastodon las variables OIDC_* (issuer, cliente, scopes, campo de usuario)."", ""Reiniciar los servicios web de Mastodon."", ""Probar el registro de una cuenta nueva por OIDC.""]",Aprobada
+INT-035,"Validar en el gateway los tokens de acceso de todas las APIs del SaaS, para que ningún microservicio tenga que verificar el login por su cuenta.",OIDC / OAuth2 / SAML,No aplica: se activa en cada solicitud a las rutas /api.,"# envoy.yaml (fragmento del listener HTTP)
+ http_filters:
+ - name: envoy.filters.http.jwt_authn
+  typed_config:
+  ""@type"": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+  providers:
+  zitadel:
+  issuer: https://auth.ejemplo.com
+  remote_jwks:
+  http_uri:
+  uri: https://auth.ejemplo.com/oauth/v2/keys
+  cluster: zitadel
+  timeout: 5s
+  cache_duration: 600s
+  forward: true
+  rules:
+  - match: { prefix: /api }
+  requires: { provider_name: zitadel }
+ - name: envoy.filters.http.router
+  typed_config:
+  ""@type"": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router","[""Envoy (Docker o como sidecar en Kubernetes)"", ""Zitadel autoalojado o en la nube"", ""cualquier backend HTTP detrás de Envoy""]",Media,https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/jwt_authn_filter ; https://zitadel.com/docs/guides/integrate/login/oidc/webkeys,"Zitadel emite tokens de acceso JWT y publica sus llaves (JWKS). El filtro jwt_authn de Envoy descarga esas llaves, valida firma, emisor y vencimiento de cada token y rechaza con 401 las solicitudes sin token válido antes de llegar al backend.","[""En Zitadel, crear la aplicación API y configurar el tipo de token de acceso como JWT."", ""Agregar en Envoy un cluster hacia Zitadel para descargar las llaves."", ""Configurar el filtro jwt_authn con el issuer y la URL de JWKS."", ""Definir las reglas por prefijo de ruta."", ""Reenviar el token o sus claims al backend.""]",Aprobada
+INT-036,"Una base de conocimiento interna (procedimientos, plantillas, wiki) a la que el equipo entra con la misma cuenta que usa en las demás herramientas.",OIDC / OAuth2 / SAML,No aplica: se activa cuando el usuario inicia sesión en BookStack.,"# .env de BookStack
+ AUTH_METHOD=oidc
+ OIDC_NAME=""Cuenta de la empresa""
+ OIDC_DISPLAY_NAME_CLAIMS=name
+ OIDC_CLIENT_ID=bookstack
+ OIDC_CLIENT_SECRET=<secreto>
+ OIDC_ISSUER=https://casdoor.ejemplo.com
+ OIDC_ISSUER_DISCOVER=true","[""BookStack (PHP/Laravel, Docker) con MySQL o MariaDB"", ""Casdoor (Go, Docker)""]",Baja,https://www.bookstackapp.com/docs/admin/oidc-auth/ ; https://casdoor.ai/docs/how-to-connect/oidc-client/,Casdoor actúa como proveedor OpenID Connect. BookStack admite OIDC de forma nativa (AUTH_METHOD=oidc) y obtiene la configuración del proveedor por descubrimiento automático.,"[""Crear en Casdoor una aplicación con la URL de retorno https://<bookstack>/oidc/callback."", ""Copiar el Client ID y el secreto."", ""Configurar las variables OIDC_* en el .env de BookStack."", ""Opcional: mapear grupos de Casdoor a roles de BookStack (OIDC_USER_TO_GROUPS).""]",Aprobada
+INT-037,"Controlar quién puede ver o editar cada documento o proyecto (permisos por recurso, no solo por rol), por ejemplo en un sistema documental o un SaaS con equipos.",SDK / librería,No aplica: la consulta de permisos se hace en cada solicitud a un recurso protegido. Las relaciones se escriben en OpenFGA cuando se comparte o se crea un recurso.,"// app/api/documentos/[id]/route.ts (Next.js)
+ import { headers } from ""next/headers"";
+ import { auth } from ""@/lib/auth""; // configuración de Better Auth
+ import { OpenFgaClient } from ""@openfga/sdk"";
+ 
+ const fga = new OpenFgaClient({
+  apiUrl: process.env.FGA_API_URL,
+  storeId: process.env.FGA_STORE_ID,
+ });
+ 
+ export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const sesion = await auth.api.getSession({ headers: await headers() });
+  if (!sesion) return new Response(""No autenticado"", { status: 401 });
+ 
+  const { allowed } = await fga.check({
+  user: `user:${sesion.user.id}`, relation: ""viewer"", object: `document:${id}`,
+  });
+  if (!allowed) return new Response(""Sin permiso"", { status: 403 });
+  // ...leer y devolver el documento
+ }","[""Next.js con TypeScript"", ""Better Auth con PostgreSQL"", ""OpenFGA (Docker) con PostgreSQL. SDK de OpenFGA también para Python, Go y Java""]",Media,https://openfga.dev/docs/getting-started/perform-check ; https://www.better-auth.com/docs/concepts/session-management,"Better Auth autentica y entrega la sesión con el ID del usuario. Antes de devolver un recurso, la API consulta a OpenFGA (check) si ese usuario tiene la relación pedida (viewer, editor) con el objeto.","[""Definir el modelo de autorización en OpenFGA (tipos user, team y document con sus relaciones)."", ""Configurar Better Auth en la app."", ""Al crear o compartir un recurso, escribir la tupla en OpenFGA."", ""En cada ruta protegida, obtener la sesión y llamar a check."", ""Devolver 403 si no está permitido.""]",Aprobada
+INT-038,"Mostrar en los listados solo los registros que cada usuario puede ver según políticas (rol, área, autor), sin escribir esos filtros a mano en cada consulta.",SDK / librería,No aplica: se activa en cada consulta de un listado protegido.,"import { GRPC } from ""@cerbos/grpc"";
+ import { PrismaClient } from ""@prisma/client"";
+ import { queryPlanToPrisma, PlanKind } from ""@cerbos/orm-prisma"";
+ 
+ const cerbos = new GRPC(""cerbos:3593"", { tls: false });
+ const prisma = new PrismaClient();
+ 
+ export async function listarExpedientes(usuario: { id: string; roles: string[]; area: string }) {
+  const plan = await cerbos.planResources({
+  principal: { id: usuario.id, roles: usuario.roles, attr: { area: usuario.area } },
+  resource: { kind: ""expediente"" },
+  action: ""ver"",
+  });
+  const r = queryPlanToPrisma({
+  queryPlan: plan,
+  mapper: {
+  ""request.resource.attr.area"": { field: ""area"" },
+  ""request.resource.attr.abogadoId"": { field: ""abogadoId"" },
+  },
+  });
+  if (r.kind === PlanKind.ALWAYS_DENIED) return [];
+  return prisma.expediente.findMany({ where: r.filters });
+ }","[""Node.js o TypeScript con Prisma (PostgreSQL, MySQL o SQLite)"", ""Cerbos PDP (Docker o sidecar)""]",Media,https://docs.cerbos.dev/cerbos/latest/recipes/query-plan-adapters/prisma ; https://www.prisma.io/docs/orm/prisma-client/queries/filtering-and-sorting,"La API pide a Cerbos un plan de consulta (planResources) para el usuario y la acción. El adaptador oficial @cerbos/orm-prisma convierte ese plan en un filtro where de Prisma, de modo que la base de datos devuelve solo los registros permitidos.","[""Escribir la política de recursos en Cerbos (YAML) con las condiciones por atributo."", ""Levantar el PDP de Cerbos."", ""Instalar @cerbos/grpc y @cerbos/orm-prisma."", ""Mapear los atributos de la política a los campos del modelo Prisma."", ""Usar el filtro resultante en findMany.""]",Aprobada
+INT-039,"Buscar propiedades, locales o repartidores cerca de un punto del mapa (por ejemplo, a menos de 2 km) y ordenarlos por distancia, directamente en la base de datos.",Plugin / extensión,No aplica: se usa en cada consulta de búsqueda por ubicación.,"CREATE EXTENSION IF NOT EXISTS postgis;
+ 
+ ALTER TABLE propiedades ADD COLUMN ubicacion geography(Point, 4326);
+ UPDATE propiedades SET ubicacion = ST_SetSRID(ST_MakePoint(longitud, latitud), 4326)::geography;
+ CREATE INDEX propiedades_ubicacion_idx ON propiedades USING GIST (ubicacion);
+ 
+ -- Propiedades a menos de 2 km del punto buscado, de la más cercana a la más lejana
+ SELECT id, titulo,
+  ST_Distance(ubicacion, ST_MakePoint(-70.65, -33.45)::geography) AS metros
+ FROM propiedades
+ WHERE ST_DWithin(ubicacion, ST_MakePoint(-70.65, -33.45)::geography, 2000)
+ ORDER BY metros
+ LIMIT 50;","[""PostgreSQL 14 o superior con PostGIS 3"", ""cualquier backend con driver de PostgreSQL (psycopg, asyncpg, Prisma, TypeORM). Compatible con Supabase, que trae PostGIS disponible""]",Media,https://postgis.net/docs/ST_DWithin.html ; https://postgis.net/documentation/getting_started/,"PostGIS es una extensión de PostgreSQL: agrega tipos geográficos (geography, geometry), índices espaciales GiST y funciones como ST_DWithin y ST_Distance que se usan en SQL normal.","[""Usar una imagen de PostgreSQL con PostGIS (por ejemplo, postgis/postgis) o instalar el paquete."", ""Ejecutar CREATE EXTENSION postgis."", ""Agregar una columna geography(Point,"", ""y llenarla con latitud y longitud."", ""Crear el índice GiST."", ""Consultar con ST_DWithin y ordenar por ST_Distance.""]",Aprobada
+INT-040,"Construir en pocos días un panel de operaciones (pedidos, clientes, inventario) con tablas, formularios y actualizaciones en vivo, sin desarrollar un backend propio.",SDK / librería,"Eventos en tiempo real de Appwrite (creación, edición y eliminación de documentos) a través del liveProvider.","import { Refine } from ""@refinedev/core"";
+ import { dataProvider, liveProvider, Client } from ""@refinedev/appwrite"";
+ import { ThemedLayout, useNotificationProvider } from ""@refinedev/antd"";
+ import ""@refinedev/antd/dist/reset.css"";
+ 
+ const appwrite = new Client()
+  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL!) // https://appwrite.ejemplo.com/v1
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+ 
+ export default function App({ children }) {
+  return (
+  <Refine
+  dataProvider={dataProvider(appwrite, { databaseId: ""operaciones"" })}
+  liveProvider={liveProvider(appwrite, { databaseId: ""operaciones"" })}
+  notificationProvider={useNotificationProvider}
+  resources={[{ name: ""pedidos"", list: ""/pedidos"", edit: ""/pedidos/edit/:id"" }]}
+  options={{ liveMode: ""auto"" }}
+  >
+  <ThemedLayout>{children}</ThemedLayout>
+  </Refine>
+  );
+ }","[""React o Next.js con TypeScript"", ""Refine 5 con @refinedev/appwrite y @refinedev/antd"", ""Appwrite autoalojado (Docker) o en la nube""]",Media,https://appwrite.io/docs/tutorials/refine/step-5 ; https://refine.dev/docs/data/packages/appwrite/ ; https://refine.dev/docs/ui-integrations/ant-design/introduction/,"Refine usa el paquete oficial @refinedev/appwrite como data provider (lectura y escritura de colecciones) y live provider (cambios en tiempo real). La interfaz se arma con los componentes de @refinedev/antd, basados en Ant Design.","[""Crear en Appwrite el proyecto, la base de datos y las colecciones con sus permisos."", ""Crear la app con npm create refine-app eligiendo Appwrite y Ant Design."", ""Configurar el cliente de Appwrite con el endpoint y el ID del proyecto."", ""Declarar los recursos (pedidos, clientes): el nombre de cada recurso debe coincidir con el ID de la colección en Appwrite."", ""Generar las vistas de lista y edición.""]",Aprobada
+INT-041,"Dar a varios servidores una misma carpeta compartida de documentos (por ejemplo, expedientes escaneados) que crece sin límite de disco, sobre almacenamiento de objetos propio.",CLI,No aplica: el volumen queda montado de forma permanente; las aplicaciones leen y escriben archivos normalmente.,"# Las credenciales van en variables de entorno, no en la línea de comandos
+ export META_PASSWORD=<secreto> # contraseña de Valkey
+ export ACCESS_KEY=<secreto> SECRET_KEY=<secreto>
+ 
+ # 1) Crear el volumen: datos en SeaweedFS (S3) y metadatos en Valkey (base 1)
+ juicefs format --storage s3 \
+  --bucket http://seaweedfs:8333/expedientes \
+  --access-key ""$ACCESS_KEY"" --secret-key ""$SECRET_KEY"" \
+  redis://valkey:6379/1 expedientes
+ 
+ # 2) Montarlo en cada servidor que lo necesite
+ juicefs mount -d redis://valkey:6379/1 /mnt/expedientes","[""Linux o macOS con JuiceFS Community (binario o Docker)"", ""Valkey 7 u 8"", ""SeaweedFS o cualquier almacenamiento compatible con S3""]",Media,https://juicefs.com/docs/community/databases_for_metadata/ ; https://juicefs.com/docs/community/reference/how_to_set_up_object_storage/,"JuiceFS guarda el contenido de los archivos en un almacenamiento compatible con S3 (SeaweedFS) y los metadatos (nombres, carpetas, permisos) en un motor tipo Redis: Valkey, que es compatible con el protocolo de Redis. Cada servidor monta el mismo volumen como una carpeta POSIX.","[""Levantar Valkey con contraseña y persistencia (AOF)."", ""Crear el bucket en SeaweedFS."", ""Formatear el volumen con juicefs format."", ""Montarlo con juicefs mount en cada servidor."", ""Programar respaldos de los metadatos (juicefs dump).""]",Aprobada
+INT-042,"Búsqueda de texto con ranking por relevancia (BM25) en un catálogo o marketplace, sin agregar un motor de búsqueda aparte: todo queda en PostgreSQL.",Conector de base de datos,No aplica: se activa en cada búsqueda. El índice BM25 se actualiza solo al insertar o modificar filas.,"-- Índice BM25 (una vez, en una migración)
+ CREATE EXTENSION IF NOT EXISTS pg_search;
+ CREATE INDEX servicios_bm25 ON servicios
+ USING bm25 (id, titulo, descripcion, categoria) WITH (key_field = 'id');
+ 
+ // Búsqueda desde TypeORM (parámetros: nunca concatenar el texto del usuario)
+ const resultados = await dataSource.query(
+  `SELECT id, titulo, pdb.score(id) AS relevancia
+  FROM servicios
+  WHERE descripcion @@@ $1 AND categoria = $2
+  ORDER BY relevancia DESC
+  LIMIT 20`,
+  [texto, categoria],
+ );","[""ParadeDB (PostgreSQL 15 a 17 con pg_search, Docker)"", ""Node.js o TypeScript con TypeORM y el driver pg""]",Media,https://www.paradedb.com/docs/start/configure-your-environment ; https://typeorm.io/docs/working-with-entity-manager/working-with-entity-manager/,"ParadeDB agrega a PostgreSQL la extensión pg_search, con índices BM25 y el operador @@@. El backend en TypeORM se conecta como a cualquier PostgreSQL y ejecuta la búsqueda con una consulta SQL parametrizada.","[""Levantar ParadeDB (imagen Docker) o instalar pg_search en PostgreSQL."", ""Crear el índice BM25 sobre las columnas de texto."", ""Configurar el DataSource de TypeORM con la conexión."", ""Ejecutar la búsqueda con dataSource.query y parámetros."", ""Combinar con filtros SQL normales (precio, categoría).""]",Aprobada
+INT-043,"Paneles de métricas del negocio (ingresos, suscripciones, churn) conectados directamente a la base de datos de producción, sin exportar planillas.",Conector de base de datos,No aplica: Superset consulta la base al abrir o refrescar un panel (o según la caché configurada).,"# URI de SQLAlchemy en Superset (la contraseña se ingresa en el formulario, no en el código)
+ postgresql+psycopg2://lector:<secreto>@<endpoint>.neon.tech/ventas?sslmode=require
+ 
+ -- Dataset en SQL Lab: ingresos mensuales recurrentes por plan
+ SELECT date_trunc('month', s.inicio) AS mes, p.nombre AS plan, sum(p.precio_mensual) AS mrr
+ FROM suscripciones s
+ JOIN planes p ON p.id = s.plan_id
+ WHERE s.estado = 'activa'
+ GROUP BY 1, 2
+ ORDER BY 1;","[""Apache Superset (Docker) con el driver psycopg2"", ""Neon (PostgreSQL serverless, autoalojado o en la nube) o cualquier PostgreSQL""]",Baja,https://superset.apache.org/user-docs/databases/supported/postgresql ; https://neon.com/docs/connect/connect-from-any-app,"Superset se conecta a Neon como a cualquier PostgreSQL, mediante una URI de SQLAlchemy con SSL. Sobre esa conexión se crean datasets, gráficos y paneles. Conviene usar una rama o réplica de solo lectura de Neon para no cargar la base principal.","[""En Neon, crear un rol de solo lectura y, si es posible, una rama para analítica."", ""En Superset: Settings → Database Connections → + Database → PostgreSQL."", ""Pegar la URI con sslmode=require."", ""Crear los datasets (tablas o SQL)."", ""Armar el panel y programar el refresco.""]",Aprobada
+INT-044,"Publicar un medio digital o sitio de contenido con un CMS liviano cuya base de datos se replica cerca de los lectores, con bajo costo de operación.",Conector de base de datos,No aplica: Payload lee y escribe en libSQL en cada operación del panel o de la API.,"// payload.config.ts
+ import { buildConfig } from ""payload"";
+ import { sqliteAdapter } from ""@payloadcms/db-sqlite"";
+ 
+ export default buildConfig({
+  secret: process.env.PAYLOAD_SECRET!,
+  db: sqliteAdapter({
+  client: {
+  url: process.env.DATABASE_URL!, // por ejemplo, http://sqld:8080
+  authToken: process.env.DATABASE_AUTH_TOKEN, // solo si el servidor lo exige
+  },
+  }),
+  collections: [
+  { slug: ""articulos"", fields: [{ name: ""titulo"", type: ""text"", required: true },
+  { name: ""cuerpo"", type: ""richText"" }] },
+  ],
+ });","[""Payload 3 (Next.js y TypeScript) con @payloadcms/db-sqlite"", ""servidor libSQL (sqld, Docker) o SQLite local en desarrollo""]",Media,https://payloadcms.com/docs/database/sqlite ; https://github.com/tursodatabase/libsql/blob/main/docs/BUILD-RUN.md,"Payload usa su adaptador oficial @payloadcms/db-sqlite, que se conecta con el cliente de libSQL. Apunta a un servidor libSQL (sqld) local o remoto mediante una URL y un token de acceso.","[""Levantar el servidor de libSQL (sqld) o crear una base remota."", ""Instalar @payloadcms/db-sqlite."", ""Configurar el adaptador con la URL y el token en variables de entorno."", ""Definir las colecciones (artículos, autores)."", ""Ejecutar las migraciones de Payload.""]",Aprobada
+INT-045,"Búsqueda instantánea y tolerante a errores de tipeo en el catálogo de una app (por ejemplo, perfiles de freelancers), siempre sincronizada con la base de datos.",Webhooks / eventos,afterSave y afterDelete de la clase Freelancer (Cloud Code de Parse).,"// cloud/main.js (Parse Server)
+ const { Meilisearch } = require(""meilisearch"");
+ const meili = new Meilisearch({
+  host: ""http://meilisearch:7700"",
+  apiKey: process.env.MEILI_WRITE_KEY,
+ });
+ const indice = meili.index(""freelancers"");
+ 
+ Parse.Cloud.afterSave(""Freelancer"", async (req) => {
+  const o = req.object;
+  await indice.addDocuments([{
+  id: o.id, nombre: o.get(""nombre""),
+  habilidades: o.get(""habilidades""), tarifa: o.get(""tarifa""),
+  }]);
+ });
+ 
+ Parse.Cloud.afterDelete(""Freelancer"", async (req) => {
+  await indice.deleteDocument(req.object.id);
+ });","[""Parse Server (Node.js) con MongoDB o PostgreSQL"", ""Meilisearch (Docker) con el SDK meilisearch para JavaScript""]",Media,https://docs.parseplatform.org/cloudcode/guide/#aftersave-triggers ; https://meilisearch.com/docs/getting_started/sdks/javascript,"Los triggers de Cloud Code de Parse (afterSave y afterDelete) se ejecutan en el servidor después de cada cambio en la clase. El trigger envía el documento a un índice de Meilisearch o lo elimina, con el SDK oficial de JavaScript.","[""Crear el índice \""freelancers\"" en Meilisearch y definir los atributos filtrables (habilidades, tarifa)."", ""Agregar los triggers en el archivo de Cloud Code."", ""Usar una clave de Meilisearch con permisos solo de escritura de documentos."", ""Hacer una carga inicial de los registros existentes."", ""Consultar desde la app con una clave de solo búsqueda.""]",Aprobada
+INT-046,"Un asistente que responde preguntas sobre reglamentos, contratos o manuales en PDF y Word, con las fuentes citadas.",SDK / librería,"Al subir un documento nuevo o modificado (por ejemplo, desde una tarea programada o un evento de subida).","from docling.document_converter import DocumentConverter
+ from docling.chunking import HybridChunker
+ from pymilvus import MilvusClient
+ 
+ doc = DocumentConverter().convert(""reglamento_interno.pdf"").document
+ trozos = [c.text for c in HybridChunker().chunk(dl_doc=doc)]
+ vectores = generar_embeddings(trozos) # modelo de embeddings, 768 dimensiones
+ 
+ milvus = MilvusClient(uri=""http://milvus:19530"", token=""<secreto>"")
+ if not milvus.has_collection(""documentos""):
+  milvus.create_collection(""documentos"", dimension=768)
+ milvus.insert(""documentos"", [
+  {""id"": i, ""vector"": v, ""texto"": t, ""fuente"": ""reglamento_interno.pdf""}
+  for i, (t, v) in enumerate(zip(trozos, vectores))
+ ])
+ resultados = milvus.search(""documentos"", data=[generar_embeddings([""¿Cuántos días de vacaciones tengo?""])[0]],
+  limit=3, output_fields=[""texto"", ""fuente""])","[""Python 3.10 o superior (docling, pymilvus)"", ""Milvus standalone en Docker"", ""modelo de embeddings por API (Gemini) o local""]",Media,https://docling-project.github.io/docling/_generated/examples/rag_milvus/ ; https://milvus.io/docs/quickstart.md,"Docling convierte los documentos (PDF, DOCX) en una estructura con texto, tablas y títulos, y su HybridChunker los divide en fragmentos. Cada fragmento se transforma en vector con un modelo de embeddings y se guarda en una colección de Milvus para la búsqueda semántica.","[""Levantar Milvus (standalone con Docker Compose)."", ""Convertir cada documento con DocumentConverter."", ""Dividirlo con HybridChunker."", ""Generar los embeddings (por ejemplo, Gemini con 768 dimensiones)."", ""Crear la colección e insertar texto, vector y fuente."", ""En cada pregunta, buscar los fragmentos más cercanos y pasarlos al LLM.""]",Aprobada
+INT-047,"Respuestas automáticas en una mesa de ayuda basadas en los manuales y preguntas frecuentes de la empresa, que hoy están en Word, PDF y HTML.",SDK / librería,Al agregar o actualizar un documento de la base de conocimiento.,"from unstructured.partition.auto import partition
+ from unstructured.chunking.title import chunk_by_title
+ import chromadb
+ 
+ elementos = partition(filename=""manual_soporte.docx"")
+ trozos = chunk_by_title(elementos, max_characters=1000)
+ 
+ cliente = chromadb.HttpClient(host=""chroma"", port=8000)
+ coleccion = cliente.get_or_create_collection(""soporte"")
+ coleccion.add(
+  ids=[f""manual-{i}"" for i in range(len(trozos))],
+  documents=[t.text for t in trozos],
+  metadatas=[{""fuente"": ""manual_soporte.docx""} for _ in trozos],
+ )
+ respuesta = coleccion.query(query_texts=[""¿Cómo restablezco mi contraseña?""], n_results=3)","[""Python 3 (unstructured con los extras de cada formato, chromadb)"", ""Chroma en Docker. La función de embeddings de Chroma se puede cambiar por la de Gemini u OpenAI""]",Baja,https://docs.unstructured.io/open-source/core-functionality/chunking ; https://docs.trychroma.com/docs/run-chroma/client-server,"Unstructured detecta el tipo de archivo, extrae los elementos (títulos, párrafos, tablas) y los agrupa por sección con chunk_by_title. Los fragmentos se guardan en una colección de Chroma, que genera los embeddings y responde las búsquedas por similitud.","[""Levantar Chroma en modo servidor (Docker)."", ""Particionar cada documento con partition."", ""Agrupar los elementos con chunk_by_title."", ""Agregar los fragmentos a la colección con su fuente como metadato."", ""Consultar con query_texts y pasar los resultados al LLM.""]",Aprobada
+INT-048,"Un asistente sobre documentos internos que funciona completamente en los servidores de la empresa, sin enviar datos a servicios externos de IA.",API REST,No aplica: la búsqueda y la respuesta se generan cuando el usuario hace una pregunta. La indexación se ejecuta al cargar documentos.,"import lancedb
+ from openai import OpenAI
+ 
+ llm = OpenAI(base_url=""http://localai:8080/v1"", api_key=""<secreto>"") # API compatible con OpenAI
+ 
+ def embed(textos):
+  r = llm.embeddings.create(model=""<modelo_embeddings>"", input=textos)
+  return [d.embedding for d in r.data]
+ 
+ db = lancedb.connect(""./datos/lancedb"")
+ tabla = db.create_table(""politicas"", mode=""overwrite"",
+  data=[{""texto"": t, ""vector"": v} for t, v in zip(textos, embed(textos))])
+ 
+ pregunta = ""¿Cuántos días de vacaciones tengo?""
+ contexto = ""\n"".join(f[""texto""] for f in tabla.search(embed([pregunta])[0]).limit(3).to_pandas().to_dict(""records""))
+ resp = llm.chat.completions.create(model=""<modelo_chat>"", messages=[
+  {""role"": ""system"", ""content"": ""Responde solo con el contexto entregado.""},
+  {""role"": ""user"", ""content"": f""Contexto:\n{contexto}\n\nPregunta: {pregunta}""}])","[""Python 3 (lancedb, openai)"", ""LocalAI en Docker (CPU o GPU)"", ""modelos abiertos en formato GGUF""]",Media,https://localai.io/features/embeddings/ ; https://docs.lancedb.com/quickstart,"LocalAI expone una API compatible con la de OpenAI (embeddings y chat), por lo que se usa con el cliente oficial de OpenAI cambiando base_url. Los embeddings se guardan en LanceDB, una base vectorial embebida que vive en una carpeta, sin servidor aparte.","[""Levantar LocalAI (Docker) con un modelo de embeddings y un modelo de chat."", ""Generar los embeddings de los fragmentos con /v1/embeddings."", ""Guardarlos en una tabla de LanceDB."", ""En cada pregunta, buscar los fragmentos más cercanos."", ""Enviar pregunta y contexto a /v1/chat/completions.""]",Aprobada
+INT-049,"Mejorar la precisión de un asistente sobre documentos combinando búsqueda por palabras exactas (códigos, nombres) y búsqueda por significado, con un LLM propio para responder.",SDK / librería,No aplica: se activa en cada pregunta del usuario. Los índices se reconstruyen al cargar documentos nuevos.,"import faiss, numpy as np, tantivy
+ from openai import OpenAI
+ 
+ # Índice léxico (BM25) con Tantivy
+ sb = tantivy.SchemaBuilder(); sb.add_integer_field(""id"", stored=True); sb.add_text_field(""texto"", stored=True)
+ idx = tantivy.Index(sb.build()); w = idx.writer()
+ for i, t in enumerate(textos): w.add_document(tantivy.Document(id=i, texto=[t]))
+ w.commit(); idx.reload()
+ 
+ # Índice vectorial con Faiss (similitud coseno)
+ v = np.array(generar_embeddings(textos), dtype=""float32""); faiss.normalize_L2(v)
+ fx = faiss.IndexFlatIP(v.shape[1]); fx.add(v)
+ 
+ def buscar(q, k=10):
+  s = idx.searcher()
+  lex = [s.doc(d)[""id""][0] for _, d in s.search(idx.parse_query(q, [""texto""]), k).hits]
+  qv = np.array(generar_embeddings([q]), dtype=""float32""); faiss.normalize_L2(qv)
+  vec = fx.search(qv, k)[1][0].tolist()
+  puntaje = {}
+  for ranking in (lex, vec): # Reciprocal Rank Fusion
+  for pos, i in enumerate(ranking): puntaje[i] = puntaje.get(i, 0) + 1 / (60 + pos)
+  return sorted(puntaje, key=puntaje.get, reverse=True)[:4]
+ 
+ llm = OpenAI(base_url=""http://vllm:8000/v1"", api_key=""<secreto>"")","[""Python 3 (faiss-cpu o faiss-gpu, tantivy, numpy, openai)"", ""vLLM en un servidor con GPU (Docker oficial)""]",Alta,https://github.com/facebookresearch/faiss/wiki/Getting-started ; https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html ; https://github.com/quickwit-oss/tantivy-py ; https://tantivy-py.readthedocs.io/en/stable/tutorials/,"Tantivy (con su binding de Python, tantivy-py) resuelve la búsqueda léxica BM25 y Faiss la búsqueda vectorial. Los dos rankings se combinan con Reciprocal Rank Fusion y los mejores fragmentos se envían a vLLM, que sirve un modelo abierto con una API compatible con OpenAI.","[""Indexar los fragmentos en Tantivy (campo de texto) y en Faiss (vectores normalizados)."", ""En cada pregunta, obtener los 10 mejores de cada índice."", ""Fusionar los rankings con RRF."", ""Enviar los 3 o 4 mejores a vLLM."", ""Devolver la respuesta con las fuentes.""]",Aprobada
+INT-050,"Un bot en el chat del equipo que responde preguntas sobre la documentación interna con fuentes citadas, sin salir de la conversación.",Webhooks / eventos,Mención al bot o mensaje directo al bot (outgoing webhook de Zulip).,"import os, httpx
+ from fastapi import FastAPI, Request
+ 
+ app = FastAPI()
+ RAGFLOW = f""http://ragflow/api/v1/openai/{os.environ['RAGFLOW_CHAT_ID']}/chat/completions""
+ 
+ @app.post(""/zulip/bot"")
+ async def bot(req: Request):
+  d = await req.json()
+  if d.get(""token"") != os.environ[""ZULIP_BOT_TOKEN""]:
+  return {""response_not_required"": True}
+  async with httpx.AsyncClient(timeout=60) as cli:
+  r = await cli.post(RAGFLOW,
+  headers={""Authorization"": f""Bearer {os.environ['RAGFLOW_API_KEY']}""},
+  json={""model"": ""model"", ""stream"": False,
+  ""messages"": [{""role"": ""user"", ""content"": d[""data""]}]})
+  return {""content"": r.json()[""choices""][0][""message""][""content""]}","[""Python 3 con FastAPI y httpx"", ""RAGFlow (Docker Compose)"", ""Zulip autoalojado o en la nube""]",Media,https://www.ragflow.io/docs/http_api_reference ; https://zulip.com/api/outgoing-webhooks,"Zulip envía un webhook saliente (outgoing webhook) al backend cada vez que alguien menciona al bot. El backend reenvía la pregunta a la API compatible con OpenAI de un asistente de RAGFlow y devuelve la respuesta en el campo content, que Zulip publica en el mismo hilo.","[""Crear en RAGFlow la base de conocimiento y el asistente (chat)."", ""Generar la clave de API de RAGFlow."", ""Crear en Zulip un bot de tipo Outgoing webhook con la URL del backend."", ""Validar el token del bot en cada solicitud."", ""Responder con {\""content\"": ...}.""]",Aprobada
+INT-051,"Procesar cada pedido nuevo del e-commerce en segundo plano (reservar stock, emitir la factura, avisar al cliente) con reintentos automáticos si algo falla.",Webhooks / eventos,ORDER_CREATED (webhook asíncrono de Saleor). Opcional: ORDER_FULLY_PAID y ORDER_CANCELLED.,"// trigger/pedidos.ts
+ import { task } from ""@trigger.dev/sdk"";
+ export const procesarPedido = task({
+  id: ""procesar-pedido"",
+  retry: { maxAttempts: 5 },
+  run: async ({ pedidoId }: { pedidoId: string }) => {
+  // reservar stock, emitir la factura, avisar al cliente
+  },
+ });
+ 
+ // app/api/webhooks/saleor/route.ts (Next.js)
+ import { tasks } from ""@trigger.dev/sdk"";
+ import type { procesarPedido } from ""@/trigger/pedidos"";
+ 
+ export async function POST(req: Request) {
+  // validar el encabezado Saleor-Signature antes de continuar
+  if (req.headers.get(""saleor-event"") === ""order_created"") {
+  const { order } = await req.json();
+  await tasks.trigger<typeof procesarPedido>(""procesar-pedido"", { pedidoId: order.id });
+  }
+  return new Response(""ok"");
+ }","[""Saleor (Python, Docker) con API GraphQL"", ""Next.js o Node.js con TypeScript"", ""Trigger.dev en la nube o autoalojado""]",Media,https://docs.saleor.io/developer/extending/webhooks/overview ; https://trigger.dev/docs/tasks,Saleor envía un webhook asíncrono ORDER_CREATED a una ruta del backend. La ruta valida la firma y dispara una tarea de Trigger.dev con el ID del pedido; la tarea ejecuta los pasos con reintentos y deja el registro de cada ejecución.,"[""Crear en Saleor una app con un webhook ORDER_CREATED y una subscription query con los campos necesarios."", ""Validar el encabezado Saleor-Signature."", ""Definir la tarea \""procesar-pedido\"" en Trigger.dev."", ""Dispararla desde la ruta del webhook."", ""Responder 200 de inmediato.""]",Aprobada
+INT-052,"Recibir pagos en criptomonedas sin intermediarios y avisar a los demás servicios de la billetera (saldo, notificaciones, contabilidad) cuando un pago se confirma.",Webhooks / eventos,InvoiceSettled (webhook de BTCPay Server). Opcional: InvoiceExpired e InvoiceInvalid.,"import hashlib, hmac, os, requests
+ from fastapi import FastAPI, HTTPException, Request
+ 
+ app = FastAPI()
+ 
+ @app.post(""/webhooks/btcpay"")
+ async def btcpay(req: Request):
+  cuerpo = await req.body()
+  esperada = ""sha256="" + hmac.new(os.environ[""BTCPAY_WEBHOOK_SECRET""].encode(),
+  cuerpo, hashlib.sha256).hexdigest()
+  if not hmac.compare_digest(esperada, req.headers.get(""BTCPay-Sig"", """")):
+  raise HTTPException(status_code=401)
+  evento = await req.json()
+  if evento[""type""] == ""InvoiceSettled"":
+  requests.post(""http://nsqd:4151/pub"", params={""topic"": ""pagos_confirmados""},
+  data=cuerpo, timeout=5)
+  return {""ok"": True}","[""Python 3 con FastAPI"", ""BTCPay Server (Docker)"", ""NSQ (nsqd y nsqlookupd en Docker)"", ""consumidores en Go, Python o Node.js""]",Media,https://docs.btcpayserver.org/Developers/api/examples/#nodejs ; https://nsq.io/components/nsqd.html,"BTCPay Server envía un webhook firmado (encabezado BTCPay-Sig, HMAC SHA-256) cuando una factura se liquida. El backend verifica la firma y publica el evento en un tópico de NSQ por la API HTTP de nsqd; cada servicio interesado lo consume desde su propio canal.","[""Crear la tienda en BTCPay Server y registrar el webhook con un secreto."", ""Verificar la firma en el backend."", ""Publicar el evento en el tópico pagos_confirmados de NSQ."", ""Crear un consumidor por servicio (canales saldo, notificaciones, contabilidad)."", ""Hacer el procesamiento idempotente con el ID de la factura.""]",Aprobada
+INT-053,"Medir visitas, productos más vistos y compras de una tienda en línea sin cookies de terceros ni compartir datos con Google Analytics.",Otro,"Carga de cada página (visita) y evento personalizado ""compra"" en la confirmación del pedido.","{{-- Plantilla principal del tema de la tienda (antes de </head>) --}}
+ <script defer src=""https://analitica.ejemplo.com/script.js""
+  data-website-id=""{{ config('services.umami.website_id') }}""></script>
+ 
+ {{-- Vista de confirmación del pedido --}}
+ <script>
+  window.addEventListener(""load"", () => {
+  umami.track(""compra"", {
+  pedido: ""{{ $order->increment_id }}"",
+  total: {{ $order->grand_total }},
+  });
+  });
+ </script>
+ 
+ {{-- Botón de agregar al carrito: evento sin JavaScript --}}
+ <button data-umami-event=""agregar-carrito"" data-umami-event-producto=""{{ $product->sku }}"">Agregar</button>","[""Bagisto 2 (Laravel, PHP)"", ""Umami (Next.js) con PostgreSQL, en Docker. Script de seguimiento sin cookies""]",Baja,https://docs.umami.is/docs/tracker-functions ; https://devdocs.bagisto.com/getting-started/before-you-start.html,Se agrega el script de seguimiento de Umami en la plantilla principal del tema de Bagisto. En la página de confirmación del pedido se registra un evento personalizado de compra con umami.track; Umami muestra los eventos y embudos en su panel.,"[""Crear el sitio en Umami y copiar el ID del sitio."", ""Agregar el script en la plantilla principal del tema."", ""Registrar el evento de compra en la vista de confirmación."", ""Opcional: eventos de \""agregar al carrito\"" con data-umami-event en los botones."", ""Revisar los eventos en el panel de Umami.""]",Aprobada
+INT-054,"Que la tienda siga respondiendo rápido en ventas masivas: los trabajos pesados (correos, reindexación, exportaciones) se procesan en colas y en varios workers.",Plugin / extensión,"Los trabajos internos de Vendure: envío de correos, actualización del índice de búsqueda, procesamiento de imágenes, etc.","// vendure-config.ts
+ import { VendureConfig } from ""@vendure/core"";
+ import { BullMQJobQueuePlugin } from ""@vendure/job-queue-plugin/package/bullmq"";
+ 
+ export const config: VendureConfig = {
+  // ...resto de la configuración
+  plugins: [
+  // DefaultJobQueuePlugin se quita al usar BullMQ
+  BullMQJobQueuePlugin.init({
+  connectionOptions: {
+  host: ""valkey"",
+  port: 6379,
+  password: process.env.VALKEY_PASSWORD,
+  },
+  }),
+  ],
+ };","[""Vendure (Node.js y TypeScript) con PostgreSQL"", ""Valkey 7 u 8 (compatible con Redis)"", ""procesos server y worker de Vendure en Docker""]",Media,https://docs.vendure.io/current/core/reference/core-plugins/job-queue-plugin/bull-mqjob-queue-plugin ; https://docs.bullmq.io/,"Vendure trae el plugin oficial BullMQJobQueuePlugin, que reemplaza la cola por defecto (en la base de datos) por BullMQ. BullMQ guarda las colas en un servidor compatible con Redis; se usa Valkey.","[""Levantar Valkey con contraseña."", ""Instalar @vendure/job-queue-plugin y bullmq."", ""Quitar DefaultJobQueuePlugin y agregar BullMQJobQueuePlugin.init con la conexión."", ""Ejecutar uno o más procesos worker de Vendure."", ""Revisar los trabajos en el panel de administración.""]",Aprobada
+INT-055,"Probar dos versiones de un flujo (por ejemplo, el onboarding) con experimentos A/B y medir cuál convierte mejor.",SDK / librería,"Evaluación del flag al iniciar el flujo; eventos de PostHog en cada paso del embudo (por ejemplo, onboarding_completado).","import os, requests
+ from posthog import Posthog
+ 
+ posthog = Posthog(os.environ[""POSTHOG_PROJECT_KEY""], host=""https://analitica.ejemplo.com"")
+ 
+ def variante_onboarding(usuario_id: str, pais: str) -> str:
+  r = requests.post(""http://flagr:18000/api/v1/evaluation"", json={
+  ""entityID"": usuario_id, ""entityType"": ""usuario"",
+  ""flagKey"": ""nuevo-onboarding"", ""entityContext"": {""pais"": pais},
+  }, timeout=2).json()
+  return r.get(""variantKey"") or ""control""
+ 
+ variante = variante_onboarding(usuario.id, ""CL"")
+ # ...al terminar el onboarding:
+ posthog.capture(distinct_id=usuario.id, event=""onboarding_completado"",
+  properties={""experimento"": ""nuevo-onboarding"", ""variante"": variante})","[""Python (o cualquier lenguaje con cliente HTTP) con el SDK de PostHog"", ""Flagr (Docker) con MySQL, PostgreSQL o SQLite"", ""PostHog autoalojado o en la nube""]",Media,https://raw.githubusercontent.com/openflagr/flagr/main/README.md ; https://posthog.com/docs/libraries/python,Flagr asigna a cada usuario una variante del experimento (API de evaluación). El backend envía a PostHog los eventos del embudo con la variante como propiedad; PostHog compara las conversiones de cada variante.,"[""Crear en Flagr el flag nuevo-onboarding con las variantes control y nuevo y su distribución."", ""Evaluar el flag por usuario desde el backend."", ""Mostrar la variante asignada."", ""Enviar a PostHog los eventos con la propiedad variante."", ""Crear en PostHog el embudo o insight agrupado por variante.""]",Aprobada
+INT-056,"Mostrar dentro del panel interno de la empresa las visitas diarias del sitio, sin pedir a cada persona que entre a otra herramienta.",API REST,No aplica: los datos se consultan al abrir el panel (con caché de algunos minutos).,"// Backend (ruta del servidor): el token queda en el servidor
+ const url = `${process.env.UMAMI_URL}/api/websites/${process.env.UMAMI_SITE_ID}/pageviews` +
+  `?startAt=${desde}&endAt=${hasta}&unit=day&timezone=America/Santiago`;
+ const { pageviews } = await fetch(url, {
+  headers: { Authorization: `Bearer ${process.env.UMAMI_TOKEN}` },
+ }).then((r) => r.json()); // [{ x: ""2026-10-01 00:00:00"", y: 120 }, ...]
+ 
+ // Frontend (React)
+ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from ""recharts"";
+ <ResponsiveContainer width=""100%"" height={300}>
+  <LineChart data={pageviews}>
+  <XAxis dataKey=""x"" /><YAxis /><Tooltip />
+  <Line type=""monotone"" dataKey=""y"" name=""Visitas"" stroke=""#6366F1"" dot={false} />
+  </LineChart>
+ </ResponsiveContainer>","[""React o Next.js con Recharts"", ""Umami autoalojado (PostgreSQL) o Umami Cloud""]",Baja,https://umami.is/docs/api/website-stats ; https://recharts.github.io/en-US/api/LineChart/,"El backend consulta la API de Umami (pageviews del sitio por día) con un token de acceso y entrega los datos al frontend, que los dibuja con un LineChart de Recharts. El token nunca llega al navegador.","[""Obtener un token de la API de Umami (o una clave de API en Umami Cloud)."", ""Crear una ruta del backend que consulte /api/websites/{id}/pageviews."", ""Devolver al frontend solo la serie de datos."", ""Dibujar el gráfico con Recharts."", ""Agregar selector de rango de fechas.""]",Aprobada
+INT-057,"Saber cómo usan los clientes la app (pantallas, acciones, compras) guardando los eventos en una base de datos propia, para cruzarlos con los datos del negocio.",SDK / librería,"Eventos de la app: identify al iniciar sesión, page en cada pantalla y track en las acciones clave (pedido_creado, plan_cambiado).","import { jitsuAnalytics } from ""@jitsu/js"";
+ 
+ export const analytics = jitsuAnalytics({
+  host: ""https://eventos.ejemplo.com"",
+  writeKey: process.env.NEXT_PUBLIC_JITSU_WRITE_KEY, // clave pública del navegador
+ });
+ 
+ analytics.identify(usuario.id, { plan: usuario.plan, pais: ""CL"" });
+ analytics.track(""pedido_creado"", { total: 25990, metodo_pago: ""tarjeta"" });
+ 
+ -- En PostgreSQL (destino de Jitsu): pedidos por día
+ SELECT date_trunc('day', timestamp) AS dia, count(*) AS pedidos
+ FROM events
+ WHERE type = 'track' AND event = 'pedido_creado'
+ GROUP BY 1 ORDER BY 1;","[""JavaScript o TypeScript (web, React, Next.js) con @jitsu/js"", ""Jitsu (Docker Compose)"", ""PostgreSQL como destino""]",Media,https://docs.jitsu.com/sending-data/npm ; https://docs.jitsu.com/destinations/warehouse/postgres,"La app envía eventos con el SDK de Jitsu (identify y track). Jitsu los recibe, los normaliza y los carga en un destino PostgreSQL configurado en su consola; desde ahí se consultan con SQL junto a las tablas del negocio.","[""Levantar Jitsu (Docker Compose)."", ""Crear el sitio y copiar su write key (clave pública del navegador)."", ""Configurar el destino PostgreSQL con un usuario propio."", ""Conectar el sitio al destino."", ""Instrumentar la app con @jitsu/js."", ""Consultar las tablas de eventos con SQL.""]",Aprobada
+INT-058,"Búsqueda rápida de texto completo en los artículos de un medio digital o comunidad, con resultados ordenados por relevancia y resaltado de términos.",Webhooks / eventos,"afterOperation de la lista Articulo (create, update y delete).","import { list } from ""@keystone-6/core"";
+ import { text } from ""@keystone-6/core/fields"";
+ import { allowAll } from ""@keystone-6/core/access"";
+ 
+ const MANTICORE = ""http://manticore:9308"";
+ const enviar = (ruta: string, cuerpo: object) =>
+  fetch(`${MANTICORE}/${ruta}`, { method: ""POST"", headers: { ""Content-Type"": ""application/json"" },
+  body: JSON.stringify(cuerpo) });
+ 
+ export const Articulo = list({
+  access: allowAll,
+  db: { idField: { kind: ""autoincrement"" } },
+  fields: { titulo: text(), cuerpo: text({ ui: { displayMode: ""textarea"" } }) },
+  hooks: {
+  afterOperation: async ({ operation, item, originalItem }) => {
+  if (operation === ""delete"") {
+  await enviar(""delete"", { index: ""articulos"", id: Number(originalItem.id) });
+  } else {
+  await enviar(""replace"", { index: ""articulos"", id: Number(item.id),
+  doc: { titulo: item.titulo, cuerpo: item.cuerpo } });
+  }
+  },
+  },
+ });","[""Keystone 6 (Node.js y TypeScript) con PostgreSQL"", ""Manticore Search (Docker) con su API HTTP JSON en el puerto 9308""]",Media,https://keystonejs.com/docs/config/hooks ; https://manual.manticoresearch.com/Data_creation_and_modification/Updating_documents/REPLACE,"El hook afterOperation de una lista de Keystone se ejecuta después de crear, editar o borrar un artículo. El hook envía el documento a la API HTTP JSON de Manticore (/replace o /delete), que mantiene el índice de texto completo.","[""Crear en Manticore la tabla articulos con los campos de texto."", ""Configurar la lista con IDs autoincrementales (Manticore usa IDs numéricos)."", ""Agregar el hook afterOperation."", ""Hacer una carga inicial de los artículos existentes."", ""Consultar desde el frontend con /search.""]",Aprobada
+INT-059,"Mantener actualizado cada noche el buscador de expedientes y documentos de un estudio jurídico, sin depender de que alguien lo reindexe a mano.",API REST,Programación diaria del DAG (3:00 h). También se puede disparar a mano desde la interfaz de Airflow.,"import pendulum, requests
+ from airflow.sdk import dag, task # Airflow 3 (en Airflow 2: from airflow.decorators import dag, task)
+ 
+ @dag(schedule=""0 3 * * *"", catchup=False,
+  start_date=pendulum.datetime(2026, 10, 1, tz=""America/Santiago""))
+ def reindexar_expedientes():
+ 
+  @task(retries=3)
+  def extraer() -> list[dict]:
+  return obtener_expedientes_modificados() # consulta a la base del estudio
+ 
+  @task(retries=3)
+  def indexar(docs: list[dict]):
+  r = requests.post(""http://solr:8983/solr/expedientes/update"",
+  params={""commit"": ""true""}, json=docs, timeout=120)
+  r.raise_for_status()
+ 
+  indexar(extraer())
+ 
+ reindexar_expedientes()","[""Apache Airflow 2 o 3 (Python)"", ""Apache Solr 9 (Docker)"", ""base de datos de origen PostgreSQL o MySQL""]",Media,https://airflow.apache.org/docs/apache-airflow/3.1.0/tutorial/taskflow.html ; https://solr.apache.org/guide/solr/latest/indexing-guide/indexing-with-update-handlers.html,Un DAG de Airflow se ejecuta todas las noches: extrae los expedientes modificados desde la base de datos y los envía en lote al endpoint /update/json/docs de Solr. Airflow guarda el historial de cada ejecución y reintenta si Solr no responde.,"[""Crear la colección expedientes en Solr con su esquema."", ""Escribir el DAG con una tarea de extracción y otra de indexación."", ""Guardar la URL de Solr y la conexión a la base como Connections de Airflow."", ""Enviar los documentos con commit al final del lote."", ""Revisar los registros y configurar alertas de falla.""]",Aprobada
+INT-060,"Subir videos o archivos grandes (consultas grabadas, portafolios, cursos) sin que se pierda la subida si se corta la conexión.",SDK / librería,Hooks de tusd: pre-create (validar al usuario y el tipo de archivo) y post-finish (registrar el archivo en la base de datos).,"// Frontend
+ import Uppy from ""@uppy/core"";
+ import Dashboard from ""@uppy/dashboard"";
+ import Tus from ""@uppy/tus"";
+ import ""@uppy/core/css/style.min.css"";
+ import ""@uppy/dashboard/css/style.min.css"";
+ 
+ new Uppy({ restrictions: { maxFileSize: 2 * 1024 ** 3, allowedFileTypes: [""video/*"", "".pdf""] } })
+  .use(Dashboard, { inline: true, target: ""#subida"" })
+  .use(Tus, {
+  endpoint: ""https://subidas.ejemplo.com/files/"",
+  headers: { Authorization: `Bearer ${tokenSesion}` },
+  });
+ 
+ # Servidor tusd (Docker) con hooks HTTP al backend
+ docker run -p 8080:8080 tusproject/tusd \
+  -hooks-http http://backend:8000/hooks/tusd \
+  -hooks-enabled-events pre-create,post-finish","[""Cualquier frontend web (React, Vue, Next.js o HTML) con Uppy"", ""tusd (Go, Docker) con disco local o almacenamiento S3 (por ejemplo, SeaweedFS)"", ""backend en cualquier lenguaje para los hooks""]",Media,https://uppy.io/docs/tus/ ; https://tus.github.io/tusd/advanced-topics/hooks/,"Uppy es el componente de subida del navegador; su plugin @uppy/tus envía los archivos con el protocolo tus, por partes y reanudables. tusd es el servidor de ese protocolo y avisa al backend con hooks HTTP antes de crear la subida y al terminarla.","[""Levantar tusd con almacenamiento en disco o S3 y hooks HTTP hacia el backend."", ""Implementar en el backend los hooks pre-create y post-finish."", ""Agregar Uppy con Dashboard y el plugin Tus en el frontend."", ""Enviar el token de sesión en los encabezados."", ""Probar cortando la conexión a mitad de la subida.""]",Aprobada
+INT-061,Respaldar cada noche los documentos de la empresa en un almacenamiento externo y enterarse de inmediato si el respaldo no se ejecutó o falló.,CLI,Programación diaria del script (cron). Healthchecks alerta si falta un ping o si el código de salida es distinto de 0.,"#!/bin/sh
+ # /opt/respaldo.sh — respaldo nocturno con monitoreo
+ HC=""https://healthchecks.ejemplo.com/ping/${HC_UUID}"" # el UUID del check va en una variable de entorno
+ 
+ curl -fsS -m 10 --retry 5 ""$HC/start"" > /dev/null
+ rclone sync /datos/documentos respaldo:empresa-documentos \
+  --log-file /var/log/rclone.log --log-level INFO
+ curl -fsS -m 10 --retry 5 ""$HC/$?"" > /dev/null # 0 = éxito; otro código = falla
+ 
+ # crontab -e
+ # 0 2 * * * /opt/respaldo.sh","[""Linux o macOS con rclone (binario o Docker) y curl"", ""Healthchecks autoalojado (Docker) o healthchecks.io. Destino: cualquier proveedor que soporte rclone (S3, Google Drive, SFTP)""]",Baja,https://healthchecks.io/docs/bash/ ; https://rclone.org/commands/rclone_sync/,"Un script programado con cron ejecuta rclone sync hacia el destino de respaldo. Antes y después avisa a Healthchecks con pings HTTP (inicio y código de salida). Si el ping no llega a tiempo o informa un error, Healthchecks envía la alerta.","[""Configurar el destino de respaldo en rclone (rclone config)."", ""Crear el check en Healthchecks con su periodo y tolerancia."", ""Escribir el script con los pings de inicio y de resultado."", ""Programarlo en cron."", ""Configurar el canal de alertas (correo, Telegram o Slack).""]",Aprobada
+INT-062,Recibir miles de actualizaciones de ubicación de los repartidores por HTTP y distribuirlas a los servicios internos sin saturar el backend.,Otro,Cada POST de ubicación que envía la app del repartidor.,"{
+  ""version"": 3,
+  ""endpoints"": [
+  {
+  ""endpoint"": ""/repartidores/{id}/ubicacion"",
+  ""method"": ""POST"",
+  ""backend"": [
+  {
+  ""host"": [""nats://""],
+  ""url_pattern"": ""/ignored"",
+  ""disable_host_sanitize"": true,
+  ""extra_config"": {
+  ""backend/pubsub/publisher"": { ""topic_url"": ""ubicaciones"" }
+  }
+  }
+  ]
+  }
+  ]
+ }
+ 
+ # Variable de entorno del contenedor de KrakenD
+ NATS_SERVER_URL=nats://nats:4222","[""KrakenD CE (Docker) con configuración JSON"", ""NATS Server 2 (Docker)"", ""consumidores en Go, Node.js o Python con el cliente de NATS""]",Alta,https://www.krakend.io/docs/backends/pubsub/ ; https://docs.nats.io/nats-concepts/core-nats/pubsub,"KrakenD expone un endpoint HTTP público y, en lugar de llamar a un backend, publica cada solicitud en un tópico de NATS con su backend pub/sub. Los servicios internos (seguimiento, ETA, mapa en vivo) se suscriben al tópico.","[""Levantar NATS (con JetStream si se necesita persistencia)."", ""Definir en KrakenD el endpoint con un backend de tipo publisher."", ""Indicar el servidor de NATS en la variable de entorno NATS_SERVER_URL."", ""Agregar validación de JWT y límite de solicitudes en el endpoint."", ""Crear los consumidores en los servicios internos.""]",Aprobada
+INT-063,"Vigilar la salud del sistema de colas de pagos o pedidos (mensajes acumulados, consumidores conectados) y alertar antes de que se atrase el procesamiento.",Plugin / extensión,"Recolección periódica de Prometheus (por ejemplo, cada 15 s) y reglas de alerta sobre las métricas de las colas.","<!-- 1) <ARTEMIS_INSTANCE>/etc/broker.xml: activar el plugin
+  (el .jar va en <ARTEMIS_INSTANCE>/lib) -->
+ <metrics>
+  <plugin class-name=""com.redhat.amq.broker.core.server.metrics.plugins.ArtemisPrometheusMetricsPlugin""/>
+ </metrics>
+ 
+ <!-- 2) <ARTEMIS_INSTANCE>/etc/bootstrap.xml, dentro del elemento web:
+  publicar el servlet (metrics.war va en <ARTEMIS_INSTANCE>/web) -->
+ <app url=""metrics"" war=""metrics.war""/>
+ 
+ # 3) prometheus.yml
+ scrape_configs:
+  - job_name: artemis
+  metrics_path: /metrics
+  static_configs:
+  - targets: [""artemis:8161""]
+ 
+ # 4) reglas.yml: cola de pagos acumulando mensajes
+ groups:
+  - name: colas
+  rules:
+  - alert: ColaPagosAtrasada
+  expr: artemis_message_count{queue=""pagos""} > 1000
+  for: 5m","[""Apache ActiveMQ Artemis (Java, Docker) con el plugin de métricas para Prometheus"", ""Prometheus 2 o 3""]",Media,https://activemq.apache.org/components/artemis/documentation/latest/metrics.html ; https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config ; https://github.com/rh-messaging/artemis-prometheus-metrics-plugin,"Artemis publica sus métricas (tamaño de cada cola, mensajes agregados y consumidos, consumidores) mediante el plugin artemis-prometheus-metrics-plugin, que tiene dos módulos: la implementación del plugin (archivo .jar) y un servlet (metrics.war) que se despliega en el servidor web integrado del broker y expone el endpoint /metrics. Prometheus recolecta ese endpoint por HTTP y evalúa reglas de alerta, por ejemplo, una cola que crece durante varios minutos.","[""Descargar de la página de versiones del plugin (o compilar con mvn install, JDK 11 o superior) la versión 3.x, compatible con Artemis 2.39.0 o superior."", ""Copiar artemis-prometheus-metrics-plugin-<versión>.jar en <ARTEMIS_INSTANCE>/lib."", ""Activar el plugin en <ARTEMIS_INSTANCE>/etc/broker.xml."", ""Crear la carpeta <ARTEMIS_INSTANCE>/web y copiar en ella metrics.war."", ""Registrar el servlet en el elemento web de <ARTEMIS_INSTANCE>/etc/bootstrap.xml y reiniciar el broker."", ""Verificar que http://<broker>:8161/metrics responde."", ""Agregar el scrape en Prometheus y crear las reglas de alerta."", ""Opcional: panel en Grafana.""]",Aprobada
+INT-064,"Centralizar en un solo sistema de alertas las métricas detalladas de los servidores (CPU, disco, red, servicios) que Netdata recolecta en cada máquina.",API REST,"Recolección periódica de Prometheus (por ejemplo, cada 15 s).","# prometheus.yml
+ scrape_configs:
+  - job_name: netdata
+  metrics_path: /api/v1/allmetrics
+  params:
+  format: [prometheus]
+  honor_labels: true
+  scrape_interval: 15s
+  static_configs:
+  - targets: [""servidor1:19999"", ""servidor2:19999""]","[""Agente de Netdata en Linux (paquete o Docker)"", ""Prometheus 2 o 3""]",Baja,https://learn.netdata.cloud/docs/exporting/prometheus ; https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config,Netdata expone todas sus métricas en formato Prometheus en el endpoint /api/v1/allmetrics?format=prometheus. Prometheus las recolecta como cualquier otro objetivo y las conserva para alertas y paneles.,"[""Instalar el agente de Netdata en cada servidor."", ""Agregar el job de scrape en Prometheus con metrics_path y el parámetro format."", ""Conservar las etiquetas de Netdata (honor_labels)."", ""Crear las reglas de alerta en Prometheus."", ""Opcional: panel en Grafana.""]",Aprobada
+INT-065,"Enterarse al instante por el canal que use el equipo (correo, Telegram, Slack o Discord) cuando falla una sincronización de datos o un proceso nocturno.",SDK / librería,Cambio de estado del flujo a Failed (hook on_failure de Prefect).,"import os
+ import apprise
+ from prefect import flow
+ 
+ def avisar_falla(flow, flow_run, state):
+  aviso = apprise.Apprise()
+  for url in os.environ[""APPRISE_URLS""].split(): # por ejemplo, tgram://<secreto>/<chat_id>
+  aviso.add(url)
+  aviso.notify(title=f""Falló el flujo {flow.name}"",
+  body=f""Ejecución {flow_run.name}: {state.message}"")
+ 
+ @flow(retries=2, on_failure=[avisar_falla])
+ def sincronizar_ventas():
+  ...","[""Python 3.9 o superior con Prefect 3 y apprise"", ""servidor de Prefect autoalojado o Prefect Cloud""]",Baja,https://docs.prefect.io/v3/how-to-guides/workflows/state-change-hooks ; https://github.com/caronc/apprise/wiki/Development_API,"Prefect permite asociar funciones a los cambios de estado de un flujo (on_failure). La función usa la biblioteca de Apprise, que envía el mismo aviso a decenas de servicios a partir de URLs de notificación.","[""Instalar prefect y apprise."", ""Definir las URLs de Apprise en una variable de entorno o en un bloque Secret de Prefect."", ""Escribir la función de aviso."", ""Asociarla al flujo con on_failure."", ""Forzar un error para probar el aviso.""]",Aprobada
+INT-066,"Resumir y clasificar automáticamente cada ticket de soporte con un modelo de IA propio, sin bloquear la app y sin saturar el servidor del modelo.",SDK / librería,Creación de un ticket (la API llama a la tarea con run_no_wait).,"from hatchet_sdk import Context, Hatchet
+ from openai import OpenAI
+ from pydantic import BaseModel
+ 
+ hatchet = Hatchet() # toma HATCHET_CLIENT_TOKEN del entorno
+ llm = OpenAI(base_url=""http://localai:8080/v1"", api_key=""<secreto>"")
+ 
+ class Ticket(BaseModel):
+  ticket_id: str
+  texto: str
+ 
+ @hatchet.task(name=""resumir-ticket"", input_validator=Ticket, retries=3, execution_timeout=""2m"")
+ def resumir(entrada: Ticket, ctx: Context) -> dict:
+  r = llm.chat.completions.create(model=""<modelo_chat>"", messages=[
+  {""role"": ""user"", ""content"": f""Resume en 3 líneas y clasifica (pago, cuenta, técnico):\n{entrada.texto}""}])
+  return {""ticket_id"": entrada.ticket_id, ""resumen"": r.choices[0].message.content}
+ 
+ # En la API, al crear el ticket:
+ # resumir.run_no_wait(Ticket(ticket_id=""123"", texto=cuerpo))
+ # En el proceso worker:
+ # hatchet.worker(""soporte"", workflows=[resumir]).start()","[""Python 3.10 o superior con hatchet-sdk (v1) y openai"", ""Hatchet autoalojado (Docker Compose, PostgreSQL) o Hatchet Cloud"", ""LocalAI en Docker""]",Media,https://docs.hatchet.run/v1/tasks ; https://localai.io/features/text-generation/,"La API encola un trabajo en Hatchet por cada ticket nuevo. Un worker de Hatchet llama a LocalAI con el cliente de OpenAI (API compatible) y guarda el resumen. Hatchet maneja reintentos, tiempos límite y límites de concurrencia para no sobrecargar el modelo.","[""Levantar Hatchet (Docker Compose) y generar el token del cliente."", ""Levantar LocalAI con un modelo de chat."", ""Definir la tarea resumir-ticket con reintentos y tiempo límite."", ""Ejecutar el worker."", ""Encolar la tarea desde la API al crear el ticket.""]",Aprobada
+INT-067,"Recibir un aviso inmediato por el canal del equipo cuando la API o el sitio de la startup deja de responder, y otro cuando se recupera.",Plugin / extensión,Cambio de estado de un monitor de Uptime Kuma (caído o recuperado).,"# 1) Probar la URL de Apprise antes de cargarla en Uptime Kuma
+ pip install apprise
+ apprise -vv -t ""Prueba"" -b ""Aviso de prueba de Uptime Kuma"" \
+  ""tgram://<secreto>/<chat_id>""
+ 
+ # 2) Uptime Kuma → Configuración → Notificaciones → Configurar notificación
+ # Tipo de notificación: Apprise (Support 50+ Notification services)
+ # URL de Apprise: tgram://<secreto>/<chat_id>
+ # Activar en los monitores: API pública, sitio web, base de datos","[""Uptime Kuma (Node.js, imagen Docker oficial, que ya incluye Apprise)"", ""cualquier servicio de mensajería que soporte Apprise""]",Baja,https://github.com/louislam/uptime-kuma/wiki/Notification-Methods ; https://github.com/caronc/apprise/wiki,"Uptime Kuma incluye Apprise como uno de sus métodos de notificación. Se configura una URL de Apprise (correo, Telegram, Discord, Teams, etc.) y Uptime Kuma la usa para avisar de cada caída y recuperación de los monitores.","[""Crear los monitores (HTTP, puerto, palabra clave) en Uptime Kuma."", ""Probar la URL de Apprise desde la terminal."", ""En Configuración → Notificaciones, crear una notificación de tipo Apprise con esa URL."", ""Asociarla a los monitores."", ""Enviar una notificación de prueba.""]",Aprobada
+INT-068,"Ver de un vistazo qué servicio del SaaS está fallando o lento y por qué (mapa de servicios, latencias, errores), sin instrumentar el código.",Docker,No aplica: Coroot recolecta métricas de forma continua; las alertas se disparan según los SLO configurados.,"# 1) Clúster k3s de un nodo
+ curl -sfL https://get.k3s.io | sh -
+ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ 
+ # 2) Operador de Coroot y edición comunitaria
+ helm repo add coroot https://coroot.github.io/helm-charts
+ helm repo update coroot
+ helm install -n coroot --create-namespace coroot-operator coroot/coroot-operator
+ helm install -n coroot coroot coroot/coroot-ce \
+  --set ""clickhouse.shards=1,clickhouse.replicas=1""
+ 
+ # 3) Abrir la interfaz
+ kubectl port-forward -n coroot service/coroot-coroot 8080:8080","[""k3s (Linux con kernel 5.1 o superior para eBPF)"", ""Helm 3"", ""Coroot Community Edition. Funciona con servicios en cualquier lenguaje""]",Media,https://docs.coroot.com/installation/kubernetes ; https://docs.k3s.io/quick-start,"Coroot se instala en el clúster k3s con su operador de Helm. Su agente usa eBPF para observar el tráfico entre servicios y construye el mapa de dependencias, las métricas y el análisis de causa de cada incidente.","[""Instalar k3s en el servidor."", ""Agregar el repositorio Helm de Coroot."", ""Instalar el operador y Coroot Community Edition."", ""Abrir la interfaz (port-forward o ingress)."", ""Configurar los SLO y los canales de alerta.""]",Aprobada
+INT-069,"Activar o desactivar funcionalidades en producción con un cambio revisado en Git (pull request), con historial y vuelta atrás, sin volver a desplegar la app.",Otro,Merge en la rama main del repositorio de configuración (Argo CD detecta el cambio y sincroniza).,"// flags/flags.flagd.json (en el repositorio Git)
+ {
+  ""$schema"": ""https://flagd.dev/schema/v0/flags.json"",
+  ""flags"": {
+  ""nuevo-checkout"": {
+  ""state"": ""ENABLED"",
+  ""variants"": { ""on"": true, ""off"": false },
+  ""defaultVariant"": ""off"",
+  ""targeting"": { ""if"": [{ ""ends_with"": [{ ""var"": ""email"" }, ""@empresa.cl""] }, ""on"", ""off""] }
+  }
+  }
+ }
+ 
+ # Application de Argo CD
+ apiVersion: argoproj.io/v1alpha1
+ kind: Application
+ metadata: { name: feature-flags, namespace: argocd }
+ spec:
+  project: default
+  source: { repoURL: https://github.com/<org>/<repo>.git, path: k8s/flags, targetRevision: main }
+  destination: { server: https://kubernetes.default.svc, namespace: app }
+  syncPolicy: { automated: { prune: true, selfHeal: true } }
+ 
+ # Contenedor de flagd (lee el ConfigMap montado)
+ # flagd start --port 8013 --uri file:/etc/flagd/flags.flagd.json","[""Kubernetes (por ejemplo, k3s) con Argo CD"", ""flagd (Docker)"", ""SDK de OpenFeature con el proveedor de flagd (Go, Java, Node.js, Python, .NET)""]",Media,https://flagd.dev/reference/flag-definitions/ ; https://github.com/open-feature/flagd ; https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/,Las definiciones de los flags se guardan en un archivo JSON del repositorio. Argo CD sincroniza el ConfigMap generado con ese archivo en el clúster; flagd lo lee montado como archivo y aplica los cambios en caliente. Las apps consultan los flags con los SDK de OpenFeature.,"[""Escribir los flags en flags.flagd.json."", ""Generar el ConfigMap con kustomize (configMapGenerator)."", ""Crear la Application de Argo CD con sincronización automática."", ""Desplegar flagd montando el ConfigMap."", ""Consultar los flags desde la app con el proveedor de flagd para OpenFeature.""]",Aprobada
+INT-070,"Automatiza cambios y avisa al equipo de producto en su canal de chat cada vez que alguien activa, desactiva o modifica un feature flag en producción.",Webhooks / eventos,"Eventos de FeatBit: feature_flag.toggled (activado o desactivado), feature_flag.targeting_rules_changed, feature_flag.created y feature_flag.deleted, entre otros.","import os, requests
+ from fastapi import FastAPI, Request
+ 
+ app = FastAPI()
+ 
+ @app.post(""/webhooks/featbit"")
+ async def featbit(req: Request):
+  evento = await req.json() # validar antes X-FeatBit-Signature-256 (sha256=<HMAC-SHA256 del cuerpo>)
+  texto = (f""🚩 **{evento.get('operator', {}).get('name', 'Alguien')}** ""
+  f""cambió el flag **{evento.get('data', {}).get('object', {}).get('name')}** ({evento.get('event')})"")
+  requests.post(""https://zulip.ejemplo.com/api/v1/messages"",
+  auth=(""flags-bot@zulip.ejemplo.com"", os.environ[""ZULIP_BOT_API_KEY""]),
+  data={""type"": ""stream"", ""to"": ""producto"", ""topic"": ""feature flags"", ""content"": texto},
+  timeout=5)
+  return {""ok"": True}","[""Python 3 con FastAPI y requests"", ""FeatBit (Docker Compose)"", ""Zulip autoalojado o en la nube""]",Baja,https://docs.featbit.co/integrations/webhooks ; https://zulip.com/api/send-message,"FeatBit envía un webhook cuando cambia un flag. El backend lo recibe, valida la firma y publica un mensaje en un canal y tema de Zulip con la API de mensajes, usando un bot.","[""Crear en Zulip un bot genérico y copiar su clave de API."", ""En FeatBit, registrar el webhook hacia el backend con un secreto."", ""Validar la firma en el backend (encabezado X-FeatBit-Signature-256, HMAC SHA-256 del cuerpo con el secreto)."", ""Armar el mensaje con el flag, el cambio y quién lo hizo."", ""Publicarlo en el canal producto, tema \""feature flags\"".""]",Aprobada
+INT-071,"Mostrar u ocultar partes de la interfaz (un banner de promoción, un nuevo flujo de pago) según el usuario o el país, sin publicar una nueva versión del frontend.",SDK / librería,No aplica: los flags se cargan al iniciar la app y al identificar al usuario; se pueden refrescar en tiempo real.,"import flagsmith from ""@flagsmith/flagsmith"";
+ import { FlagsmithProvider, useFlags } from ""@flagsmith/flagsmith/react"";
+ import { Alert, Button, ChakraProvider, defaultSystem } from ""@chakra-ui/react"";
+ 
+ export default function App() {
+  return (
+  <FlagsmithProvider flagsmith={flagsmith} options={{
+  environmentID: process.env.NEXT_PUBLIC_FLAGSMITH_ENV_ID!,
+  api: ""https://flags.ejemplo.com/api/v1/"",
+  }}>
+  <ChakraProvider value={defaultSystem}><Inicio /></ChakraProvider>
+  </FlagsmithProvider>
+  );
+ }
+ 
+ function Inicio() {
+  const { banner_promocion, nuevo_checkout } = useFlags([""banner_promocion"", ""nuevo_checkout""]);
+  return (
+  <>
+  {banner_promocion.enabled && (
+  <Alert.Root status=""info""><Alert.Title>{String(banner_promocion.value)}</Alert.Title></Alert.Root>
+  )}
+  <Button colorPalette={nuevo_checkout.enabled ? ""purple"" : ""gray""}>Pagar</Button>
+  </>
+  );
+ }","[""React o Next.js con TypeScript"", ""Chakra UI 3"", ""SDK flagsmith"", ""Flagsmith autoalojado (Docker) o en la nube""]",Baja,https://docs.flagsmith.com/clients/react ; https://chakra-ui.com/docs/get-started/installation,El SDK de Flagsmith para React (FlagsmithProvider y useFlags) entrega el estado y el valor de cada flag. Los componentes de Chakra UI se muestran o cambian según esos valores.,"[""Crear los flags banner_promocion y nuevo_checkout en Flagsmith."", ""Copiar el Environment ID (es una clave pública del cliente)."", ""Envolver la app con FlagsmithProvider."", ""Leer los flags con useFlags."", ""Identificar al usuario para segmentar por plan o país.""]",Aprobada
+INT-072,"Incluir en el panel interno gráficos de rendimiento de la API (solicitudes por segundo, errores) con datos reales de monitoreo.",API REST,No aplica: los datos se consultan al abrir el panel y se pueden refrescar cada minuto.,"import * as echarts from ""echarts"";
+ 
+ const fin = Math.floor(Date.now() / 1000), inicio = fin - 3600;
+ const q = encodeURIComponent('sum(rate(http_requests_total{job=""api""}[5m]))');
+ const { data } = await fetch(
+  `/prometheus/api/v1/query_range?query=${q}&start=${inicio}&end=${fin}&step=60`
+ ).then((r) => r.json());
+ const puntos = data.result[0]?.values.map(([t, v]) => [t * 1000, Number(v)]) ?? [];
+ 
+ const grafico = echarts.init(document.getElementById(""grafico""));
+ grafico.setOption({
+  tooltip: { trigger: ""axis"" },
+  xAxis: { type: ""time"" },
+  yAxis: { type: ""value"", name: ""solicitudes/s"" },
+  series: [{ type: ""line"", name: ""Solicitudes por segundo"", data: puntos, showSymbol: false }],
+ });","[""JavaScript o TypeScript con Apache ECharts 5 (también en React con echarts-for-react)"", ""Prometheus 2 o 3""]",Baja,https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries ; https://echarts.apache.org/handbook/en/get-started/,"El frontend (o un proxy del backend) consulta la API HTTP de Prometheus (query_range) con una consulta PromQL. La serie de tiempo resultante se convierte en pares [tiempo, valor] y se dibuja con un gráfico de líneas de ECharts.","[""Exponer la API de Prometheus solo a través del backend o de un proxy autenticado."", ""Definir la consulta PromQL."", ""Pedir /api/v1/query_range con inicio, fin y paso."", ""Convertir los valores."", ""Dibujar con ECharts y refrescar periódicamente.""]",Aprobada
+INT-073,"Publicar una plataforma de cursos propia en un servidor económico, con dominio y HTTPS, sin administrar Docker a mano.",Docker,Push a la rama configurada (despliegue automático) o despliegue manual desde Coolify.,"# Instalar Coolify en el servidor (Ubuntu)
+ curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+ 
+ # En Coolify: Proyecto → + Nuevo recurso → Repositorio público
+ # Repositorio: https://github.com/classroomio/classroomio
+ # Build pack: Docker Compose
+ # Docker Compose Location: /docker/coolify/docker-compose.yaml
+ # Variables (pestaña Environment Variables; nunca en el repositorio):
+ # PUBLIC_SUPABASE_URL=https://<proyecto>.supabase.co
+ # PUBLIC_SUPABASE_ANON_KEY=<secreto>
+ # PRIVATE_SUPABASE_SERVICE_ROLE=<secreto>
+ # Dominio: cursos.ejemplo.com (Coolify emite el certificado HTTPS)","[""Servidor Linux con Coolify (Docker)"", ""ClassroomIO (SvelteKit y Node.js) con Supabase como base de datos y autenticación""]",Media,https://coolify.io/docs/applications/build-packs/docker-compose ; https://classroomio.com/docs,"Coolify despliega aplicaciones desde un repositorio Git con el build pack Docker Compose. ClassroomIO incluye un archivo compose preparado para Coolify; Coolify lo construye, asigna el dominio, emite el certificado y gestiona las variables de entorno.","[""Instalar Coolify en el servidor."", ""Crear un recurso desde el repositorio público de ClassroomIO con el build pack Docker Compose."", ""Indicar la ruta del archivo compose para Coolify."", ""Cargar las variables de entorno en Coolify."", ""Asignar el dominio y desplegar.""]",Aprobada
+INT-074,"Desplegar la API de una startup en un servidor propio con un simple git push, con su base de datos PostgreSQL creada y conectada en dos comandos.",CLI,git push al remoto dokku (cada push construye y despliega una nueva versión).,"# En el servidor
+ sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --name postgres
+ dokku apps:create api-reservas
+ dokku postgres:create reservas-db
+ dokku postgres:link reservas-db api-reservas # inyecta DATABASE_URL en la app
+ dokku config:set api-reservas SECRET_KEY=<secreto>
+ dokku domains:set api-reservas api.ejemplo.com
+ 
+ # En tu computador
+ git remote add dokku dokku@servidor.ejemplo.com:api-reservas
+ git push dokku main","[""Servidor Ubuntu o Debian con Dokku"", ""apps en cualquier lenguaje con Dockerfile o buildpack (Python, Node.js, Go)"", ""PostgreSQL mediante el plugin oficial""]",Media,https://dokku.com/docs/deployment/application-deployment/ ; https://github.com/dokku/dokku-postgres,"Dokku es un PaaS mínimo sobre Docker. Su plugin oficial dokku-postgres crea contenedores de PostgreSQL y, al enlazarlos con una app, inyecta la variable DATABASE_URL. La app se despliega con git push al remoto de Dokku.","[""Instalar Dokku en el servidor."", ""Instalar el plugin dokku-postgres."", ""Crear la app y la base de datos."", ""Enlazarlas (postgres:link)."", ""Definir los secretos con config:set."", ""Agregar el remoto y hacer git push.""]",Aprobada
+INT-075,"Administrar desde una sola consola web los clústeres de Kubernetes de la empresa (desarrollo, staging, producción), con usuarios y permisos por equipo.",Docker,No aplica: la conexión es permanente una vez registrado el clúster.,"# 1) Rancher para pruebas (en producción se instala con Helm)
+ docker run -d --restart=unless-stopped -p 80:80 -p 443:443 --privileged rancher/rancher:latest
+ 
+ # 2) Clúster k3s en el nodo de la aplicación
+ curl -sfL https://get.k3s.io | sh -
+ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ 
+ # 3) Comando que entrega Rancher en Import Existing → Generic (el token es secreto)
+ kubectl apply -f https://rancher.ejemplo.com/v3/import/<secreto>.yaml","[""Rancher 2.x (Docker o Helm)"", ""k3s en Linux. Rancher también gestiona otros clústeres de Kubernetes""]",Alta,https://documentation.suse.com/cloudnative/rancher-manager/latest/en/cluster-deployment/register-existing-clusters.html ; https://docs.k3s.io/quick-start,"Rancher registra clústeres existentes: genera un manifiesto que se aplica en el clúster k3s e instala el agente de Rancher, que lo conecta con la consola central.","[""Instalar Rancher (en producción, con Helm sobre su propio clúster; para pruebas, con Docker)."", ""Instalar k3s en el nodo de la aplicación."", ""En Rancher: ☰ → Cluster Management → Import Existing → Generic, con la gestión de versiones activada para K3s (necesaria para operaciones posteriores)."", ""Ejecutar en el clúster k3s el comando kubectl que entrega Rancher."", ""Asignar usuarios y proyectos.""]",Aprobada
+INT-076,"Tener una experiencia tipo Heroku (pipelines, apps de revisión por pull request, despliegue con git push) sobre un servidor propio y económico.",Docker,Push o pull request en el repositorio conectado (webhook de GitHub o GitLab hacia Kubero).,"# 1) Clúster k3s de un nodo
+ curl -sfL https://get.k3s.io | sh -
+ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ 
+ # 2) CLI de Kubero e instalación del operador en el clúster actual
+ curl -fsSL get.kubero.dev | bash
+ kubero install
+ # El asistente instala el operador, la interfaz web y el ingress.
+ # Las credenciales de GitHub se ingresan en el asistente o en la interfaz, nunca en el código.
+ 
+ # 3) Desde la interfaz: Pipelines → + New pipeline → conectar el repositorio
+ # → etapas review, stage y production → + New app","[""k3s (Linux)"", ""Kubero (operador para Kubernetes y CLI)"", ""apps con Dockerfile o buildpacks""]",Media,https://github.com/kubero-dev/kubero-cli ; https://docs.k3s.io/quick-start,"Kubero se instala como operador en un clúster de Kubernetes; k3s ofrece ese clúster en un solo servidor. Kubero construye las apps desde Git y las despliega en el clúster, con su interfaz web y su CLI.","[""Instalar k3s."", ""Instalar la CLI de Kubero."", ""Ejecutar kubero install y elegir el clúster actual."", ""Conectar el repositorio de GitHub."", ""Crear un pipeline (revisión, staging, producción) y la primera app.""]",Aprobada
+INT-077,"Documentar la API de forma interactiva y generar automáticamente el cliente tipado del frontend, para que backend y frontend no se desalineen.",CLI,"Cada cambio en la especificación (por ejemplo, en el pipeline de CI al hacer merge a main).","# 1) Documentación interactiva con la imagen oficial de Swagger UI
+ docker run -p 8081:8080 -e SWAGGER_JSON_URL=http://localhost:8000/openapi.json docker.swagger.io/swaggerapi/swagger-ui
+ 
+ # 2) Cliente TypeScript para el frontend
+ curl -o openapi.json http://localhost:8000/openapi.json
+ docker run --rm -v ""${PWD}:/local"" openapitools/openapi-generator-cli generate \
+  -i /local/openapi.json -g typescript-fetch -o /local/frontend/src/api-client
+ 
+ // 3) Uso en el frontend
+ import { Configuration, RepositoriesApi } from ""@/api-client"";
+ const api = new RepositoriesApi(new Configuration({ basePath: process.env.NEXT_PUBLIC_API_URL }));","[""Cualquier backend que publique OpenAPI 3 (FastAPI, NestJS, Spring)"", ""Docker para Swagger UI y OpenAPI Generator"", ""frontend TypeScript (Next.js, React)""]",Baja,https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/ ; https://openapi-generator.tech/docs/generators/typescript-fetch,El backend publica su especificación OpenAPI (FastAPI lo hace en /openapi.json). Swagger UI la muestra como documentación interactiva y OpenAPI Generator la usa para generar un cliente TypeScript que el frontend importa.,"[""Exportar openapi.json desde el backend."", ""Servir Swagger UI con la imagen oficial apuntando a esa especificación."", ""Generar el cliente typescript-fetch con OpenAPI Generator."", ""Agregar la generación al CI."", ""Usar el cliente generado en el frontend.""]",Aprobada
+INT-078,"Que el frontend y las pruebas avancen aunque la API real (por ejemplo, la del proveedor de pagos) aún no esté lista o no tenga ambiente de pruebas.",CLI,Cada pull request (pipeline de CI) o ejecución manual en local.,"# 1) Mock de la API de pagos a partir de su especificación OpenAPI
+ npx @mockoon/cli start --data ./openapi-pagos.yaml --port 3001 &
+ 
+ # 2) Pruebas de la colección de Insomnia contra el mock
+ npx inso run test ""Pruebas API pagos"" --env ""Mock local"" --ci
+ 
+ # Ejemplo de prueba en Insomnia (pestaña Tests de la solicitud)
+ const respuesta = await insomnia.send();
+ expect(respuesta.status).to.equal(201);","[""Node.js 18 o superior"", ""Mockoon CLI"", ""Insomnia y su CLI Inso"", ""cualquier sistema de CI (GitHub Actions, GitLab CI)""]",Baja,https://cdn.jsdelivr.net/npm/@mockoon/cli/README.md ; https://developer.konghq.com/inso-cli/reference/run_test/,"Mockoon CLI levanta un servidor simulado a partir de la especificación OpenAPI de la API. Las pruebas guardadas en Insomnia se ejecutan con Inso CLI contra ese mock, en local o en el pipeline de CI.","[""Obtener o escribir la especificación OpenAPI de la API."", ""Levantar el mock con Mockoon CLI."", ""Crear en Insomnia la colección con sus pruebas y un entorno \""Mock local\""."", ""Ejecutar las pruebas con inso run test."", ""Agregar ambos pasos al CI.""]",Aprobada
+INT-079,"Verificar automáticamente, en cada cambio, que el API gateway responde y agrega correctamente los datos de los distintos servicios.",CLI,Cada pull request o despliegue del gateway (pipeline de CI).,"// Pruebas de la solicitud GET /pedidos/{id} (pestaña Tests de Hoppscotch)
+ pw.test(""El gateway responde 200"", () => {
+  pw.expect(pw.response.status).toBe(200);
+ });
+ pw.test(""Agrega los datos del pedido y del repartidor"", () => {
+  pw.expect(pw.response.body.pedido).toBeType(""object"");
+  pw.expect(pw.response.body.repartidor).toBeType(""object"");
+ });
+ 
+ # En el pipeline de CI
+ npm install -g @hoppscotch/cli
+ hopp test -e ./entorno-ci.json ./coleccion-gateway.json","[""Hoppscotch (web o autoalojado) y su CLI (requiere Node.js 22 o superior)"", ""KrakenD CE (Docker)"", ""cualquier sistema de CI""]",Baja,https://docs.hoppscotch.io/documentation/clients/cli ; https://www.krakend.io/docs/endpoints/,La colección de Hoppscotch contiene las solicitudes al gateway KrakenD con pruebas escritas en su script de pruebas (pw.test). La CLI de Hoppscotch ejecuta la colección en el pipeline de CI contra el gateway.,"[""Crear en Hoppscotch la colección de solicitudes al gateway."", ""Escribir las pruebas de cada solicitud."", ""Exportar la colección y el entorno a JSON."", ""Instalar la CLI de Hoppscotch en el CI."", ""Ejecutar hopp test contra el gateway levantado en el pipeline.""]",Aprobada
+INT-080,"Detectar en cada pull request errores de seguridad en el código y claves o tokens filtrados, antes de que lleguen a la rama principal.",CLI,Apertura o actualización de un pull request.,"# .github/workflows/seguridad.yml
+ name: seguridad
+ on: [pull_request]
+ 
+ jobs:
+  secretos:
+  runs-on: ubuntu-latest
+  steps:
+  - uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+  - uses: gitleaks/gitleaks-action@v3
+  env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # solo en repositorios de organizaciones
+ 
+  analisis-estatico:
+  runs-on: ubuntu-latest
+  container: semgrep/semgrep
+  steps:
+  - uses: actions/checkout@v4
+  - run: semgrep scan --config p/python --config p/typescript --error","[""GitHub Actions (o GitLab CI)"", ""Semgrep CE (imagen Docker)"", ""Gitleaks (acción oficial o binario). Analiza cualquier lenguaje que soporten sus reglas""]",Baja,https://github.com/marketplace/actions/gitleaks ; https://docs.semgrep.dev/deployment/oss-deployment,"Un workflow de GitHub Actions ejecuta dos trabajos en cada pull request: Gitleaks revisa el historial de commits en busca de secretos y Semgrep analiza el código con reglas de seguridad para Python y TypeScript. Si alguno encuentra problemas, el check falla.","[""Crear el workflow en .github/workflows/seguridad.yml."", ""Configurar el trabajo de Gitleaks con el historial completo."", ""Configurar el trabajo de Semgrep con los conjuntos de reglas del stack."", ""Hacer obligatorio el check en la protección de la rama main."", ""Documentar cómo marcar falsos positivos.""]",Aprobada
+INT-081,"Que cada secreto filtrado en un repositorio (y verificado como válido) se convierta automáticamente en una tarea urgente asignada al equipo, para revocarlo a tiempo.",API REST,"Escaneo programado (por ejemplo, cada noche) o en cada push a la rama principal.","# Escaneo (solo secretos verificados como válidos)
+ trufflehog git file://. --only-verified --json > hallazgos.json
+ 
+ # crear_tareas.py
+ import json, os, requests
+ PLANE = (""https://plane.ejemplo.com/api/v1/workspaces/<workspace>""
+  ""/projects/<project_id>/work-items/"")
+ 
+ for linea in open(""hallazgos.json""):
+  h = json.loads(linea)
+  git = h[""SourceMetadata""][""Data""][""Git""]
+  requests.post(PLANE, headers={""X-API-Key"": os.environ[""PLANE_API_KEY""]}, timeout=10, json={
+  ""name"": f""Secreto expuesto ({h['DetectorName']}) en {git['file']}"",
+  ""description_html"": f""<p>Commit {git['commit']}, línea {git.get('line')}. ""
+  ""Revocar la credencial y limpiar el historial.</p>"",
+  ""priority"": ""urgent"",
+  }) # nunca incluir h[""Raw""] (el valor del secreto)","[""TruffleHog (binario o Docker)"", ""Python 3 con requests"", ""Plane autoalojado (Docker) o en la nube""]",Media,https://developers.plane.so/api-reference/issue/add-issue ; https://github.com/trufflesecurity/trufflehog#readme,"TruffleHog escanea el repositorio y, con --only-verified, informa solo credenciales que siguen activas, en formato JSON. Un script lee cada hallazgo y crea una tarea en Plane con su API. La tarea indica el tipo de secreto, el archivo y el commit, pero nunca el valor del secreto.","[""Generar una clave de API en Plane y obtener los IDs del workspace y del proyecto."", ""Ejecutar TruffleHog con --only-verified --json."", ""Recorrer los hallazgos."", ""Crear una tarea por hallazgo con prioridad urgente."", ""Evitar duplicados guardando el hash del hallazgo.""]",Aprobada
+INT-082,Revisar periódicamente el clúster donde corre la aplicación en busca de imágenes con vulnerabilidades y configuraciones inseguras.,CLI,"Escaneo programado (por ejemplo, semanal) o después de cada despliegue.","export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ 
+ # Resumen de vulnerabilidades y configuraciones inseguras del clúster
+ trivy k8s --report summary
+ 
+ # Reporte detallado: solo severidad alta y crítica, en JSON
+ trivy k8s --severity HIGH,CRITICAL --report all --format json -o reporte-k3s.json","[""Trivy (binario o Docker)"", ""k3s u otro Kubernetes con acceso por kubeconfig""]",Baja,https://trivy.dev/docs/v0.67/target/kubernetes/ ; https://docs.k3s.io/cluster-access,Trivy se conecta al clúster k3s con su kubeconfig y escanea los recursos y las imágenes en uso. Entrega un resumen por severidad o un reporte JSON para revisar o archivar.,"[""Instalar Trivy en un equipo con acceso al clúster."", ""Apuntar KUBECONFIG al archivo de k3s."", ""Ejecutar el resumen."", ""Generar el reporte de severidad alta y crítica."", ""Programar el escaneo y revisar los hallazgos.""]",Aprobada
+INT-083,Bloquear el despliegue de una versión cuya imagen tiene vulnerabilidades graves y revisar la aplicación en ejecución con un escaneo de seguridad web.,CLI,Cada build de la imagen en el pipeline de CI (antes de publicar o desplegar).,"# 1) Vulnerabilidades de la imagen (falla con severidad alta o crítica)
+ grype mi-api:latest --fail-on high # termina con código 2 si hay vulnerabilidades altas o críticas
+ 
+ # 2) Escaneo pasivo de OWASP ZAP contra la app en ejecución
+ docker run -d --name api -p 8000:8000 mi-api:latest
+ docker run --rm --network host -v ""$PWD:/zap/wrk"" ghcr.io/zaproxy/zaproxy:stable \
+  zap-baseline.py -t http://localhost:8000 -r reporte-zap.html","[""Grype (binario o Docker)"", ""OWASP ZAP (imagen Docker oficial)"", ""cualquier sistema de CI con Docker""]",Baja,https://oss.anchore.com/docs/guides/vulnerability/filter-results/ ; https://www.zaproxy.org/docs/docker/baseline-scan/,"En el pipeline, Grype analiza la imagen Docker recién construida y falla si encuentra vulnerabilidades de severidad alta o crítica. Si pasa, la imagen se levanta y el escaneo baseline de ZAP la revisa como lo haría un navegador (encabezados, cookies, exposición de información).","[""Construir la imagen en el CI."", ""Ejecutar grype con --fail-on high."", ""Levantar el contenedor."", ""Ejecutar zap-baseline.py contra la URL local."", ""Guardar ambos reportes como artefactos del pipeline.""]",Aprobada
+INT-084,"Crear rápido un panel de administración (pedidos, clientes, usuarios) con el diseño visual de la marca, sobre una API REST existente.",SDK / librería,No aplica: el panel consulta la API en cada vista.,"import { Admin, Datagrid, DateField, List, Resource, TextField, defaultTheme } from ""react-admin"";
+ import simpleRestProvider from ""ra-data-simple-rest"";
+ 
+ // Tema: se extiende el tema por defecto de react-admin, como en su guía
+ const tema = {
+  ...defaultTheme,
+  palette: { primary: { main: ""#1e3a8a"" }, secondary: { main: ""#f59e0b"" } },
+  typography: { fontFamily: ""Inter, sans-serif"" },
+ };
+ 
+ const ListaPedidos = () => (
+  <List>
+  <Datagrid rowClick=""edit"">
+  <TextField source=""id"" /><TextField source=""cliente"" /><DateField source=""fecha"" />
+  </Datagrid>
+  </List>
+ );
+ 
+ export default function App() {
+  return (
+  <Admin dataProvider={simpleRestProvider(import.meta.env.VITE_API_URL)} theme={tema}>
+  <Resource name=""pedidos"" list={ListaPedidos} />
+  </Admin>
+  );
+ }","[""React 18 o superior con TypeScript o JavaScript"", ""react-admin 5"", ""Material UI (incluido)"", ""cualquier API REST o GraphQL con su data provider""]",Baja,https://marmelab.com/react-admin/Theming.html ; https://mui.com/material-ui/customization/theming/,"react-admin está construido sobre Material UI: sus listas, formularios y menús son componentes de MUI. Se le pasa un tema de MUI (createTheme) para aplicar los colores y la tipografía de la marca, y un data provider para conectar la API REST.","[""Crear la app con npm create react-admin."", ""Elegir el data provider según la API (ra-data-simple-rest u otro)."", ""Definir el tema de MUI."", ""Declarar los recursos y sus vistas."", ""Agregar el authProvider para el login.""]",Aprobada
+INT-085,"Un panel para el equipo de bodega con los despachos pendientes y el stock crítico, tomando los datos del sistema de inventario sin desarrollar una app desde cero.",API REST,"No aplica: las consultas se ejecutan al abrir el panel o al presionar ""Actualizar"". Opcional: refresco automático cada pocos minutos.","// Fuente de datos REST API en ToolJet
+ // URL base: https://openboxes.ejemplo.com/openboxes/api
+ 
+ // Consulta ""login"" (POST /login), cuerpo JSON:
+ { ""username"": ""{{secrets.OPENBOXES_USER}}"",
+  ""password"": ""{{secrets.OPENBOXES_PASSWORD}}"",
+  ""location"": ""<id_bodega>"" }
+ 
+ // Consulta ""despachos"" (GET /stockMovements?direction=OUTBOUND&max=50)
+ // Transformación (JavaScript) para la tabla:
+ return data.data.map((m) => ({
+  id: m.id,
+  destino: m.destination?.name,
+  estado: m.status,
+  solicitado: m.dateRequested,
+ }));","[""ToolJet (Docker) con PostgreSQL"", ""OpenBoxes (Java/Grails, Docker) con MySQL""]",Media,https://docs.openboxes.com/en/latest/api-guide/getting-started/ ; https://docs.tooljet.com/docs/app-builder/custom-code/constants-secrets/,ToolJet se conecta a la API REST de OpenBoxes como fuente de datos. Una consulta inicia sesión (OpenBoxes usa cookie de sesión) y otras traen los movimientos de stock; una transformación en JavaScript adapta los datos para las tablas y gráficos del panel.,"[""Crear en OpenBoxes un usuario de solo lectura para el panel."", ""Guardar sus credenciales como secretos del workspace de ToolJet."", ""Crear la fuente REST API con la URL base."", ""Crear las consultas de login y de movimientos."", ""Armar la tabla y los filtros.""]",Aprobada
+INT-086,"Un panel interno para revisar pedidos atrasados y marcarlos como entregados, construido en horas sobre la base de datos existente.",Conector de base de datos,"No aplica: las consultas se ejecutan al cargar la pantalla, al cambiar un filtro o al presionar un botón.","-- Fuente de datos PostgreSQL en Lowcoder (la contraseña se guarda en la fuente, no en las consultas)
+ 
+ -- Consulta ""pedidosAtrasados"" (alimenta la tabla tablaPedidos)
+ SELECT id, cliente, estado, fecha_compromiso
+ FROM pedidos
+ WHERE estado <> 'entregado'
+  AND fecha_compromiso < {{ filtroFecha.value }}
+ ORDER BY fecha_compromiso;
+ 
+ -- Consulta ""marcarEntregado"" (botón de la fila seleccionada; luego ejecutar pedidosAtrasados)
+ UPDATE pedidos
+ SET estado = 'entregado', entregado_en = now()
+ WHERE id = {{ tablaPedidos.selectedRow.id }};","[""Lowcoder (Docker, imagen todo en uno) y PostgreSQL 12 o superior""]",Baja,https://docs.lowcoder.cloud/lowcoder-documentation/connect-your-data/data-sources-in-lowcoder/sql-databases/postgresql ; https://docs.lowcoder.cloud/lowcoder-documentation/connect-your-data/query-basics,"Lowcoder se conecta directamente a PostgreSQL como fuente de datos. Las consultas SQL usan valores de los componentes de la pantalla ({{ }}) como parámetros, y los resultados alimentan tablas, filtros y botones de acción.","[""Crear en PostgreSQL un usuario con permisos solo sobre las tablas necesarias."", ""Agregar la fuente de datos PostgreSQL en Lowcoder."", ""Crear la consulta de lectura enlazada al filtro de fecha."", ""Crear la consulta de actualización enlazada al botón."", ""Refrescar la tabla después de actualizar.""]",Aprobada
+INT-087,"Mostrar al cliente o al despachador la ruta, la distancia y el tiempo estimado de cada entrega en un mapa interactivo.",API REST,"Al crear o reasignar una entrega, o cuando el cliente abre el seguimiento del pedido.","const r = await fetch(""http://graphhopper:8989/route"", {
+  method: ""POST"",
+  headers: { ""Content-Type"": ""application/json"" },
+  body: JSON.stringify({
+  profile: ""car"",
+  points: [[-70.6506, -33.4372], [-70.6005, -33.4172]], // [longitud, latitud]
+  points_encoded: false,
+  locale: ""es"",
+  }),
+ });
+ const ruta = (await r.json()).paths[0];
+ 
+ map.addSource(""ruta"", { type: ""geojson"", data: { type: ""Feature"", properties: {}, geometry: ruta.points } });
+ map.addLayer({ id: ""ruta"", type: ""line"", source: ""ruta"",
+  paint: { ""line-color"": ""#2563eb"", ""line-width"": 5 } });
+ console.log(`${(ruta.distance / 1000).toFixed(1)} km · ${Math.round(ruta.time / 60000)} min`);","[""GraphHopper (Java, binario o Docker) con datos OSM (por ejemplo, Geofabrik)"", ""MapLibre GL JS en cualquier frontend web""]",Media,https://github.com/graphhopper/graphhopper/blob/master/docs/web/api-doc.md ; https://maplibre.org/maplibre-gl-js/docs/examples/add-a-geojson-line/,GraphHopper calcula la ruta con datos de OpenStreetMap y la devuelve como GeoJSON (points_encoded=false). MapLibre GL JS dibuja esa geometría como una capa de línea sobre el mapa.,"[""Levantar GraphHopper con el extracto OSM de la región y el perfil car o bike."", ""Pedir la ruta con POST /route."", ""Agregar la geometría como fuente GeoJSON en MapLibre."", ""Dibujar la capa de línea."", ""Mostrar distancia y tiempo estimado.""]",Aprobada
+INT-088,"Pasar de una conversación de chat a una videollamada con un clic, con el servidor de video de la propia organización.",Otro,Clic en el botón de videollamada al escribir un mensaje en Zulip.,"# Zulip autoalojado: /etc/zulip/settings.py
+ JITSI_SERVER_URL = ""https://meet.ejemplo.com""
+ # Aplicar el cambio: /home/zulip/deployments/current/scripts/restart-server
+ 
+ # Zulip: Configuración de la organización → Preferencias → Proveedor de videollamadas → Jitsi Meet
+ 
+ # Jitsi (docker-jitsi-meet), archivo .env: solo usuarios autenticados crean salas
+ ENABLE_AUTH=1
+ ENABLE_GUESTS=1
+ AUTH_TYPE=internal","[""Jitsi Meet (despliegue con docker-jitsi-meet o paquetes Debian)"", ""Zulip autoalojado o en la nube (en la nube, el servidor Jitsi se indica en la configuración de la organización)""]",Media,https://zulip.com/help/configure-call-provider ; https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker ; https://github.com/jitsi/docker-jitsi-meet,Zulip integra Jitsi Meet como proveedor de videollamadas. Se indica la URL del servidor Jitsi propio; el botón de video del redactor crea un enlace a una sala única en ese servidor.,"[""Desplegar Jitsi Meet (por ejemplo, con docker-jitsi-meet) con su dominio y HTTPS."", ""Activar la autenticación en Jitsi para que solo el equipo cree salas."", ""En Zulip autoalojado, definir JITSI_SERVER_URL."", ""En la configuración de la organización, elegir Jitsi Meet como proveedor."", ""Probar una llamada desde un mensaje.""]",Aprobada
+INT-089,"Ver en el panel de monitoreo del campo o invernadero las cámaras de vigilancia junto a los sensores, sin abrir el puerto de cada cámara a internet.",Otro,No aplica: MediaMTX se conecta a la cámara cuando alguien pide el flujo (sourceOnDemand).,"# mediamtx.yml
+ paths:
+  invernadero1:
+  source: rtsp://<usuario>:<secreto>@192.168.1.50:554/stream1
+  sourceOnDemand: yes
+ 
+ # Home Assistant → Configuración → Dispositivos y servicios → Agregar integración → Generic Camera
+ # URL de la transmisión: rtsp://mediamtx:8554/invernadero1
+ 
+ # Sin Home Assistant, desde el navegador:
+ # WebRTC: http://mediamtx:8889/invernadero1
+ # HLS: http://mediamtx:8888/invernadero1","[""MediaMTX (binario o Docker) en la red local"", ""cámaras IP con RTSP"", ""Home Assistant (Docker o Home Assistant OS)""]",Baja,https://github.com/bluenviron/mediamtx#readme ; https://www.home-assistant.io/integrations/generic/,"MediaMTX se conecta a las cámaras IP por RTSP y vuelve a publicar cada flujo (RTSP, HLS y WebRTC) desde un solo servidor. Home Assistant agrega cada flujo con la integración Generic Camera y lo muestra en sus paneles junto a los sensores.","[""Definir una ruta por cámara en mediamtx.yml con la URL RTSP de origen."", ""Levantar MediaMTX en la red local."", ""En Home Assistant, agregar la integración Generic Camera con la URL de MediaMTX."", ""Poner la cámara en el panel junto a los sensores."", ""Opcional: automatización que guarda una captura cuando un sensor detecta movimiento.""]",Aprobada
+INT-090,"Recibir la transmisión del creador una sola vez y publicarla en su página propia con chat (Owncast), con baja latencia para el estudio.",Otro,Inicio de la transmisión del creador en SRS (on_publish); SRS reenvía mientras el flujo esté activo.,"# srs.conf (fragmento)
+ vhost __defaultVhost__ {
+  forward {
+  enabled on;
+  destination owncast:1935;
+  }
+  http_hooks {
+  enabled on;
+  on_publish http://backend:8000/hooks/srs/publish; # validar al creador
+  }
+ }
+ 
+ # OBS → Servidor: rtmp://srs.ejemplo.com/live Clave: <secreto>
+ # SRS reenvía a Owncast: rtmp://owncast:1935/live con la misma clave de transmisión","[""SRS 5 o 6 (Docker)"", ""Owncast (Go, Docker)"", ""OBS u otro software de transmisión""]",Media,https://ossrs.io/lts/en-us/docs/v6/doc/forward ; https://owncast.online/docs/broadcasting/,"El creador transmite a SRS (RTMP, SRT o WebRTC). SRS reenvía el flujo por RTMP a Owncast con su función forward, y Owncast lo publica en su página con chat y seguidores.","[""Levantar SRS con la configuración de forward hacia Owncast."", ""Configurar la clave de transmisión en Owncast."", ""Transmitir desde OBS a SRS."", ""Verificar que Owncast recibe el flujo."", ""Opcional: hooks HTTP de SRS (on_publish) para validar quién puede transmitir.""]",Aprobada
+INT-091,"Que cada persona que ingresa a la empresa quede inscrita automáticamente en los cursos de inducción, con su avance visible para RR. HH.",Plugin / extensión,after_insert del documento Employee (doc_events de Frappe).,"# En el bench de Frappe
+ bench get-app hrms
+ bench get-app lms
+ bench --site rrhh.ejemplo.com install-app hrms
+ bench --site rrhh.ejemplo.com install-app lms
+ 
+ # mi_app/hooks.py
+ doc_events = {
+  ""Employee"": {""after_insert"": ""mi_app.induccion.inscribir""},
+ }
+ 
+ # mi_app/induccion.py
+ import frappe
+ 
+ def inscribir(doc, method):
+  if doc.user_id:
+  frappe.get_doc({
+  ""doctype"": ""LMS Enrollment"",
+  ""course"": ""induccion"",
+  ""member"": doc.user_id,
+  }).insert(ignore_permissions=True)","[""Frappe Framework v15 (Python y MariaDB) con las apps hrms y lms en el mismo sitio"", ""bench""]",Media,https://docs.frappe.io/framework/user/en/python-api/hooks ; https://docs.frappe.io/learning/introduction,"Frappe LMS y Frappe HRMS son apps del mismo framework y se instalan en el mismo sitio, por lo que comparten usuarios. Un hook de documento (doc_events) en una app propia inscribe al empleado en el curso cuando se crea su ficha en HRMS.","[""Instalar hrms y lms en el mismo bench y sitio."", ""Crear el curso de inducción en LMS."", ""Crear una app propia con bench new-app."", ""Registrar el hook en hooks.py."", ""Probar creando un empleado con usuario asociado.""]",Aprobada
+INT-092,Que estudiantes y docentes entren al campus virtual con la misma cuenta institucional que usan en los demás sistemas.,OIDC / OAuth2 / SAML,No aplica: se activa cuando el usuario elige iniciar sesión con la cuenta institucional.,"# Keycloak: realm ""academia"" → Clients → Create client
+ # Tipo: OpenID Connect · Client authentication: On
+ # Valid redirect URIs: https://campus.ejemplo.com/plugin/oauth2/src/callback.php
+ 
+ # Chamilo: Administración → Plugins → OAuth2 → Configurar
+ Client ID: chamilo
+ Client secret: <secreto>
+ Authorize URL: https://sso.ejemplo.com/realms/academia/protocol/openid-connect/auth
+ Access token URL: https://sso.ejemplo.com/realms/academia/protocol/openid-connect/token
+ Resource owner details: https://sso.ejemplo.com/realms/academia/protocol/openid-connect/userinfo
+ Scopes: openid email profile","[""Chamilo LMS 1.11 o 2 (PHP, MySQL o MariaDB) con el plugin OAuth2"", ""Keycloak (Docker)""]",Media,https://github.com/chamilo/chamilo-lms/tree/1.11.x/plugin/oauth2 ; https://www.keycloak.org/docs/latest/server_admin/#_oidc_clients,"Chamilo incluye un plugin OAuth2 genérico. Se configura con los endpoints OpenID Connect de un realm de Keycloak (autorización, token y userinfo); Chamilo crea o vincula al usuario con los datos que entrega Keycloak.","[""Crear en Keycloak el realm y un cliente OIDC con autenticación de cliente."", ""Registrar la URL de retorno del plugin de Chamilo."", ""Activar el plugin OAuth2 en Chamilo."", ""Cargar los endpoints, el Client ID y el secreto."", ""Mapear los campos de usuario (correo, nombre).""]",Aprobada
+INT-093,"Montar una plataforma de cursos de nivel institucional (Open edX) en un solo servidor, sin aprender a operar cada uno de sus servicios por separado.",Docker,"No aplica: Tutor se usa para instalar, actualizar y operar la plataforma.","pip install ""tutor[full]""
+ 
+ tutor config save \
+  --set LMS_HOST=cursos.ejemplo.com \
+  --set CMS_HOST=studio.cursos.ejemplo.com \
+  --set PLATFORM_NAME=""Academia""
+ 
+ tutor local launch # configura, descarga las imágenes y levanta todos los servicios
+ 
+ # Usuario administrador (la contraseña se pide de forma interactiva)
+ tutor local do createuser --staff --superuser admin admin@ejemplo.com
+ 
+ tutor plugins list # plugins disponibles (por ejemplo, comercio o notas)","[""Linux con Docker y Docker Compose, al menos 8 GB de RAM"", ""Python 3.9 o superior para Tutor"", ""Open edX (Django) en contenedores""]",Media,https://docs.tutor.edly.io/local.html ; https://docs.tutor.edly.io/gettingstarted.html,"Tutor es la distribución oficial con Docker de Open edX: genera la configuración, descarga las imágenes de la plataforma (LMS y Studio) y levanta sus dependencias (MySQL, MongoDB, Redis, Meilisearch). Sus plugins agregan funciones como comercio o notas.","[""Instalar Tutor con pip."", ""Definir los dominios del LMS y de Studio."", ""Ejecutar tutor local launch."", ""Crear el usuario administrador."", ""Activar los plugins necesarios y volver a lanzar.""]",Aprobada
+INT-094,"Conectar sensores Zigbee económicos (humedad, temperatura, contacto) de distintas marcas a una plataforma de monitoreo, sin el gateway propietario de cada fabricante.",Otro,Cada lectura o cambio de estado de un dispositivo Zigbee (mensajes MQTT en zigbee2mqtt/<dispositivo>).,"# zigbee2mqtt: data/configuration.yaml
+ homeassistant:
+  enabled: true # publica el descubrimiento para Home Assistant
+ mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+  user: z2m
+  password: '!secret password' # la contraseña va en data/secret.yaml
+ serial:
+  port: /dev/ttyUSB0
+ frontend:
+  enabled: true
+ 
+ # Home Assistant → Dispositivos y servicios → Agregar integración → MQTT
+ # Broker: mosquitto · Puerto: 1883 · Usuario y contraseña propios de Home Assistant","[""Zigbee2MQTT (Node.js, Docker) con adaptador Zigbee USB"", ""Mosquitto 2"", ""Home Assistant (Docker o Home Assistant OS)""]",Baja,https://zigbee2mqtt.io/guide/configuration/homeassistant.html ; https://www.home-assistant.io/integrations/mqtt/,"Zigbee2MQTT recibe los dispositivos Zigbee con un adaptador USB y publica sus lecturas en Mosquitto. Con la opción homeassistant activada, también publica mensajes de descubrimiento MQTT, y Home Assistant crea los sensores automáticamente.","[""Levantar Mosquitto con usuario y contraseña."", ""Conectar el adaptador Zigbee y configurar Zigbee2MQTT con la integración de Home Assistant activada."", ""Agregar la integración MQTT en Home Assistant apuntando a Mosquitto."", ""Emparejar los sensores."", ""Crear paneles y automatizaciones.""]",Aprobada
+INT-095,"Monitorear bombas y sensores de riego en terreno, con un broker liviano en el gateway local y reglas de alerta en una plataforma central.",Otro,Cada mensaje publicado por los sensores en campo/<equipo>/<variable>.,"# 1) NanoMQ en el gateway de borde, con autenticación
+# ./config/nanomq.conf
+auth {
+  allow_anonymous = false
+  password = {include ""/etc/nanomq_pwd.conf""}
+}
+# ./config/nanomq_pwd.conf
+""sensor1"":""<secreto>""
+""openremote"":""<secreto>""
+
+docker run -d --name nanomq -p 1883:1883 \
+  -v $(pwd)/config:/etc emqx/nanomq:latest
+
+# 2) Prueba: un sensor publica la presión de la bomba
+mosquitto_pub -h gateway.local -u sensor1 -P <secreto> \
+  -t campo/bomba1/presion -m '{""valor"": 2.4}'
+
+# 3) OpenRemote → Activos → + → MQTT Agent
+# Host: gateway.local · Puerto: 1883 · Usuario y contraseña: <secreto>
+# 4) Activo ""Bomba 1"" → atributo ""presion"" → Agent link:
+# Agente: MQTT Agent · Subscription topic: campo/bomba1/presion
+# Value filter: JSON path $.valor
+# 5) Regla: si presion < 1.5 durante 5 minutos → notificación al encargado","[""NanoMQ (C, Docker o binario para ARM) en el gateway"", ""OpenRemote (Java, Docker Compose) en un servidor central""]",Media,https://nanomq.io/docs/en/latest/ ; https://docs.openremote.io/docs/user-guide/agents-protocols/mqtt,"NanoMQ corre en el gateway de borde y recibe las lecturas MQTT de los sensores. OpenRemote se conecta a ese broker con su MQTT Agent: cada atributo de un activo (por ejemplo, la presión de la bomba) se enlaza a un tópico, y las reglas de OpenRemote generan alertas.","[""Levantar NanoMQ en el gateway con autenticación."", ""Publicar las lecturas de los sensores en tópicos ordenados por equipo."", ""Crear en OpenRemote un MQTT Agent hacia NanoMQ."", ""Crear los activos y enlazar sus atributos a los tópicos (con filtro JSON)."", ""Crear las reglas de alerta.""]",Aprobada

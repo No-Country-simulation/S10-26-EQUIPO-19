@@ -12,7 +12,7 @@ HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28",
 }
 
-_token = os.getenv("GITHUB_TOKEN")
+_token = os.getenv("GH_TOKEN")
 if _token:
     HEADERS["Authorization"] = f"Bearer {_token}"
 

@@ -391,7 +391,14 @@ function IntegrationIdea({ idea, defaultOpen }: { idea: Integration; defaultOpen
         </span>
       </summary>
       <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
-        {idea.role && <p><strong>Rol en la integración:</strong> {idea.role}</p>}
+        {idea.role && (
+          <p>
+            <strong>Rol en la integración:</strong>{" "}
+            {idea.role === "principal"
+              ? "herramienta principal"
+              : `se integra con ${idea.related_repositories?.find((r) => r.role === "principal")?.full_name ?? "la herramienta principal"}`}
+          </p>
+        )}
         {idea.triggers_or_webhooks && <p><strong>Disparadores:</strong> {idea.triggers_or_webhooks}</p>}
         {idea.compatible_stack.length > 0 && <p><strong>Compatible con:</strong> {idea.compatible_stack.join(", ")}</p>}
         {idea.main_steps.length > 0 && (
