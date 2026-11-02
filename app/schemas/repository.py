@@ -3,6 +3,12 @@ from pydantic import BaseModel, Field
 from app.schemas.category import CategoryResponse
 
 
+class RepositoryAlert(BaseModel):
+    type: str = Field(..., description="Tipo de alerta ('maintenance' o 'license')", examples=["maintenance"])
+    title: str = Field(..., description="Título corto de la alerta", examples=["Archivado"])
+    message: str = Field(..., description="Mensaje explicativo de la alerta", examples=["Repositorio archivado..."])
+
+
 class MetricSummary(BaseModel):
     health_score: int = Field(..., ge=0, le=100, description="Puntuación global de salud de 0 a 100", examples=[91])
     health_status: str | None = Field(default=None, description="Estado de salud ('Activo', 'En riesgo', 'Abandonado' o null)", examples=["Activo"])
@@ -61,6 +67,7 @@ class RepositoryListItem(BaseModel):
     pushed_at: datetime | None = Field(default=None, description="Fecha del último push a cualquier rama")
     category: CategoryResponse
     metrics: MetricSummary
+    alerts: list[RepositoryAlert] = Field(default=[], description="Lista de alertas asociadas al repositorio")
 
 
 class RepositoryPaginationResponse(BaseModel):
