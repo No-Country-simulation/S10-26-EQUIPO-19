@@ -1,6 +1,7 @@
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.rate_limit import github_rate_limiter
 from app.services.github_repository_service import (
     get_rate_limit,
     get_repository,
@@ -9,6 +10,7 @@ from app.services.github_repository_service import (
 router = APIRouter(
     prefix="/github",
     tags=["GitHub"],
+    dependencies=[Depends(github_rate_limiter)],
 )
 
 
