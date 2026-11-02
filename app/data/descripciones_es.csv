@@ -1,0 +1,160 @@
+﻿id,full_name,description_es
+1,keycloak/keycloak,"Gestión de identidad y acceso (SSO, OAuth2, OIDC, SAML) autoalojada."
+2,nextauthjs/next-auth,Auth.js: autenticación para aplicaciones JavaScript (Next.js y otros frameworks).
+3,ory/kratos,"Gestión de identidades y usuarios headless, orientada a API."
+4,ory/hydra,Servidor OAuth 2.0 y OpenID Connect certificado.
+8,zitadel/zitadel,"Plataforma de identidad con multi-tenancy, OIDC y SAML."
+9,authelia/authelia,Servidor de autenticación y 2FA para proteger aplicaciones detrás de un proxy.
+10,better-auth/better-auth,Framework de autenticación para TypeScript.
+11,supabase/supabase,"Alternativa open source a Firebase sobre PostgreSQL (BD, auth, storage, realtime)."
+12,postgres/postgres,Base de datos relacional PostgreSQL (mirror oficial).
+14,appwrite/appwrite,"Backend como servicio: BD, auth, storage, funciones y mensajería."
+17,valkey-io/valkey,"Almacén clave-valor en memoria, fork comunitario de Redis."
+22,prisma/orm,ORM para Node.js y TypeScript.
+24,parse-community/parse-server,"Backend open source para apps (API, auth, push)."
+25,qdrant/qdrant,Motor de búsqueda vectorial y base de datos de embeddings.
+28,milvus-io/milvus,Base de datos vectorial de alto rendimiento y escalable.
+29,chroma-core/chroma,Base de datos de embeddings orientada a aplicaciones de IA.
+30,killbill/killbill,Plataforma de suscripciones y facturación.
+31,getlago/lago,Facturación basada en uso (usage-based billing) y suscripciones.
+32,juspay/hyperswitch,Orquestador de pagos que conecta múltiples procesadores.
+35,saleor/saleor,Plataforma de e-commerce headless con API GraphQL.
+36,btcpayserver/btcpayserver,Procesador de pagos en criptomonedas autoalojado.
+37,ollama/ollama,Ejecución local de modelos de lenguaje (LLM).
+38,langchain-ai/langchain,"Framework para construir aplicaciones con LLM (cadenas, agentes, RAG)."
+43,vllm-project/vllm,Motor de inferencia y servicio de LLM de alto rendimiento.
+48,PostHog/posthog,"Analítica de producto, grabación de sesiones y feature flags."
+49,plausible/analytics,Analítica web simple y respetuosa de la privacidad.
+50,umami-software/umami,"Analítica web ligera, alternativa a Google Analytics."
+53,apache/superset,Exploración y visualización de datos (BI).
+55,openreplay/openreplay,Grabación de sesiones y analítica de producto autoalojada.
+56,meilisearch/meilisearch,Motor de búsqueda rápido con tolerancia a errores tipográficos.
+57,typesense/typesense,"Motor de búsqueda instantánea, alternativa a Algolia."
+61,manticoresoftware/manticoresearch,Motor de búsqueda de texto completo compatible con SQL.
+62,apache/solr,Plataforma de búsqueda empresarial basada en Lucene.
+64,seaweedfs/seaweedfs,Sistema de archivos distribuido y almacenamiento de objetos.
+66,tus/tusd,Servidor de subida de archivos reanudable (protocolo tus).
+67,transloadit/uppy,Componente de subida de archivos para la web.
+71,nats-io/nats-server,Sistema de mensajería ligero y de alto rendimiento.
+73,taskforcesh/bullmq,Colas de trabajos para Node.js sobre Redis.
+75,novuhq/novu,"Infraestructura de notificaciones (email, SMS, push, in-app)."
+76,knadh/listmonk,Gestor de newsletters y listas de correo autoalojado.
+87,triggerdotdev/trigger.dev,Tareas en segundo plano y flujos para TypeScript.
+88,apache/airflow,Orquestación de pipelines de datos.
+89,PrefectHQ/prefect,Orquestación de flujos de datos en Python.
+90,kestra-io/kestra,Orquestación declarativa de flujos de datos y procesos.
+91,grafana/grafana,"Visualización de métricas, logs y dashboards."
+92,prometheus/prometheus,Monitoreo y alertas basado en series temporales.
+96,louislam/uptime-kuma,Monitoreo de disponibilidad (uptime) autoalojado.
+99,strapi/strapi,CMS headless en Node.js.
+101,payloadcms/payload,CMS headless y framework de aplicaciones en TypeScript.
+102,TryGhost/Ghost,Plataforma de publicación y newsletters.
+103,keystonejs/keystone,CMS headless y API GraphQL para Node.js.
+105,Unleash/unleash,Gestión de feature flags.
+107,Flagsmith/flagsmith,Feature flags y configuración remota.
+109,apache/apisix,API gateway dinámico y de alto rendimiento.
+110,traefik/traefik,Proxy inverso y balanceador para contenedores.
+111,caddyserver/caddy,Servidor web con HTTPS automático.
+112,coollabsio/coolify,"Plataforma autoalojada para desplegar apps, alternativa a Heroku/Vercel."
+113,dokku/dokku,PaaS mínimo basado en Docker.
+115,casdoor/casdoor,Plataforma de gestión de identidad y acceso (IAM) con interfaz web.
+117,dexidp/dex,Proveedor OpenID Connect que federa otros proveedores de identidad.
+118,oauth2-proxy/oauth2-proxy,Proxy inverso que agrega autenticación OAuth2/OIDC a aplicaciones.
+119,openfga/openfga,Autorización granular basada en relaciones (inspirada en Google Zanzibar).
+122,cerbos/cerbos,Motor de autorización desacoplado basado en políticas.
+129,tursodatabase/libsql,Fork abierto de SQLite orientado a la nube y réplicas.
+130,typeorm/typeorm,ORM para TypeScript y JavaScript.
+133,neondatabase/neon,PostgreSQL serverless con separación de almacenamiento y cómputo.
+137,lancedb/lancedb,Base de datos vectorial embebida y serverless.
+140,facebookresearch/faiss,Biblioteca de búsqueda por similitud y clustering de vectores.
+141,bagisto/bagisto,Plataforma de e-commerce sobre Laravel.
+145,vendurehq/vendure,Framework de comercio headless en TypeScript.
+149,mudler/LocalAI,Alternativa local compatible con la API de OpenAI.
+154,Mintplex-Labs/anything-llm,Aplicación para chatear con documentos usando LLM (RAG).
+155,infiniflow/ragflow,Motor de RAG basado en comprensión profunda de documentos.
+157,Unstructured-IO/unstructured,Preprocesamiento de documentos para pipelines de LLM.
+159,docling-project/docling,"Conversión de documentos (PDF, DOCX, etc.) a formatos aptos para IA."
+164,Openpanel-dev/openpanel,"Analítica web y de producto, alternativa a Mixpanel."
+165,jitsucom/jitsu,"Recolección de eventos y pipeline de datos, alternativa a Segment."
+167,paradedb/paradedb,Búsqueda de texto completo y analítica dentro de PostgreSQL.
+169,quickwit-oss/tantivy,Biblioteca de búsqueda de texto completo en Rust (similar a Lucene).
+172,rclone/rclone,Sincronización de archivos con múltiples servicios de almacenamiento en la nube.
+173,juicedata/juicefs,Sistema de archivos distribuido sobre almacenamiento de objetos.
+178,centrifugal/centrifugo,"Servidor de mensajería en tiempo real (WebSocket, SSE)."
+180,zulip/zulip,Chat de equipo organizado por temas.
+182,caronc/apprise,Envío de notificaciones a decenas de servicios con una sola biblioteca.
+183,chatwoot/chatwoot,Plataforma de atención al cliente omnicanal.
+190,hatchet-dev/hatchet,Plataforma de colas y orquestación de tareas distribuidas.
+191,netdata/netdata,Monitoreo de infraestructura en tiempo real.
+195,coroot/coroot,Observabilidad con eBPF y análisis automático de causas.
+196,healthchecks/healthchecks,Monitoreo de tareas programadas (cron) y procesos en segundo plano.
+202,BookStackApp/BookStack,Plataforma de documentación y wiki autoalojada.
+203,open-feature/flagd,Servicio de feature flags compatible con el estándar OpenFeature.
+205,envoyproxy/envoy,Proxy de servicios y edge para arquitecturas nativas de la nube.
+209,krakend/krakend-ce,API gateway de alto rendimiento (edición comunitaria).
+210,hoppscotch/hoppscotch,"Cliente para probar APIs, alternativa a Postman."
+212,swagger-api/swagger-ui,Interfaz para visualizar y probar APIs con especificación OpenAPI.
+215,k3s-io/k3s,Distribución ligera de Kubernetes.
+217,rancher/rancher,Plataforma de gestión de clústeres Kubernetes.
+218,calcom/cal.diy,"Agendamiento de reuniones, alternativa a Calendly."
+220,documenso/documenso,"Firma electrónica de documentos, alternativa a DocuSign."
+222,makeplane/plane,"Gestión de proyectos e issues, alternativa a Jira."
+223,appsmithorg/appsmith,Constructor de herramientas internas y paneles de administración.
+224,ToolJet/ToolJet,Plataforma low-code para aplicaciones internas.
+227,refinedev/refine,Framework de React para paneles internos y aplicaciones CRUD.
+228,marmelab/react-admin,Framework para paneles de administración con React.
+232,trufflesecurity/trufflehog,Detección de secretos filtrados en código y repositorios.
+233,aquasecurity/trivy,"Escáner de vulnerabilidades para contenedores, código e infraestructura."
+236,mui/material-ui,Biblioteca de componentes React basada en Material Design.
+237,chakra-ui/chakra-ui,Biblioteca de componentes React accesibles.
+238,ant-design/ant-design,Sistema de diseño y componentes React para aplicaciones empresariales.
+239,recharts/recharts,Biblioteca de gráficos para React.
+240,apache/echarts,Biblioteca de visualización de datos interactiva.
+241,Project-OSRM/osrm-backend,Motor de cálculo de rutas sobre datos de OpenStreetMap.
+243,graphhopper/graphhopper,Motor de rutas y optimización de recorridos.
+244,google/or-tools,"Optimización combinatoria, incluida la planificación de rutas de reparto (VRP)."
+245,osm-search/Nominatim,Geocodificación: convierte direcciones en coordenadas y viceversa.
+246,postgis/postgis,Extensión geoespacial para PostgreSQL.
+247,traccar/traccar,Seguimiento GPS de vehículos y flotas.
+248,openboxes/openboxes,Gestión de inventario y cadena de suministro.
+249,maplibre/maplibre-gl-js,Mapas interactivos vectoriales para aplicaciones web.
+251,jitsi/jitsi-meet,Videoconferencias autoalojadas.
+252,livekit/livekit,Servidor de audio y video en tiempo real (WebRTC) con SDK.
+253,Chocobozzz/PeerTube,Plataforma de alojamiento y transmisión de video.
+254,owncast/owncast,Servidor autoalojado de transmisión de video en vivo.
+256,openedx/openedx-platform,Plataforma de cursos en línea de Open edX.
+258,frappe/lms,Plataforma de cursos liviana sobre el framework Frappe.
+260,influxdata/influxdb,Base de datos de series de tiempo.
+261,eclipse-mosquitto/mosquitto,Broker MQTT liviano para dispositivos IoT.
+262,odoo/odoo,"ERP y CRM modular (ventas, inventario, contabilidad, RR. HH.)."
+264,paperless-ngx/paperless-ngx,Gestión documental con OCR.
+265,frappe/hrms,Gestión de recursos humanos y nómina.
+312,Qloapps/QloApps,"Sistema de reservas hoteleras y motor de reservas open source, con sitio web del hotel."
+266,pretix/pretix,Venta de entradas para eventos.
+311,tigerbeetle/tigerbeetle,"Base de datos de transacciones financieras con partida doble, diseñada para seguridad y alto rendimiento."
+268,discourse/discourse,Foros y comunidades en línea.
+269,mastodon/mastodon,Red social federada autoalojada.
+270,home-assistant/core,"Plataforma de automatización e integración de dispositivos IoT, con miles de integraciones."
+274,Koenkk/zigbee2mqtt,"Puente entre dispositivos Zigbee y MQTT, sin gateways propietarios."
+275,nanomq/nanomq,Broker MQTT liviano para dispositivos y edge computing.
+276,openremote/core,"Plataforma IoT para gestionar activos, reglas y paneles."
+279,nsqio/nsq,Plataforma de mensajería distribuida en tiempo real.
+280,apache/artemis,"Broker de mensajería compatible con AMQP, MQTT, STOMP y JMS."
+281,featbit/featbit,Plataforma de feature flags y experimentación autoalojada.
+283,openflagr/flagr,"Servicio de feature flags, experimentos A/B y configuración dinámica."
+284,argoproj/argo-cd,Despliegue continuo declarativo (GitOps) para Kubernetes.
+287,kubero-dev/kubero,"PaaS autoalojado sobre Kubernetes, estilo Heroku."
+288,Kong/insomnia,"Cliente para diseñar, probar y depurar APIs REST, GraphQL y gRPC."
+289,mockoon/mockoon,Creación de APIs simuladas (mocks) en local.
+292,OpenAPITools/openapi-generator,"Genera clientes, servidores y documentación desde especificaciones OpenAPI."
+295,lowcoder-org/lowcoder,Constructor low-code de aplicaciones internas.
+296,gitleaks/gitleaks,"Detecta secretos expuestos (claves, tokens) en repositorios git."
+297,zaproxy/zaproxy,Escáner de seguridad de aplicaciones web (OWASP ZAP).
+298,semgrep/semgrep,Análisis estático de código para encontrar errores y vulnerabilidades.
+299,anchore/grype,Escáner de vulnerabilidades para imágenes de contenedor y sistemas de archivos.
+301,openbao/openbao,"Gestión de secretos y cifrado, derivado comunitario de Vault."
+302,bluenviron/mediamtx,"Servidor de medios para transmitir video en vivo (RTSP, WebRTC, HLS)."
+305,ossrs/srs,"Servidor de streaming en tiempo real (RTMP, WebRTC, HLS, SRT)."
+308,classroomio/classroomio,Plataforma de cursos en línea para bootcamps y formación corporativa.
+309,chamilo/chamilo-lms,Sistema de gestión de aprendizaje (LMS) para instituciones y empresas.
+310,overhangio/tutor,Despliegue y operación de Open edX con Docker.
