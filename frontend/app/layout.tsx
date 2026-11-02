@@ -22,7 +22,7 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "OpenBridge · Catálogo open source",
   description: "El camino corto a tu stack open source.",
-  icons: { icon: "/logo.png" },
+  icons: { icon: "/isotipo.png", apple: "/isotipo.png" },
 };
 
 // Aplica el tema guardado (o el del sistema) antes de pintar, para evitar parpadeos.
