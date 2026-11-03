@@ -14,6 +14,7 @@ from app.schemas import (
     RepositoryListItem,
     RepositoryPaginationResponse,
 )
+from app.services.risk_evaluator import evaluate_repository_risk
 
 router = APIRouter(
     prefix="/api/v1/repositories",
@@ -39,7 +40,7 @@ FALLBACK_REPOSITORIES = [
         category=CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
         metrics=MetricSummary(health_score=91, health_status="Activo"),
     ),
-       RepositoryListItem(
+    RepositoryListItem(
         id=102,
         github_id=23489110,
         name="chroma",
@@ -116,7 +117,7 @@ FALLBACK_REPOSITORIES = [
 
 def _build_fallback_detail(repo: RepositoryListItem) -> RepositoryDetailResponse:
     """Construye la ficha técnica de respaldo a partir de un item base del catálogo."""
-    return RepositoryDetailResponse(
+    detail = RepositoryDetailResponse(
         id=repo.id,
         github_id=repo.github_id,
         name=repo.name,
@@ -213,6 +214,12 @@ def _build_fallback_detail(repo: RepositoryListItem) -> RepositoryDetailResponse
             )
         ],
     )
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
+    return detail
 
 
 def _map_repository_row(row: dict) -> RepositoryListItem:
@@ -225,7 +232,7 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
     if isinstance(raw_metrics, list):
         raw_metrics = raw_metrics[0] if raw_metrics else {}
 
-    return RepositoryListItem(
+    item = RepositoryListItem(
         id=row["id"],
         github_id=row["github_id"],
         name=row["name"],
@@ -249,6 +256,12 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
             health_status=raw_metrics.get("health_status"),
         ),
     )
+    item.alerts = evaluate_repository_risk(
+        license=item.license,
+        health_status=item.metrics.health_status if item.metrics else None,
+        is_archived=False,
+    ).alerts
+    return item
 
 
 def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
@@ -310,8 +323,8 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
             )
         )
 
-    return RepositoryDetailResponse(
-        **base_item.model_dump(exclude={"metrics"}),
+    detail = RepositoryDetailResponse(
+        **base_item.model_dump(exclude={"metrics", "alerts"}),
         homepage=row.get("homepage"),
         detected_stack=row.get("detected_stack") or [],
         integration_methods_suggested=row.get("integration_methods_suggested") or [],
@@ -333,6 +346,12 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
         ),
         integrations=integrations_list,
     )
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
+    return detail
 
 
 def _filter_in_memory(
@@ -444,6 +463,14 @@ def get_repositories(
         ),
         reverse=is_desc,
     )
+
+    for item in sorted_fallback:
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
+
     total = len(sorted_fallback)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_fallback[start : start + page_size]
@@ -566,6 +593,14 @@ def search_repositories(
         ),
         reverse=is_desc,
     )
+
+    for item in sorted_filtered:
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
+
     total = len(sorted_filtered)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_filtered[start : start + page_size]

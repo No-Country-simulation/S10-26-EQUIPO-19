@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from app.schemas.repository import RepositoryAlert
 
 
 class ChatMessage(BaseModel):
@@ -43,6 +44,7 @@ class ArchitectureComponent(BaseModel):
     license: str | None = Field(default=None, description="Licencia del repositorio", examples=["Apache-2.0"])
     health_status: str | None = Field(default=None, description="Estado de mantenimiento", examples=["Activo"])
     justification: str = Field(..., description="Justificación técnica de la elección")
+    alerts: list[RepositoryAlert] = Field(default=[], description="Alertas de riesgo asociadas al componente")
 
 
 class ArchitectureConnection(BaseModel):

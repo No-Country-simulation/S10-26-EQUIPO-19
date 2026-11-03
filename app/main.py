@@ -17,6 +17,7 @@ from app.schemas import (
     ChatResponse,
     ChatSource,
 )
+from app.services.risk_evaluator import evaluate_repository_risk
 
 # Control de documentación interactiva en producción (Observación menor 7 / Nuclei)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -108,6 +109,45 @@ def health_check():
 )
 def chat_with_assistant(request: ChatRequest):
     """Recibe la consulta del usuario en lenguaje natural y devuelve recomendaciones, fuentes y arquitectura."""
+    
+    components = [
+        ArchitectureComponent(
+            key="docs",
+            repository_id=203,
+            full_name="Unstructured-IO/unstructured",
+            role="Extrae el texto de manuales y PDF",
+            license="Apache-2.0",
+            health_status="Activo",
+            justification="Procesa documentos en Python sin servicios externos.",
+        ),
+        ArchitectureComponent(
+            key="vectores",
+            repository_id=102,
+            full_name="chroma-core/chroma",
+            role="Guarda los embeddings y busca fragmentos similares",
+            license="AGPL-3.0",  # Configurado para demonstrar o alerta no Swagger /docs
+            health_status="Activo",
+            justification="Base vectorial ligera, con cliente oficial de Python y configuración mínima.",
+        ),
+        ArchitectureComponent(
+            key="orquestacion",
+            repository_id=201,
+            full_name="langchain-ai/langchain",
+            role="Orquesta la búsqueda y la respuesta",
+            license="MIT",
+            health_status="Activo",
+            justification="Integra Chroma y el modelo de lenguaje en pocas líneas.",
+        ),
+    ]
+
+    
+    for component in components:
+        component.alerts = evaluate_repository_risk(
+            license=component.license,
+            health_status=component.health_status,
+            is_archived=False,
+        ).alerts
+
     return ChatResponse(
         answer=(
             "Para un entorno donde prima la simplicidad y el uso directo con Python, te recomiendo **Chroma**. "
@@ -136,35 +176,7 @@ def chat_with_assistant(request: ChatRequest):
             "¿Cuáles son las diferencias de rendimiento entre Qdrant y Chroma?",
         ],
         architecture=ArchitectureProposal(
-            components=[
-                ArchitectureComponent(
-                    key="docs",
-                    repository_id=203,
-                    full_name="Unstructured-IO/unstructured",
-                    role="Extrae el texto de manuales y PDF",
-                    license="Apache-2.0",
-                    health_status="Activo",
-                    justification="Procesa documentos en Python sin servicios externos.",
-                ),
-                ArchitectureComponent(
-                    key="vectores",
-                    repository_id=102,
-                    full_name="chroma-core/chroma",
-                    role="Guarda los embeddings y busca fragmentos similares",
-                    license="Apache-2.0",
-                    health_status="Activo",
-                    justification="Base vectorial ligera, con cliente oficial de Python y configuración mínima.",
-                ),
-                ArchitectureComponent(
-                    key="orquestacion",
-                    repository_id=201,
-                    full_name="langchain-ai/langchain",
-                    role="Orquesta la búsqueda y la respuesta",
-                    license="MIT",
-                    health_status="Activo",
-                    justification="Integra Chroma y el modelo de lenguaje en pocas líneas.",
-                ),
-            ],
+            components=components,
             connections=[
                 ArchitectureConnection(
                     **{
