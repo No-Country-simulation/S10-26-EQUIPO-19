@@ -584,6 +584,12 @@ def search_repositories(
     response_model=RepositoryDetailResponse,
     summary="Ficha técnica de un repositorio",
     description="Devuelve la ficha completa de un repositorio con métricas detalladas e ideas de integración estructuradas.",
+    responses={
+        404: {
+            "description": "El repositorio solicitado no fue encontrado.",
+            "content": {"application/json": {"example": {"detail": "El repositorio con id 1 no fue encontrado."}}},
+        }
+    },
 )
 def get_repository_detail(id: int):
     """Obtiene la ficha técnica completa de un repositorio por su ID interno."""

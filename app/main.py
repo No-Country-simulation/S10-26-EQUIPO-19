@@ -1,35 +1,81 @@
-from datetime import datetime
-from fastapi import FastAPI
+import os
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.rate_limit import assistant_rate_limiter
 from app.routers import (
     categories,
-    repositories,
-    github_router,
     github_inventory_router,
+    github_router,
+    repositories,
 )
 from app.schemas import (
-    ChatRequest,
-    ChatResponse,
-    ChatSource,
     ArchitectureComponent,
     ArchitectureConnection,
     ArchitectureProposal,
+    ChatRequest,
+    ChatResponse,
+    ChatSource,
 )
+
+# Control de documentación interactiva en producción (Observación menor 7 / Nuclei)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+is_production = ENVIRONMENT == "production"
 
 app = FastAPI(
     title="OpenBridge API",
     description="Catálogo inteligente de herramientas Open Source y Asistente RAG",
     version="1.0.0",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
 )
+
+# Configuración de CORS segura (Hallazgo N2-003)
+# Usa lista blanca explícita y evita reflejar orígenes arbitrarios con allow_credentials: true
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "https://openbridge-rcv2.onrender.com",
+]
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+if env_origins:
+    allowed_origins = [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+else:
+    allowed_origins = DEFAULT_ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# Cabeceras de seguridad y endurecimiento HTTP (Hallazgo N2-002, N2-001 y Schemathesis ST204)
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # RFC 9110 / Schemathesis ST204: Asegurar cabecera Allow en respuestas 405
+    if response.status_code == 405 and "allow" not in response.headers:
+        response.headers["allow"] = "GET, POST, OPTIONS"
+
+    # N2-001: Suprimir cabecera de servidor si uvicorn la inyecta
+    if "server" in response.headers:
+        del response.headers["server"]
+
+    return response
+
 
 app.include_router(github_inventory_router.router)
 app.include_router(github_router.router)
@@ -48,6 +94,17 @@ def health_check():
     response_model=ChatResponse,
     tags=["Asistente"],
     summary="Consultar al Asistente Consultor RAG",
+    dependencies=[Depends(assistant_rate_limiter)],
+    responses={
+        429: {
+            "description": "Límite de solicitudes excedido.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Límite de solicitudes excedido (10 req/60s). Reintente en 45 segundos."}
+                }
+            },
+        }
+    },
 )
 def chat_with_assistant(request: ChatRequest):
     """Recibe la consulta del usuario en lenguaje natural y devuelve recomendaciones, fuentes y arquitectura."""
