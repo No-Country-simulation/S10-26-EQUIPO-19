@@ -1,9 +1,5 @@
 from pydantic import BaseModel
-from app.schemas.repository import (
-    RepositoryAlert,
-    RepositoryDetailResponse,
-    RepositoryListItem,
-)
+from app.schemas.repository import RepositoryAlert
 
 SAAS_COPYLEFT_LICENSES = {"AGPL-3.0", "OSL-3.0"}
 COPYLEFT_LICENSES = {"GPL-3.0", "GPL-2.0"}
@@ -16,17 +12,13 @@ class RiskAnalysis(BaseModel):
 
 
 def evaluate_repository_risk(
-    repo: RepositoryListItem | RepositoryDetailResponse,
+    license: str | None = None,
+    health_status: str | None = None,
+    is_archived: bool = False,
 ) -> RiskAnalysis:
     alerts: list[RepositoryAlert] = []
 
-    health_status = repo.metrics.health_status if repo.metrics else None
-
-    if isinstance(repo, RepositoryDetailResponse):
-        is_archived = repo.archived
-    else:
-        is_archived = health_status == "Archivado"
-
+    
     if is_archived:
         maint_status = "Archivado"
         alerts.append(
@@ -57,7 +49,8 @@ def evaluate_repository_risk(
     else:
         maint_status = health_status
 
-    raw_license = repo.license.strip() if repo.license and repo.license.strip() else None
+   
+    raw_license = license.strip() if license and license.strip() else None
 
     if not raw_license:
         alerts.append(

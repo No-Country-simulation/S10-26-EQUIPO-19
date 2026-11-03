@@ -214,7 +214,11 @@ def _build_fallback_detail(repo: RepositoryListItem) -> RepositoryDetailResponse
             )
         ],
     )
-    detail.alerts = evaluate_repository_risk(detail).alerts
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
     return detail
 
 
@@ -252,7 +256,11 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
             health_status=raw_metrics.get("health_status"),
         ),
     )
-    item.alerts = evaluate_repository_risk(item).alerts
+    item.alerts = evaluate_repository_risk(
+        license=item.license,
+        health_status=item.metrics.health_status if item.metrics else None,
+        is_archived=False,
+    ).alerts
     return item
 
 
@@ -338,7 +346,11 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
         ),
         integrations=integrations_list,
     )
-    detail.alerts = evaluate_repository_risk(detail).alerts
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
     return detail
 
 
@@ -453,7 +465,11 @@ def get_repositories(
     )
 
     for item in sorted_fallback:
-        item.alerts = evaluate_repository_risk(item).alerts
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
 
     total = len(sorted_fallback)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
@@ -579,7 +595,11 @@ def search_repositories(
     )
 
     for item in sorted_filtered:
-        item.alerts = evaluate_repository_risk(item).alerts
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
 
     total = len(sorted_filtered)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
