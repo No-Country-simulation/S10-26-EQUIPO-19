@@ -1,5 +1,6 @@
+import os
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, status
 
 from app.services.github_inventory_service import (
     enrich_github_inventory,
@@ -16,6 +17,8 @@ router = APIRouter(
 @router.post(
     "/repositories/sync",
     response_model=GithubInventoryResponse,
+    summary="Sincronizar inventario de repositorios",
+    description="Endpoint protegido para sincronización e ingesta masiva hacia Supabase.",
 )
 async def sync_repositories(
     limit: int | None = Query(
@@ -23,7 +26,20 @@ async def sync_repositories(
         ge=1,
         description="Cantidad máxima de repositorios. Usá 3 para probar.",
     ),
+    x_api_key: str | None = Header(
+        default=None,
+        alias="X-API-Key",
+        description="Clave de autenticación para operaciones de sincronización",
+    ),
 ):
+    # Proteger endpoint contra escrituras y consumo no autorizado (Hallazgo H1)
+    sync_secret = os.getenv("SYNC_API_KEY", "openbridge-sync-secret")
+    if not x_api_key or x_api_key != sync_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autorizado: se requiere un encabezado 'X-API-Key' válido para sincronizar repositorios.",
+        )
+
     try:
         return await enrich_github_inventory(limit=limit)
 

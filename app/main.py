@@ -64,8 +64,19 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # Permitir CDN y scripts inline en /docs y /redoc para que Swagger UI cargue correctamente
+    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net; "
+            "frame-ancestors 'none'"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
 
     # RFC 9110 / Schemathesis ST204: Asegurar cabecera Allow en respuestas 405
     if response.status_code == 405 and "allow" not in response.headers:

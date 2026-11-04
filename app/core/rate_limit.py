@@ -16,20 +16,23 @@ class InMemoryRateLimiter:
         self.requests: dict[str, list[float]] = defaultdict(list)
 
     def _get_client_ip(self, request: Request) -> str:
-        """Obtiene la IP real del cliente considerando proxies y WAFs (Cloudflare/Render)."""
-        # Cloudflare inyecta 'cf-connecting-ip'
+        """Obtiene la IP real del cliente evitando spoofing de cabeceras (H4)."""
+        # Cloudflare en producción garantiza 'cf-connecting-ip' (no falsificable por el cliente)
         cf_ip = request.headers.get("cf-connecting-ip")
         if cf_ip:
             return cf_ip.strip()
 
-        # Cabecera estándar de proxy inverso
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-
-        # IP directa del cliente
+        # En conexiones directas o desarrollo local, confiar en la conexión TCP real (client.host)
+        # para evitar que un atacante saltee el limitador inyectando X-Forwarded-For falsos
         if request.client and request.client.host:
             return request.client.host
+
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            # Tomar la última IP agregada por el proxy más cercano
+            ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+            if ips:
+                return ips[-1]
 
         return "unknown"
 

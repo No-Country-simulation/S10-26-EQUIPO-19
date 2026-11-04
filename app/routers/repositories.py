@@ -1,3 +1,4 @@
+import re
 import math
 from datetime import datetime
 from typing import Literal
@@ -530,13 +531,16 @@ def search_repositories(
             )
 
             if q and q.strip():
-                clean_q = q.strip()
-                query = query.or_(
-                    f"name.ilike.%{clean_q}%,"
-                    f"full_name.ilike.%{clean_q}%,"
-                    f"description.ilike.%{clean_q}%,"
-                    f"description_es.ilike.%{clean_q}%"
-                )
+                # Sanitizar q para prevenir inyección de filtros PostgREST (Hallazgo H3):
+                # Se eliminan comas, paréntesis, comillas y caracteres de control que dividen o inyectan cláusulas en query.or_
+                clean_q = re.sub(r"[,().%\"'\\]", " ", q).strip()
+                if clean_q:
+                    query = query.or_(
+                        f"name.ilike.%{clean_q}%,"
+                        f"full_name.ilike.%{clean_q}%,"
+                        f"description.ilike.%{clean_q}%,"
+                        f"description_es.ilike.%{clean_q}%"
+                    )
 
             if category_id is not None:
                 query = query.eq("category_id", category_id)
