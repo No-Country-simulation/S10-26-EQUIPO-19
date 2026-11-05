@@ -2,6 +2,7 @@
 // Se activan con NEXT_PUBLIC_USE_MOCK=true (ver .env.example). Las métricas no son reales.
 import type {
   ChatResponse,
+  CompareResponse,
   Category,
   Integration,
   ListParams,
@@ -187,3 +188,12 @@ export const MOCK_CHAT_RESPONSE: ChatResponse = {
     connections: [{ from: "orquestacion", to: "vectores", label: "Consulta los fragmentos relevantes para cada pregunta", verified: false, integration_code: null }],
   },
 };
+
+/** Comparación de ejemplo (9.5) armada con las fichas de ejemplo. */
+export function compareMock(ids: number[]): CompareResponse | null {
+  const repositories = ids.map((id) => getMockDetail(id));
+  if (repositories.some((r) => !r)) return null;
+  const list = repositories as RepositoryDetail[];
+  const same = new Set(list.map((r) => r.category.id)).size === 1;
+  return { repositories: list, same_category: same, category_name: same ? list[0].category.name : null };
+}

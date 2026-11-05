@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import CatalogFilters, { EMPTY_FILTERS, type Filters } from "@/components/CatalogFilters";
 import RepositoryCard from "@/components/RepositoryCard";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
@@ -8,6 +9,8 @@ import { ApiError, getCategories, hasFilters, listRepositories, searchRepositori
 import type { Category, PaginatedRepositories, SearchParams, SortBy, SortOrder } from "@/types/api";
 
 const PAGE_SIZE = 12;
+/** El comparador (9.5) acepta de 2 a 3 repositorios. */
+const MAX_COMPARE = 3;
 
 type Sort = { sort_by: SortBy; order: SortOrder };
 const DEFAULT_SORT: Sort = { sort_by: "stars", order: "desc" };
@@ -57,6 +60,14 @@ export default function Catalog() {
   const [request, setRequest] = useState<{ filters: Filters; page: number; sort: Sort }>({ filters: EMPTY_FILTERS, page: 1, sort: DEFAULT_SORT });
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [openId, setOpenId] = useState<number | null>(null);
+  // Repositorios elegidos para comparar: se mantienen al cambiar de página o de filtros.
+  const [compare, setCompare] = useState<{ id: number; name: string }[]>([]);
+
+  function toggleCompare(id: number, name: string) {
+    setCompare((prev) =>
+      prev.some((c) => c.id === id) ? prev.filter((c) => c.id !== id) : prev.length < MAX_COMPARE ? [...prev, { id, name }] : prev,
+    );
+  }
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => setCategories([]));
@@ -152,9 +163,27 @@ export default function Catalog() {
 
         {data && data.items.length > 0 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {data.items.map((repo) => (
-              <RepositoryCard key={repo.id} repo={repo} onOpen={setOpenId} />
-            ))}
+            {data.items.map((repo) => {
+              const selected = compare.some((c) => c.id === repo.id);
+              const full = !selected && compare.length >= MAX_COMPARE;
+              return (
+                <div key={repo.id} className="relative min-w-0">
+                  <RepositoryCard repo={repo} onOpen={setOpenId} reserveCorner />
+                  <button
+                    type="button"
+                    onClick={() => toggleCompare(repo.id, repo.name)}
+                    disabled={full}
+                    aria-pressed={selected}
+                    title={full ? `Puedes comparar hasta ${MAX_COMPARE} herramientas` : undefined}
+                    className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-[var(--radius-pill)] border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                      selected ? "border-primary bg-primary text-primary-contrast" : "border-border bg-card text-text hover:border-primary"
+                    }`}
+                  >
+                    {selected ? "✓ Comparar" : "+ Comparar"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -182,6 +211,32 @@ export default function Catalog() {
           </nav>
         )}
       </div>
+
+      {compare.length > 0 && (
+        <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-card p-4 shadow-lg lg:col-span-2">
+          <p className="text-sm">
+            <strong>Comparar:</strong> <span className="first-letter:uppercase">{compare.map((c) => c.name).join(", ")}</span>
+            {compare.length < 2 && <span className="text-text-muted"> · elige al menos una más</span>}
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setCompare([])} className="h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold text-text-muted hover:bg-surface-hover">
+              Limpiar
+            </button>
+            {compare.length >= 2 ? (
+              <Link
+                href={`/comparar?ids=${compare.map((c) => c.id).join(",")}`}
+                className="inline-flex h-10 items-center rounded-[var(--radius-pill)] bg-primary px-5 text-sm font-semibold text-primary-contrast hover:opacity-90"
+              >
+                Comparar ({compare.length})
+              </Link>
+            ) : (
+              <span className="inline-flex h-10 items-center rounded-[var(--radius-pill)] bg-primary px-5 text-sm font-semibold text-primary-contrast opacity-50">
+                Comparar ({compare.length})
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <RepositoryDetailDialog repoId={openId} onClose={() => setOpenId(null)} onSelect={setOpenId} />
     </section>

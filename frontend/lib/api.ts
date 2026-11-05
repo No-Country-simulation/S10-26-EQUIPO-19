@@ -4,12 +4,13 @@ import type {
   Category,
   ChatMessage,
   ChatResponse,
+  CompareResponse,
   ListParams,
   PaginatedRepositories,
   RepositoryDetail,
   SearchParams,
 } from "@/types/api";
-import { MOCK_CATEGORIES, MOCK_CHAT_RESPONSE, getMockDetail, listMock, searchMock } from "@/data/mock";
+import { MOCK_CATEGORIES, MOCK_CHAT_RESPONSE, compareMock, getMockDetail, listMock, searchMock } from "@/data/mock";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
@@ -107,4 +108,21 @@ export async function askAssistant(message: string, history: ChatMessage[] = [])
   }
   if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /assistant/chat`);
   return res.json() as Promise<ChatResponse>;
+}
+
+/** 9.5 · Comparación lado a lado de 2 o 3 repositorios. */
+export async function compareRepositories(ids: number[]): Promise<CompareResponse> {
+  if (USE_MOCK) {
+    const result = compareMock(ids);
+    if (!result) throw new ApiError(404, "No se encontraron algunos de los repositorios.");
+    return delay(result);
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/repositories/compare?ids=${ids.join(",")}`, { cache: "no-store" });
+  } catch {
+    throw new ApiError(0, "No pudimos conectar con la API.");
+  }
+  if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /repositories/compare`);
+  return res.json() as Promise<CompareResponse>;
 }

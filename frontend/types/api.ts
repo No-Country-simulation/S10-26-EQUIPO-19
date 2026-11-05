@@ -181,3 +181,10 @@ export type ChatResponse = {
   suggested_questions: string[];
   architecture: { components: ArchitectureComponent[]; connections: ArchitectureConnection[] } | null;
 };
+
+/** Comparador lado a lado (9.5): fichas completas de 2 o 3 repositorios. */
+export type CompareResponse = {
+  repositories: RepositoryDetail[];
+  same_category: boolean;
+  category_name: string | null;
+};
