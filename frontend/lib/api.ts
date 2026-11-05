@@ -2,12 +2,14 @@
 // Con NEXT_PUBLIC_USE_MOCK=true usa los datos de ejemplo de data/mock.ts; con false consulta la API real.
 import type {
   Category,
+  ChatMessage,
+  ChatResponse,
   ListParams,
   PaginatedRepositories,
   RepositoryDetail,
   SearchParams,
 } from "@/types/api";
-import { MOCK_CATEGORIES, getMockDetail, listMock, searchMock } from "@/data/mock";
+import { MOCK_CATEGORIES, MOCK_CHAT_RESPONSE, getMockDetail, listMock, searchMock } from "@/data/mock";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
@@ -74,4 +76,35 @@ export function hasFilters(params: SearchParams) {
   return Boolean(
     params.q || params.category_id || params.language || params.license || params.health_status || params.min_stars,
   );
+}
+
+/** Detalle que entrega FastAPI en los errores ({"detail": "..."}), si viene como texto. */
+async function errorDetail(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json();
+    return typeof body?.detail === "string" ? body.detail : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 4.4 · Asistente consultor: descripción del negocio → stack recomendado y justificado. */
+export async function askAssistant(message: string, history: ChatMessage[] = []): Promise<ChatResponse> {
+  if (USE_MOCK) return new Promise((resolve) => setTimeout(() => resolve(MOCK_CHAT_RESPONSE), 600));
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/assistant/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // La API acepta hasta 20 mensajes de historial, de hasta 4000 caracteres cada uno.
+      body: JSON.stringify({
+        message,
+        conversation_history: history.slice(-20).map((m) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+      }),
+    });
+  } catch {
+    throw new ApiError(0, "No pudimos conectar con la API.");
+  }
+  if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /assistant/chat`);
+  return res.json() as Promise<ChatResponse>;
 }

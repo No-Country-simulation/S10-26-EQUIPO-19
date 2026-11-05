@@ -1,6 +1,7 @@
 // Datos de ejemplo para desarrollar y probar la interfaz mientras la API no esté disponible.
 // Se activan con NEXT_PUBLIC_USE_MOCK=true (ver .env.example). Las métricas no son reales.
 import type {
+  ChatResponse,
   Category,
   Integration,
   ListParams,
@@ -168,3 +169,21 @@ export function getMockDetail(id: number): RepositoryDetail | null {
     integrations: repo.id === 101 ? [QDRANT_IDEA] : [DOCKER_IDEA(repo)],
   };
 }
+
+/** Respuesta de ejemplo del asistente, para trabajar sin la API (NEXT_PUBLIC_USE_MOCK=true). */
+export const MOCK_CHAT_RESPONSE: ChatResponse = {
+  answer:
+    "Para un asistente que responde sobre documentos internos te recomiendo **Chroma** como base vectorial y **LangChain** para orquestar la búsqueda y la respuesta.",
+  sources: [
+    { repository_id: 102, name: "chroma", full_name: "chroma-core/chroma", url: "https://github.com/chroma-core/chroma", relevance_score: 0.94 },
+    { repository_id: 107, name: "langchain", full_name: "langchain-ai/langchain", url: "https://github.com/langchain-ai/langchain", relevance_score: 0.88 },
+  ],
+  suggested_questions: ["¿Cómo integrar Chroma con LangChain?"],
+  architecture: {
+    components: [
+      { key: "vectores", repository_id: 102, full_name: "chroma-core/chroma", role: "Guarda los embeddings y busca fragmentos similares", license: "Apache-2.0", health_status: "Activo", justification: "Base vectorial ligera, con cliente oficial de Python.", alerts: [] },
+      { key: "orquestacion", repository_id: 107, full_name: "langchain-ai/langchain", role: "Orquesta la búsqueda y la respuesta", license: "MIT", health_status: "Activo", justification: "Integra la base vectorial y el modelo de lenguaje en pocas líneas.", alerts: [] },
+    ],
+    connections: [{ from: "orquestacion", to: "vectores", label: "Consulta los fragmentos relevantes para cada pregunta", verified: false, integration_code: null }],
+  },
+};

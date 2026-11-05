@@ -1,4 +1,5 @@
 import HealthBadge from "@/components/HealthBadge";
+import { AlertBadges } from "@/components/RiskAlerts";
 import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
 import type { RepositoryListItem } from "@/types/api";
 
@@ -24,6 +25,7 @@ export default function RepositoryCard({ repo, onOpen }: { repo: RepositoryListI
         <span className="truncate text-xs text-text-muted">{repo.full_name}</span>
       </span>
       <span className="line-clamp-3 flex-1 text-sm text-text-muted">{description}</span>
+      <AlertBadges alerts={repo.alerts} />
       <span className="text-xs text-text-muted" title={formatDate(repo.last_commit_at)}>
         {repo.last_commit_at ? `Actualizado ${relativeTime(repo.last_commit_at)}` : "Sin fecha de actualización"}
       </span>

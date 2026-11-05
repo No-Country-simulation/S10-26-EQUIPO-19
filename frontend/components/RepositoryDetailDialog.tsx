@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import HealthBadge from "@/components/HealthBadge";
+import { AlertList } from "@/components/RiskAlerts";
 import { ApiError, getRepository } from "@/lib/api";
 import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
@@ -148,6 +149,7 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
           <p className="text-sm text-text-muted">{repo.full_name}</p>
         </div>
         <p className="max-w-[70ch] text-lg text-text-muted">{description}</p>
+        <AlertList alerts={repo.alerts} />
         <div className="flex flex-wrap gap-3">
           {docsUrl && (
             <a
