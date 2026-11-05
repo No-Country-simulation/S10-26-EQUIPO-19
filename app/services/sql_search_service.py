@@ -5,6 +5,24 @@ from app.database import get_supabase_client
 
 class SQLSearchService:
 
+    def get_repositories_by_ids(
+        self,
+        repository_ids: list[int],
+    ) -> list[dict]:
+
+        if not repository_ids:
+            return []
+
+        response = (
+            self.supabase
+            .table("repositories")
+            .select("*")
+            .in_("id", repository_ids)
+            .execute()
+        )
+
+        return response.data or []
+
     def __init__(self, supabase: Client | None = None):
         self.supabase = supabase or get_supabase_client()
 

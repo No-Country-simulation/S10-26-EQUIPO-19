@@ -4,6 +4,8 @@ from app.database import get_supabase_client
 from app.services.gemini_embedding_service import GeminiEmbeddingService
 from collections import Counter
 
+import hashlib
+
 
 class VectorSearchService:
 
@@ -48,27 +50,44 @@ class VectorSearchService:
             raise ValueError("min_health_score cannot be negative")
 
         query_embedding = await self.gemini.embed_text(query)
+        print("DEBUG embedding preview:", query_embedding[:5])
+        print("DEBUG embedding dimensions:", len(query_embedding))
+        embedding_hash = hashlib.sha256(
+            ",".join(map(str, query_embedding)).encode()
+        ).hexdigest()
+
+        print("DEBUG embedding hash:", embedding_hash)
 
         candidate_count = min(match_count * 10, 1000)
         max_chunks_per_repository = 2
 
+        rpc_params = {
+            "query_embedding": query_embedding,
+            "match_threshold": match_threshold,
+            "match_count": candidate_count,
+            "p_language": language,
+            "p_category_slug": category_slug,
+            "p_license": license,
+            "p_technologies": technologies,
+            "p_min_stars": min_stars,
+            "p_min_health_score": min_health_score,
+            "p_exclude_archived": exclude_archived,
+        }
+
+        print("DEBUG RPC filters:", {
+            key: value
+            for key, value in rpc_params.items()
+            if key != "query_embedding"
+        })
+
         response = self.supabase.rpc(
             "match_repository_embeddings_hybrid",
-            {
-                "query_embedding": query_embedding,
-                "match_threshold": match_threshold,
-                "match_count": candidate_count,
-                "p_language": language,
-                "p_category_slug": category_slug,
-                "p_license": license,
-                "p_technologies": technologies,
-                "p_min_stars": min_stars,
-                "p_min_health_score": min_health_score,
-                "p_exclude_archived": exclude_archived,
-            },
+            rpc_params,
         ).execute()
 
         candidates = response.data or []
+        print("DEBUG RPC candidates:", len(candidates))
+        print("DEBUG RPC first result:", candidates[0] if candidates else None)
 
         results = []
         repository_counts = {}
