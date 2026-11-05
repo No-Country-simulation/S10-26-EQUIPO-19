@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import ArchitectureMap from "@/components/ArchitectureMap";
+import ComposePanel from "@/components/ComposePanel";
 import HealthBadge from "@/components/HealthBadge";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertList } from "@/components/RiskAlerts";
@@ -256,6 +257,8 @@ function AssistantAnswer({
           ))}
         </div>
       )}
+
+      <ComposePanel fullNames={components.map((c) => c.full_name)} />
 
       <div className="flex justify-end border-t border-border pt-3">
         <button

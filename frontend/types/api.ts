@@ -188,3 +188,28 @@ export type CompareResponse = {
   same_category: boolean;
   category_name: string | null;
 };
+
+/** 9.2 · docker-compose de arranque. POST /compose con los full_name del stack recomendado. */
+export type ComposeRequest = { repositories: string[] };
+
+export type ComposeService = {
+  full_name: string;
+  service: string;
+  image: string;
+  ports: string[];
+};
+
+export type ComposeSkipped = {
+  full_name: string;
+  /** Motivo legible, por ejemplo: "Es una librería: se instala como dependencia". */
+  reason: string;
+};
+
+export type ComposeResponse = {
+  filename: string;
+  /** Contenido YAML listo para guardar como docker-compose.yml. */
+  content: string;
+  services: ComposeService[];
+  skipped: ComposeSkipped[];
+  warnings: string[];
+};
