@@ -109,11 +109,11 @@ def health_check():
 )
 def chat_with_assistant(request: ChatRequest):
     """Recibe la consulta del usuario en lenguaje natural y devuelve recomendaciones, fuentes y arquitectura."""
-    
+
     components = [
         ArchitectureComponent(
             key="docs",
-            repository_id=203,
+            repository_id=157,
             full_name="Unstructured-IO/unstructured",
             role="Extrae el texto de manuales y PDF",
             license="Apache-2.0",
@@ -122,25 +122,34 @@ def chat_with_assistant(request: ChatRequest):
         ),
         ArchitectureComponent(
             key="vectores",
-            repository_id=102,
+            repository_id=29,
             full_name="chroma-core/chroma",
             role="Guarda los embeddings y busca fragmentos similares",
-            license="AGPL-3.0",  # Configurado para demonstrar o alerta no Swagger /docs
+            license="Apache-2.0",
             health_status="Activo",
             justification="Base vectorial ligera, con cliente oficial de Python y configuración mínima.",
         ),
         ArchitectureComponent(
             key="orquestacion",
-            repository_id=201,
+            repository_id=38,
             full_name="langchain-ai/langchain",
             role="Orquesta la búsqueda y la respuesta",
             license="MIT",
             health_status="Activo",
             justification="Integra Chroma y el modelo de lenguaje en pocas líneas.",
         ),
+        ArchitectureComponent(
+            key="monitoreo",
+            repository_id=91,
+            full_name="grafana/grafana",
+            role="Paneles para monitorear el uso y la latencia del asistente",
+            license="AGPL-3.0",  # Licencia real de Grafana: muestra la alerta de licencia (9.3)
+            health_status="Activo",
+            justification="Visualiza métricas del flujo de búsqueda y respuesta en un solo panel.",
+        ),
     ]
 
-    
+
     for component in components:
         component.alerts = evaluate_repository_risk(
             license=component.license,
@@ -153,18 +162,19 @@ def chat_with_assistant(request: ChatRequest):
             "Para un entorno donde prima la simplicidad y el uso directo con Python, te recomiendo **Chroma**. "
             "Es ligera, se ejecuta en memoria o cliente/servidor y requiere una configuración mínima. "
             "Si en el futuro necesitas escalar a producción masiva con millones de vectores y alta concurrencia, "
-            "**Qdrant** es una excelente alternativa en Rust con cliente oficial de Python."
+            "**Qdrant** es una excelente alternativa en Rust con cliente oficial de Python. "
+            "Para monitorear el uso del asistente puedes sumar **Grafana**; ojo: su licencia es AGPL-3.0."
         ),
         sources=[
             ChatSource(
-                repository_id=102,
+                repository_id=29,
                 name="chroma",
                 full_name="chroma-core/chroma",
                 url="https://github.com/chroma-core/chroma",
                 relevance_score=0.94,
             ),
             ChatSource(
-                repository_id=101,
+                repository_id=25,
                 name="qdrant",
                 full_name="qdrant/qdrant",
                 url="https://github.com/qdrant/qdrant",
@@ -192,6 +202,15 @@ def chat_with_assistant(request: ChatRequest):
                         "from": "orquestacion",
                         "to": "vectores",
                         "label": "Consulta los fragmentos relevantes para cada pregunta",
+                        "verified": False,
+                        "integration_code": None,
+                    }
+                ),
+                ArchitectureConnection(
+                    **{
+                        "from": "orquestacion",
+                        "to": "monitoreo",
+                        "label": "Envía métricas de uso y latencia de cada respuesta",
                         "verified": False,
                         "integration_code": None,
                     }
