@@ -113,7 +113,7 @@ def chat_with_assistant(request: ChatRequest):
     components = [
         ArchitectureComponent(
             key="docs",
-            repository_id=157,
+            repository_id=83,
             full_name="Unstructured-IO/unstructured",
             role="Extrae el texto de manuales y PDF",
             license="Apache-2.0",
@@ -122,7 +122,7 @@ def chat_with_assistant(request: ChatRequest):
         ),
         ArchitectureComponent(
             key="vectores",
-            repository_id=29,
+            repository_id=25,
             full_name="chroma-core/chroma",
             role="Guarda los embeddings y busca fragmentos similares",
             license="Apache-2.0",
@@ -131,7 +131,7 @@ def chat_with_assistant(request: ChatRequest):
         ),
         ArchitectureComponent(
             key="orquestacion",
-            repository_id=38,
+            repository_id=32,
             full_name="langchain-ai/langchain",
             role="Orquesta la búsqueda y la respuesta",
             license="MIT",
@@ -140,7 +140,7 @@ def chat_with_assistant(request: ChatRequest):
         ),
         ArchitectureComponent(
             key="monitoreo",
-            repository_id=91,
+            repository_id=54,
             full_name="grafana/grafana",
             role="Paneles para monitorear el uso y la latencia del asistente",
             license="AGPL-3.0",  # Licencia real de Grafana: muestra la alerta de licencia (9.3)
@@ -167,14 +167,14 @@ def chat_with_assistant(request: ChatRequest):
         ),
         sources=[
             ChatSource(
-                repository_id=29,
+                repository_id=25,
                 name="chroma",
                 full_name="chroma-core/chroma",
                 url="https://github.com/chroma-core/chroma",
                 relevance_score=0.94,
             ),
             ChatSource(
-                repository_id=25,
+                repository_id=23,
                 name="qdrant",
                 full_name="qdrant/qdrant",
                 url="https://github.com/qdrant/qdrant",
