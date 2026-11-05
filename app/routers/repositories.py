@@ -10,6 +10,7 @@ from app.schemas import (
     MetricDetail,
     MetricSummary,
     RelatedRepositoryItem,
+    RepositoryCompareResponse,
     RepositoryDetailResponse,
     RepositoryListItem,
     RepositoryPaginationResponse,
@@ -614,6 +615,117 @@ def search_repositories(
     )
 
 
+def _fetch_repository_detail(repo_id: int) -> RepositoryDetailResponse | None:
+    """Recupera la ficha técnica completa de un repositorio desde Supabase o desde los datos de respaldo."""
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            response = (
+                supabase.table("repositories")
+                .select(
+                    "*, categories(id, name), metrics(*), "
+                    "integration_repositories(role, integrations(*, "
+                    "integration_repositories(role, repositories(id, full_name)), "
+                    "integration_business_cases(business_cases(id, name))))"
+                )
+                .eq("id", repo_id)
+                .execute()
+            )
+            if response.data:
+                return _map_repository_detail_row(response.data[0])
+        except Exception:
+            pass
+
+    fallback_repo = next((r for r in FALLBACK_REPOSITORIES if r.id == repo_id), None)
+    if fallback_repo:
+        return _build_fallback_detail(fallback_repo)
+
+    return None
+
+
+@router.get(
+    "/compare",
+    response_model=RepositoryCompareResponse,
+    summary="Comparación lado a lado de repositorios",
+    description="Permite comparar de 2 a 3 herramientas lado a lado con sus fichas técnicas, métricas detalladas y evaluación de categoría.",
+    responses={
+        400: {
+            "description": "Cantidad de IDs inválida, duplicados o formato numérico incorrecto.",
+            "content": {"application/json": {"example": {"detail": "Se requieren al menos 2 repositorios para realizar la comparación."}}},
+        },
+        404: {
+            "description": "Uno o más repositorios solicitados no existen.",
+            "content": {"application/json": {"example": {"detail": "No se encontraron los siguientes repositorios: 999."}}},
+        },
+    },
+)
+def compare_repositories(
+    ids: list[str] = Query(
+        ...,
+        description="Lista de 2 o 3 IDs de repositorios a comparar. Soporta formato separado por comas (?ids=101,102) o múltiple (?ids=101&ids=102).",
+        examples=[["101,102"]],
+    ),
+):
+    """Obtiene las fichas técnicas y métricas comparativas para 2 o 3 repositorios."""
+    parsed_ids: list[int] = []
+    for item in ids:
+        for part in str(item).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if not part.isdigit():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El ID '{part}' no es válido. Debe ser un número entero positivo.",
+                )
+            parsed_ids.append(int(part))
+
+    if len(parsed_ids) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Se requieren al menos 2 repositorios para realizar la comparación.",
+        )
+
+    if len(parsed_ids) > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Se pueden comparar como máximo 3 repositorios a la vez.",
+        )
+
+    if len(parsed_ids) != len(set(parsed_ids)):
+        raise HTTPException(
+            status_code=400,
+            detail="No se pueden enviar repositorios duplicados para la comparación.",
+        )
+
+    repositories_found: list[RepositoryDetailResponse] = []
+    missing_ids: list[int] = []
+
+    for repo_id in parsed_ids:
+        repo = _fetch_repository_detail(repo_id)
+        if repo:
+            repositories_found.append(repo)
+        else:
+            missing_ids.append(repo_id)
+
+    if missing_ids:
+        missing_str = ", ".join(map(str, missing_ids))
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontraron los siguientes repositorios: {missing_str}.",
+        )
+
+    category_ids = {r.category.id for r in repositories_found}
+    same_category = len(category_ids) == 1
+    category_name = repositories_found[0].category.name if same_category else None
+
+    return RepositoryCompareResponse(
+        repositories=repositories_found,
+        same_category=same_category,
+        category_name=category_name,
+    )
+
+
 @router.get(
     "/{id}",
     response_model=RepositoryDetailResponse,
@@ -628,29 +740,9 @@ def search_repositories(
 )
 def get_repository_detail(id: int):
     """Obtiene la ficha técnica completa de un repositorio por su ID interno."""
-    supabase = get_supabase_client()
-
-    if supabase:
-        try:
-            response = (
-                supabase.table("repositories")
-                .select(
-                    "*, categories(id, name), metrics(*), "
-                    "integration_repositories(role, integrations(*, "
-                    "integration_repositories(role, repositories(id, full_name)), "
-                    "integration_business_cases(business_cases(id, name))))"
-                )
-                .eq("id", id)
-                .execute()
-            )
-            if response.data:
-                return _map_repository_detail_row(response.data[0])
-        except Exception:
-            pass
-
-    fallback_repo = next((r for r in FALLBACK_REPOSITORIES if r.id == id), None)
-    if fallback_repo:
-        return _build_fallback_detail(fallback_repo)
+    repo = _fetch_repository_detail(id)
+    if repo:
+        return repo
 
     raise HTTPException(
         status_code=404,
