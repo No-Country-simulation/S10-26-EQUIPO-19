@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import ArchitectureMap from "@/components/ArchitectureMap";
 import HealthBadge from "@/components/HealthBadge";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertList } from "@/components/RiskAlerts";
 import { ApiError, askAssistant } from "@/lib/api";
+import { downloadProposal } from "@/lib/exportProposal";
 import type { ArchitectureComponent, ChatMessage, ChatResponse } from "@/types/api";
 
 // Interfaz del asistente consultor (5.9): el usuario describe su negocio y recibe un stack
@@ -107,7 +109,14 @@ export default function AssistantChat() {
               {t.content}
             </div>
           ) : (
-            <AssistantAnswer key={i} response={t.response} onOpen={setOpenId} onAsk={(q) => void send(q)} disabled={loading} />
+            <AssistantAnswer
+              key={i}
+              question={turns[i - 1]?.role === "user" ? turns[i - 1].content : null}
+              response={t.response}
+              onOpen={setOpenId}
+              onAsk={(q) => void send(q)}
+              disabled={loading}
+            />
           ),
         )}
 
@@ -163,11 +172,13 @@ export default function AssistantChat() {
 }
 
 function AssistantAnswer({
+  question,
   response,
   onOpen,
   onAsk,
   disabled,
 }: {
+  question: string | null;
   response: ChatResponse;
   onOpen: (id: number) => void;
   onAsk: (q: string) => void;
@@ -192,6 +203,8 @@ function AssistantAnswer({
           </div>
         </section>
       )}
+
+      <ArchitectureMap components={components} connections={connections} onOpen={onOpen} />
 
       {connections.length > 0 && (
         <section aria-label="Cómo se conectan" className="flex flex-col gap-2">
@@ -243,6 +256,16 @@ function AssistantAnswer({
           ))}
         </div>
       )}
+
+      <div className="flex justify-end border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => downloadProposal(question, response)}
+          className="inline-flex h-10 items-center gap-2 rounded-[var(--radius-pill)] border border-border px-4 text-sm font-semibold hover:border-primary hover:bg-surface-hover"
+        >
+          ↓ Descargar propuesta (.md)
+        </button>
+      </div>
     </article>
   );
 }

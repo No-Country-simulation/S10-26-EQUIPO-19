@@ -10,7 +10,7 @@ import type {
   RepositoryDetail,
   SearchParams,
 } from "@/types/api";
-import { MOCK_CATEGORIES, MOCK_CHAT_RESPONSE, compareMock, getMockDetail, listMock, searchMock } from "@/data/mock";
+import { MOCK_CATEGORIES, compareMock, getMockDetail, listMock, mockChat, searchMock } from "@/data/mock";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
@@ -91,7 +91,7 @@ async function errorDetail(res: Response): Promise<string | null> {
 
 /** 4.4 · Asistente consultor: descripción del negocio → stack recomendado y justificado. */
 export async function askAssistant(message: string, history: ChatMessage[] = []): Promise<ChatResponse> {
-  if (USE_MOCK) return new Promise((resolve) => setTimeout(() => resolve(MOCK_CHAT_RESPONSE), 600));
+  if (USE_MOCK) return new Promise((resolve) => setTimeout(() => resolve(mockChat(message)), 600));
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/assistant/chat`, {
