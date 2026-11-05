@@ -62,3 +62,6 @@ assistant_rate_limiter = InMemoryRateLimiter(requests_limit=10, window_seconds=6
 
 # Limitador para endpoints de GitHub (20 peticiones por minuto por IP)
 github_rate_limiter = InMemoryRateLimiter(requests_limit=20, window_seconds=60)
+
+# Limitador general para el catálogo de repositorios (60 peticiones por minuto por IP - H4)
+repositories_rate_limiter = InMemoryRateLimiter(requests_limit=60, window_seconds=60)

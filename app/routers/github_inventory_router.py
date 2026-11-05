@@ -33,11 +33,11 @@ async def sync_repositories(
     ),
 ):
     # Proteger endpoint contra escrituras y consumo no autorizado (Hallazgo H1)
-    sync_secret = os.getenv("SYNC_API_KEY", "openbridge-sync-secret")
-    if not x_api_key or x_api_key != sync_secret:
+    sync_secret = os.getenv("SYNC_API_KEY")
+    if not sync_secret or not x_api_key or x_api_key != sync_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No autorizado: se requiere un encabezado 'X-API-Key' válido para sincronizar repositorios.",
+            detail="No autorizado: se requiere un encabezado 'X-API-Key' válido y la clave debe estar configurada en el servidor.",
         )
 
     try:
