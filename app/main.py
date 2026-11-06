@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.rate_limit import assistant_rate_limiter
 from app.routers import (
     categories,
+    compose,
     github_inventory_router,
     github_router,
     repositories,
@@ -102,6 +103,7 @@ app.include_router(github_inventory_router.router)
 app.include_router(github_router.router)
 app.include_router(categories.router)
 app.include_router(repositories.router)
+app.include_router(compose.router)
 
 
 @app.get("/health", tags=["Health Check"])

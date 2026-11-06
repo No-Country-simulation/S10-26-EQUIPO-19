@@ -1,0 +1,4122 @@
+{
+  "_format": {
+    "version": 2,
+    "kind": "service | stack | library | cli | kubernetes | desktop | no_official_image",
+    "ports": "puertos del contenedor; el compose publica container:container",
+    "environment": "variables mínimas; <secreto> = valor sensible que define quien despliega; vacío = valor a completar",
+    "review": "si no es null, revisar antes de usar",
+    "depends_on": "solo lo necesario para arrancar; lo opcional o de producción está en notes. Valkey (valkey-io/valkey, del catálogo) es compatible con Redis.",
+    "depends_on.catalog": "otros repositorios del catálogo (clave = full_name)",
+    "depends_on.external": "servicios fuera del catálogo; su imagen oficial la define quien arma el compose"
+  },
+  "repositories": {
+    "keycloak/keycloak": {
+      "kind": "service",
+      "image": "quay.io/keycloak/keycloak:26.8.1",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {
+        "KC_BOOTSTRAP_ADMIN_USERNAME": "admin",
+        "KC_BOOTSTRAP_ADMIN_PASSWORD": "<secreto>"
+      },
+      "command": "start-dev",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna en modo dev; PostgreSQL en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://quay.io/repository/keycloak/keycloak",
+        "https://github.com/keycloak/keycloak#readme"
+      ]
+    },
+    "nextauthjs/next-auth": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/nextauthjs/next-auth"
+      ]
+    },
+    "ory/kratos": {
+      "kind": "service",
+      "image": "oryd/kratos:v26.2.0",
+      "ports": [
+        {
+          "container": 4433,
+          "label": "público"
+        },
+        {
+          "container": 4434,
+          "label": "admin"
+        }
+      ],
+      "environment": {
+        "DSN": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Requiere archivo de configuración kratos.yml",
+        "DSN: o memory para pruebas",
+        "PostgreSQL (o SQLite en pruebas)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/oryd/kratos"
+      ]
+    },
+    "ory/hydra": {
+      "kind": "service",
+      "image": "oryd/hydra:v26.2.0",
+      "ports": [
+        {
+          "container": 4444,
+          "label": "público"
+        },
+        {
+          "container": 4445,
+          "label": "admin"
+        }
+      ],
+      "environment": {
+        "DSN": "<secreto>",
+        "SECRETS_SYSTEM": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/oryd/hydra"
+      ]
+    },
+    "zitadel/zitadel": {
+      "kind": "service",
+      "image": "ghcr.io/zitadel/zitadel:v4.19.5",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {
+        "ZITADEL_MASTERKEY": "<secreto>",
+        "ZITADEL_DATABASE_POSTGRES_HOST": "",
+        "ZITADEL_DATABASE_POSTGRES_USER_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/zitadel/zitadel",
+        "https://github.com/zitadel/zitadel/blob/HEAD/apps/docs/content/self-hosting/manage/configure/docker-compose.yaml"
+      ]
+    },
+    "authelia/authelia": {
+      "kind": "service",
+      "image": "authelia/authelia:4.39.28",
+      "ports": [
+        {
+          "container": 9091
+        }
+      ],
+      "environment": {
+        "AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET": "<secreto>",
+        "AUTHELIA_SESSION_SECRET": "<secreto>",
+        "AUTHELIA_STORAGE_ENCRYPTION_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Requiere configuration.yml",
+        "Ninguna (Redis opcional para sesiones)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/authelia/authelia"
+      ]
+    },
+    "better-auth/better-auth": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/better-auth/better-auth"
+      ]
+    },
+    "casdoor/casdoor": {
+      "kind": "service",
+      "image": "casbin/casdoor-all-in-one:4.22.0",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "En producción: casbin/casdoor + MySQL o PostgreSQL",
+        "Ninguna (la imagen all-in-one incluye la base de datos)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/casbin/casdoor-all-in-one",
+        "https://github.com/casdoor/casdoor#readme"
+      ]
+    },
+    "dexidp/dex": {
+      "kind": "service",
+      "image": "ghcr.io/dexidp/dex:v2.46.0",
+      "ports": [
+        {
+          "container": 5556
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Requiere config.yaml",
+        "Ninguna (almacenamiento en memoria o SQLite)"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/dexidp/dex"
+      ]
+    },
+    "oauth2-proxy/oauth2-proxy": {
+      "kind": "service",
+      "image": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5",
+      "ports": [
+        {
+          "container": 4180
+        }
+      ],
+      "environment": {
+        "OAUTH2_PROXY_PROVIDER": "",
+        "OAUTH2_PROXY_CLIENT_ID": "",
+        "OAUTH2_PROXY_CLIENT_SECRET": "<secreto>",
+        "OAUTH2_PROXY_COOKIE_SECRET": "<secreto>",
+        "OAUTH2_PROXY_UPSTREAMS": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "proveedor OIDC"
+        ]
+      },
+      "notes": [
+        "La aplicación que protege y un proveedor OIDC"
+      ],
+      "review": null,
+      "source": [
+        "https://quay.io/repository/oauth2-proxy/oauth2-proxy",
+        "https://github.com/oauth2-proxy/oauth2-proxy/blob/HEAD/contrib/local-environment/docker-compose-alpha-config.yaml"
+      ]
+    },
+    "openfga/openfga": {
+      "kind": "service",
+      "image": "openfga/openfga:v1.22.0",
+      "ports": [
+        {
+          "container": 8080,
+          "label": "HTTP"
+        },
+        {
+          "container": 8081,
+          "label": "gRPC"
+        },
+        {
+          "container": 3000,
+          "label": "playground"
+        }
+      ],
+      "environment": {
+        "OPENFGA_DATASTORE_ENGINE": "memory"
+      },
+      "command": "run",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna en memoria; PostgreSQL en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/openfga/openfga",
+        "https://github.com/openfga/openfga/blob/HEAD/docker-compose.yaml"
+      ]
+    },
+    "cerbos/cerbos": {
+      "kind": "service",
+      "image": "ghcr.io/cerbos/cerbos:0.56.0",
+      "ports": [
+        {
+          "container": 3592,
+          "label": "HTTP"
+        },
+        {
+          "container": 3593,
+          "label": "gRPC"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Las políticas se montan como volumen"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/cerbos/cerbos",
+        "https://github.com/cerbos/cerbos/blob/HEAD/hack/loadtest/docker-compose.yml"
+      ]
+    },
+    "supabase/supabase": {
+      "kind": "stack",
+      "image": "supabase/studio",
+      "ports": [
+        {
+          "container": 8000,
+          "label": "API y Studio vía Kong"
+        }
+      ],
+      "environment": {
+        "POSTGRES_PASSWORD": "<secreto>",
+        "JWT_SECRET": "<secreto>",
+        "ANON_KEY": "<secreto>",
+        "SERVICE_ROLE_KEY": "<secreto>",
+        "DASHBOARD_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Usar el compose oficial de docker/",
+        "Incluidas en el stack oficial (PostgreSQL, Kong, Auth, Storage)"
+      ],
+      "review": "Las versiones de cada servicio vienen fijadas en el compose oficial.",
+      "source": [
+        "https://hub.docker.com/r/supabase/studio",
+        "https://github.com/supabase/supabase/blob/HEAD/docker/docker-compose.logs.yml"
+      ]
+    },
+    "postgres/postgres": {
+      "kind": "service",
+      "image": "postgres:18.6",
+      "ports": [
+        {
+          "container": 5432
+        }
+      ],
+      "environment": {
+        "POSTGRES_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/postgres"
+      ]
+    },
+    "appwrite/appwrite": {
+      "kind": "stack",
+      "image": "appwrite/appwrite:2.5.0",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {
+        "_APP_OPENSSL_KEY_V1": "<secreto>",
+        "_APP_DB_PASS": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se instala con el contenedor appwrite/appwrite y el comando install",
+        "_APP_DB_PASS: los genera el instalador",
+        "Incluidas en el stack oficial (MariaDB, Redis)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/appwrite/appwrite",
+        "https://github.com/appwrite/appwrite/blob/HEAD/docker-compose.override.yml"
+      ]
+    },
+    "valkey-io/valkey": {
+      "kind": "service",
+      "image": "valkey/valkey:9.1.2",
+      "ports": [
+        {
+          "container": 6379
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/valkey/valkey"
+      ]
+    },
+    "prisma/orm": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL, MySQL u otra base de datos"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/prisma/orm"
+      ]
+    },
+    "parse-community/parse-server": {
+      "kind": "service",
+      "image": "parseplatform/parse-server:8.6.111",
+      "ports": [
+        {
+          "container": 1337
+        }
+      ],
+      "environment": {
+        "PARSE_SERVER_APPLICATION_ID": "",
+        "PARSE_SERVER_MASTER_KEY": "<secreto>",
+        "PARSE_SERVER_DATABASE_URI": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mongodb"
+        ]
+      },
+      "notes": [
+        "MongoDB (o PostgreSQL)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/parseplatform/parse-server"
+      ]
+    },
+    "tursodatabase/libsql": {
+      "kind": "service",
+      "image": "ghcr.io/tursodatabase/libsql-server:v0.24.32",
+      "ports": [
+        {
+          "container": 8080,
+          "label": "HTTP"
+        },
+        {
+          "container": 5001,
+          "label": "gRPC"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://ghcr.io/tursodatabase/libsql-server"
+      ]
+    },
+    "typeorm/typeorm": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL, MySQL u otra base de datos"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/typeorm/typeorm/blob/HEAD/docker-compose.yml"
+      ]
+    },
+    "neondatabase/neon": {
+      "kind": "stack",
+      "image": "ghcr.io/neondatabase/neon",
+      "ports": [
+        {
+          "container": 55433,
+          "label": "compute"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Stack complejo: para la demo conviene Neon como servicio o PostgreSQL",
+        "Incluidas en el compose de docker-compose/ (pageserver, safekeepers, MinIO)"
+      ],
+      "review": "Las etiquetas no siguen versiones semánticas; confirmar la etiqueta con el compose de docker-compose/.",
+      "source": [
+        "https://ghcr.io/neondatabase/neon",
+        "https://github.com/neondatabase/neon/blob/HEAD/docker-compose/docker-compose.yml"
+      ]
+    },
+    "qdrant/qdrant": {
+      "kind": "service",
+      "image": "qdrant/qdrant:v1.19.2",
+      "ports": [
+        {
+          "container": 6333,
+          "label": "REST"
+        },
+        {
+          "container": 6334,
+          "label": "gRPC"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/qdrant/qdrant",
+        "https://github.com/qdrant/qdrant/blob/HEAD/tools/compose/docker-compose.yaml"
+      ]
+    },
+    "milvus-io/milvus": {
+      "kind": "service",
+      "image": "milvusdb/milvus:v3.0.3",
+      "ports": [
+        {
+          "container": 19530
+        },
+        {
+          "container": 9091,
+          "label": "salud"
+        }
+      ],
+      "environment": {
+        "ETCD_ENDPOINTS": "",
+        "MINIO_ADDRESS": ""
+      },
+      "command": "milvus run standalone",
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "etcd",
+          "minio"
+        ]
+      },
+      "notes": [
+        "Usar el compose standalone oficial",
+        "etcd, MinIO"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/milvusdb/milvus",
+        "https://github.com/milvus-io/milvus/blob/HEAD/deployments/docker/gpu/standalone/docker-compose.yml"
+      ]
+    },
+    "chroma-core/chroma": {
+      "kind": "service",
+      "image": "chromadb/chroma:1.5.9",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/chromadb/chroma",
+        "https://github.com/chroma-core/chroma/blob/HEAD/bin/templates/docker-compose.yml"
+      ]
+    },
+    "lancedb/lancedb": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/lancedb/lancedb"
+      ]
+    },
+    "facebookresearch/faiss": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/facebookresearch/faiss"
+      ]
+    },
+    "killbill/killbill": {
+      "kind": "service",
+      "image": "killbill/killbill:0.24.22",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {
+        "KILLBILL_DAO_URL": "",
+        "KILLBILL_DAO_USER": "",
+        "KILLBILL_DAO_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mariadb"
+        ]
+      },
+      "notes": [
+        "MariaDB o MySQL (killbill/mariadb); Kaui (killbill/kaui) como panel"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/killbill/killbill"
+      ]
+    },
+    "getlago/lago": {
+      "kind": "stack",
+      "image": "getlago/api:v1.55.0",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "API"
+        },
+        {
+          "container": 80,
+          "label": "front"
+        }
+      ],
+      "environment": {
+        "SECRET_KEY_BASE": "<secreto>",
+        "LAGO_RSA_PRIVATE_KEY": "<secreto>",
+        "LAGO_ENCRYPTION_PRIMARY_KEY": "<secreto>",
+        "POSTGRES_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Usar el docker-compose.yml oficial",
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/getlago/api",
+        "https://github.com/getlago/lago/blob/HEAD/deploy/docker-compose.light.yml"
+      ]
+    },
+    "juspay/hyperswitch": {
+      "kind": "stack",
+      "image": "juspaydotin/hyperswitch-router:v1.128.0",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Usar el docker-compose.yml oficial",
+        "Configuración en config/docker_compose.toml",
+        "claves con <secreto>",
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/juspaydotin/hyperswitch-router",
+        "https://github.com/juspay/hyperswitch/blob/HEAD/docker-compose-development.yml"
+      ]
+    },
+    "saleor/saleor": {
+      "kind": "service",
+      "image": "ghcr.io/saleor/saleor:3.23.43",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "SECRET_KEY": "<secreto>",
+        "ALLOWED_HOSTS": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Compose completo en el repositorio saleor-platform",
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/saleor/saleor"
+      ]
+    },
+    "btcpayserver/btcpayserver": {
+      "kind": "stack",
+      "image": "btcpayserver/btcpayserver:2.4.5",
+      "ports": [
+        {
+          "container": 49392
+        }
+      ],
+      "environment": {
+        "BTCPAY_POSTGRES": "<secreto>",
+        "BTCPAY_CHAINS": "btc"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "nbxplorer",
+          "bitcoind"
+        ]
+      },
+      "notes": [
+        "Despliegue oficial con btcpayserver-docker",
+        "PostgreSQL, NBXplorer, nodo Bitcoin"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/btcpayserver/btcpayserver",
+        "https://github.com/btcpayserver/btcpayserver/blob/HEAD/BTCPayServer.Tests/docker-compose.altcoins.yml"
+      ]
+    },
+    "bagisto/bagisto": {
+      "kind": "service",
+      "image": "webkul/bagisto:2.5.0",
+      "ports": [
+        {
+          "container": 80
+        }
+      ],
+      "environment": {
+        "DB_HOST": "",
+        "DB_DATABASE": "",
+        "DB_USERNAME": "",
+        "DB_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mysql"
+        ]
+      },
+      "notes": [
+        "MySQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/webkul/bagisto",
+        "https://github.com/bagisto/bagisto#readme"
+      ]
+    },
+    "vendurehq/vendure": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Es un framework: el proyecto se crea con @vendure/create y se construye su propia imagen",
+        "PostgreSQL o MySQL"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/vendurehq/vendure"
+      ]
+    },
+    "pretix/pretix": {
+      "kind": "service",
+      "image": "pretix/standalone:2026.8.0",
+      "ports": [
+        {
+          "container": 80
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Configuración en /etc/pretix/pretix.cfg",
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/pretix/standalone"
+      ]
+    },
+    "tigerbeetle/tigerbeetle": {
+      "kind": "service",
+      "image": "ghcr.io/tigerbeetle/tigerbeetle:0.17.9",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Antes de start se ejecuta el comando format"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/tigerbeetle/tigerbeetle"
+      ]
+    },
+    "ollama/ollama": {
+      "kind": "service",
+      "image": "ollama/ollama:0.40.6",
+      "ports": [
+        {
+          "container": 11434
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (GPU opcional)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/ollama/ollama"
+      ]
+    },
+    "langchain-ai/langchain": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/langchain-ai/langchain"
+      ]
+    },
+    "vllm-project/vllm": {
+      "kind": "service",
+      "image": "vllm/vllm-openai:v0.32.0",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "HF_TOKEN": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "HF_TOKEN: solo para modelos restringidos",
+        "GPU NVIDIA"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/vllm/vllm-openai"
+      ]
+    },
+    "mudler/LocalAI": {
+      "kind": "service",
+      "image": "localai/localai:v4.11.0",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (GPU opcional)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/localai/localai",
+        "https://github.com/mudler/LocalAI/blob/HEAD/docker-compose.distributed.yaml"
+      ]
+    },
+    "Mintplex-Labs/anything-llm": {
+      "kind": "service",
+      "image": "mintplexlabs/anythingllm:1.18.0",
+      "ports": [
+        {
+          "container": 3001
+        }
+      ],
+      "environment": {
+        "STORAGE_DIR": "/app/server/storage"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (usa un proveedor LLM externo u Ollama)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/mintplexlabs/anythingllm"
+      ]
+    },
+    "infiniflow/ragflow": {
+      "kind": "stack",
+      "image": "infiniflow/ragflow:v0.27.3",
+      "ports": [
+        {
+          "container": 80,
+          "label": "web"
+        },
+        {
+          "container": 9380,
+          "label": "API"
+        }
+      ],
+      "environment": {
+        "MYSQL_PASSWORD": "<secreto>",
+        "ELASTIC_PASSWORD": "<secreto>",
+        "MINIO_PASSWORD": "<secreto>",
+        "REDIS_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "elasticsearch",
+          "mysql",
+          "minio",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Usar el compose oficial de docker/",
+        "Elasticsearch o Infinity, MySQL, MinIO, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/infiniflow/ragflow",
+        "https://github.com/infiniflow/ragflow/blob/HEAD/docker/docker-compose-base.yml"
+      ]
+    },
+    "Unstructured-IO/unstructured": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "La imagen oficial sirve para ejecutar el procesamiento; no expone un servicio"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/Unstructured-IO/unstructured#readme"
+      ]
+    },
+    "docling-project/docling": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Para usarlo como servicio existe docling-serve (repositorio aparte)"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/docling-project/docling"
+      ]
+    },
+    "PostHog/posthog": {
+      "kind": "stack",
+      "image": "posthog/posthog",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "SECRET_KEY": "<secreto>",
+        "SITE_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "clickhouse",
+          "kafka",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Despliegue hobby con el script oficial; exige bastantes recursos",
+        "PostgreSQL, ClickHouse, Kafka, Redis"
+      ],
+      "review": "La imagen no publica versiones semánticas; el despliegue hobby fija un commit. Confirmar la etiqueta con el script oficial.",
+      "source": [
+        "https://hub.docker.com/r/posthog/posthog",
+        "https://github.com/PostHog/posthog/blob/HEAD/docker-compose.base.yml"
+      ]
+    },
+    "plausible/analytics": {
+      "kind": "service",
+      "image": "ghcr.io/plausible/community-edition:v3.2.1",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "BASE_URL": "",
+        "SECRET_KEY_BASE": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "clickhouse"
+        ]
+      },
+      "notes": [
+        "Compose oficial en el repositorio plausible/community-edition",
+        "PostgreSQL, ClickHouse"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/plausible/community-edition"
+      ]
+    },
+    "umami-software/umami": {
+      "kind": "service",
+      "image": "ghcr.io/umami-software/umami:3.4.0",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "APP_SECRET": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/umami-software/umami",
+        "https://github.com/umami-software/umami/blob/HEAD/docker-compose.test.yml"
+      ]
+    },
+    "apache/superset": {
+      "kind": "service",
+      "image": "apache/superset:6.1.0",
+      "ports": [
+        {
+          "container": 8088
+        }
+      ],
+      "environment": {
+        "SUPERSET_SECRET_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna en pruebas (SQLite); PostgreSQL y Redis en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/apache/superset",
+        "https://github.com/apache/superset/blob/HEAD/docker-compose-image-tag.yml"
+      ]
+    },
+    "openreplay/openreplay": {
+      "kind": "stack",
+      "image": "ghcr.io/openreplay/chalice",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres",
+          "valkey-io/valkey"
+        ],
+        "external": [
+          "minio"
+        ]
+      },
+      "notes": [
+        "Instalación oficial con scripts; revisar si conviene para la demo",
+        "Varias claves con <secreto>",
+        "PostgreSQL, Valkey, MinIO"
+      ],
+      "review": "La imagen no es pública en ghcr.io; confirmar las imágenes con el script de instalación oficial.",
+      "source": [
+        "https://ghcr.io/openreplay/chalice",
+        "https://github.com/openreplay/openreplay/blob/HEAD/scripts/docker-compose/docker-compose.yaml"
+      ]
+    },
+    "Openpanel-dev/openpanel": {
+      "kind": "stack",
+      "image": "lindesvard/openpanel-dashboard:2.3.0",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "dashboard"
+        },
+        {
+          "container": 3333,
+          "label": "API"
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "REDIS_URL": "",
+        "CLICKHOUSE_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "clickhouse",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Imágenes publicadas por el autor del proyecto; instalación con el script oficial",
+        "PostgreSQL, ClickHouse, Redis"
+      ],
+      "review": "La última etiqueta publicada (2.3.0) no coincide con la versión del repositorio (3.5.3); confirmar.",
+      "source": [
+        "https://hub.docker.com/r/lindesvard/openpanel-dashboard",
+        "https://github.com/Openpanel-dev/openpanel/blob/HEAD/self-hosting/docker-compose.template.yml"
+      ]
+    },
+    "jitsucom/jitsu": {
+      "kind": "stack",
+      "image": "jitsucom/console:2.14.0",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "consola"
+        }
+      ],
+      "environment": {
+        "CONSOLE_TOKEN": "<secreto>",
+        "DATABASE_URL": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis",
+          "kafka",
+          "clickhouse",
+          "mongodb"
+        ]
+      },
+      "notes": [
+        "Usar el compose oficial de docker/",
+        "PostgreSQL, Redis, Kafka, ClickHouse, MongoDB"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/jitsucom/console",
+        "https://github.com/jitsucom/jitsu/blob/HEAD/docker/docker-compose.yml"
+      ]
+    },
+    "meilisearch/meilisearch": {
+      "kind": "service",
+      "image": "getmeili/meilisearch:v1.55.0",
+      "ports": [
+        {
+          "container": 7700
+        }
+      ],
+      "environment": {
+        "MEILI_MASTER_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/getmeili/meilisearch",
+        "https://github.com/meilisearch/meilisearch#readme"
+      ]
+    },
+    "typesense/typesense": {
+      "kind": "service",
+      "image": "typesense/typesense:30.2",
+      "ports": [
+        {
+          "container": 8108
+        }
+      ],
+      "environment": {
+        "TYPESENSE_API_KEY": "<secreto>",
+        "TYPESENSE_DATA_DIR": "/data"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/typesense/typesense",
+        "https://github.com/typesense/typesense#readme"
+      ]
+    },
+    "manticoresoftware/manticoresearch": {
+      "kind": "service",
+      "image": "manticoresearch/manticore:29.9.0",
+      "ports": [
+        {
+          "container": 9306,
+          "label": "SQL"
+        },
+        {
+          "container": 9308,
+          "label": "HTTP"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/manticoresearch/manticore",
+        "https://github.com/manticoresoftware/manticoresearch#readme"
+      ]
+    },
+    "apache/solr": {
+      "kind": "service",
+      "image": "solr:9.11.0",
+      "ports": [
+        {
+          "container": 8983
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image",
+        "Ninguna (ZooKeeper solo en modo cloud)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/solr"
+      ]
+    },
+    "paradedb/paradedb": {
+      "kind": "service",
+      "image": "paradedb/paradedb:0.26.2",
+      "ports": [
+        {
+          "container": 5432
+        }
+      ],
+      "environment": {
+        "POSTGRES_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/paradedb/paradedb",
+        "https://github.com/paradedb/paradedb/blob/HEAD/docker/docker-compose.yml"
+      ]
+    },
+    "quickwit-oss/tantivy": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/quickwit-oss/tantivy"
+      ]
+    },
+    "seaweedfs/seaweedfs": {
+      "kind": "service",
+      "image": "chrislusf/seaweedfs:4.48",
+      "ports": [
+        {
+          "container": 9333,
+          "label": "master"
+        },
+        {
+          "container": 8080,
+          "label": "volumen"
+        },
+        {
+          "container": 8888,
+          "label": "filer"
+        },
+        {
+          "container": 8333,
+          "label": "S3"
+        }
+      ],
+      "environment": {},
+      "command": "server -s3",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Imagen publicada por el autor del proyecto"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/chrislusf/seaweedfs",
+        "https://github.com/seaweedfs/seaweedfs/blob/HEAD/docker/seaweedfs-compose.yml"
+      ]
+    },
+    "tus/tusd": {
+      "kind": "service",
+      "image": "tusproject/tusd:v2.10.1",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (S3 opcional)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/tusproject/tusd"
+      ]
+    },
+    "transloadit/uppy": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Librería de frontend; el servidor opcional Companion usa transloadit/companion"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/transloadit/uppy"
+      ]
+    },
+    "rclone/rclone": {
+      "kind": "cli",
+      "image": "rclone/rclone:1.75.2",
+      "ports": [
+        {
+          "container": 5572,
+          "label": "solo con rcd"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos; no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/rclone/rclone"
+      ]
+    },
+    "juicedata/juicefs": {
+      "kind": "cli",
+      "image": "juicedata/mount:ce-v1.4.1",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Sistema de archivos que se monta; no es un servicio web; no entra como servicio del compose",
+        "Motor de metadatos (por ejemplo, Redis) y almacenamiento de objetos"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/juicedata/mount"
+      ]
+    },
+    "nats-io/nats-server": {
+      "kind": "service",
+      "image": "nats:2.15.1",
+      "ports": [
+        {
+          "container": 4222,
+          "label": "clientes"
+        },
+        {
+          "container": 8222,
+          "label": "monitoreo"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/nats"
+      ]
+    },
+    "taskforcesh/bullmq": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/taskforcesh/bullmq"
+      ]
+    },
+    "centrifugal/centrifugo": {
+      "kind": "service",
+      "image": "centrifugo/centrifugo:v6.10.0",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Configuración en config.json (se genera con centrifugo genconfig)",
+        "Ninguna (Redis opcional para escalar)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/centrifugo/centrifugo",
+        "https://github.com/centrifugal/centrifugo#readme"
+      ]
+    },
+    "nsqio/nsq": {
+      "kind": "service",
+      "image": "nsqio/nsq:v1.3.0",
+      "ports": [
+        {
+          "container": 4150
+        },
+        {
+          "container": 4151,
+          "label": "nsqd"
+        },
+        {
+          "container": 4160
+        },
+        {
+          "container": 4161,
+          "label": "nsqlookupd"
+        },
+        {
+          "container": 4171,
+          "label": "nsqadmin"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "nsqlookupd (misma imagen)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/nsqio/nsq"
+      ]
+    },
+    "apache/artemis": {
+      "kind": "service",
+      "image": "apache/activemq-artemis:2.44.0",
+      "ports": [
+        {
+          "container": 61616
+        },
+        {
+          "container": 8161,
+          "label": "consola"
+        }
+      ],
+      "environment": {
+        "ARTEMIS_USER": "",
+        "ARTEMIS_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/apache/activemq-artemis"
+      ]
+    },
+    "novuhq/novu": {
+      "kind": "stack",
+      "image": "ghcr.io/novuhq/novu/api:3.19.0",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "API"
+        },
+        {
+          "container": 4000,
+          "label": "dashboard"
+        },
+        {
+          "container": 3002,
+          "label": "WebSocket"
+        }
+      ],
+      "environment": {
+        "JWT_SECRET": "<secreto>",
+        "STORE_ENCRYPTION_KEY": "<secreto>",
+        "NOVU_SECRET_KEY": "<secreto>",
+        "MONGO_URL": "",
+        "REDIS_HOST": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mongodb",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Usar el compose oficial de docker/",
+        "MongoDB, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/novuhq/novu/api",
+        "https://github.com/novuhq/novu/blob/HEAD/docker/community/docker-compose.yml"
+      ]
+    },
+    "knadh/listmonk": {
+      "kind": "service",
+      "image": "listmonk/listmonk:v6.2.0",
+      "ports": [
+        {
+          "container": 9000
+        }
+      ],
+      "environment": {
+        "LISTMONK_db__host": "",
+        "LISTMONK_db__user": "",
+        "LISTMONK_db__password": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/listmonk/listmonk",
+        "https://github.com/knadh/listmonk/blob/HEAD/docker-compose.yml"
+      ]
+    },
+    "zulip/zulip": {
+      "kind": "stack",
+      "image": "ghcr.io/zulip/zulip-server:12.3-0",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {
+        "SETTING_EXTERNAL_HOST": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "memcached",
+          "rabbitmq",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Compose oficial en el repositorio docker-zulip",
+        "SECRETS_postgres_password=<secreto>",
+        "SECRETS_rabbitmq_password=<secreto>",
+        "PostgreSQL, Memcached, RabbitMQ, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/zulip/zulip-server"
+      ]
+    },
+    "caronc/apprise": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Para usarlo como servicio existe apprise-api (caronc/apprise, repositorio aparte)"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/caronc/apprise"
+      ]
+    },
+    "chatwoot/chatwoot": {
+      "kind": "service",
+      "image": "chatwoot/chatwoot:v4.18.0",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "SECRET_KEY_BASE": "<secreto>",
+        "POSTGRES_HOST": "",
+        "POSTGRES_PASSWORD": "<secreto>",
+        "REDIS_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "PostgreSQL (con pgvector), Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/chatwoot/chatwoot",
+        "https://github.com/chatwoot/chatwoot/blob/HEAD/docker-compose.production.yaml"
+      ]
+    },
+    "discourse/discourse": {
+      "kind": "stack",
+      "image": "discourse/base",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {
+        "DISCOURSE_HOSTNAME": "",
+        "DISCOURSE_DEVELOPER_EMAILS": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Instalación oficial con el launcher de discourse_docker, no con compose",
+        "DISCOURSE_SMTP_*",
+        "Incluidas (PostgreSQL y Redis dentro del contenedor)"
+      ],
+      "review": "La versión la gestiona el launcher de discourse_docker.",
+      "source": [
+        "https://hub.docker.com/r/discourse/base"
+      ]
+    },
+    "mastodon/mastodon": {
+      "kind": "service",
+      "image": "ghcr.io/mastodon/mastodon:v4.7.3",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "web"
+        },
+        {
+          "container": 4000,
+          "label": "streaming"
+        }
+      ],
+      "environment": {
+        "LOCAL_DOMAIN": "",
+        "SECRET_KEY_BASE": "<secreto>",
+        "DB_PASS": "<secreto>",
+        "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/mastodon/mastodon",
+        "https://github.com/mastodon/mastodon/blob/HEAD/docker-compose.yml"
+      ]
+    },
+    "triggerdotdev/trigger.dev": {
+      "kind": "stack",
+      "image": "ghcr.io/triggerdotdev/trigger.dev:v4.7.4",
+      "ports": [
+        {
+          "container": 8030,
+          "label": "webapp"
+        }
+      ],
+      "environment": {
+        "SESSION_SECRET": "<secreto>",
+        "MAGIC_LINK_SECRET": "<secreto>",
+        "ENCRYPTION_KEY": "<secreto>",
+        "DATABASE_URL": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis",
+          "clickhouse",
+          "registro de imágenes"
+        ]
+      },
+      "notes": [
+        "Usar el compose oficial de hosting/docker",
+        "PostgreSQL, Redis, ClickHouse, registro de imágenes"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/triggerdotdev/trigger.dev",
+        "https://github.com/triggerdotdev/trigger.dev/blob/HEAD/hosting/docker/webapp/docker-compose.yml"
+      ]
+    },
+    "apache/airflow": {
+      "kind": "stack",
+      "image": "apache/airflow:3.3.2",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {
+        "AIRFLOW__CORE__FERNET_KEY": "<secreto>",
+        "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Usar el docker-compose.yaml oficial de la documentación",
+        "PostgreSQL, Redis (CeleryExecutor)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/apache/airflow",
+        "https://github.com/apache/airflow/blob/HEAD/airflow-core/docs/howto/docker-compose/docker-compose.yaml"
+      ]
+    },
+    "PrefectHQ/prefect": {
+      "kind": "service",
+      "image": "prefecthq/prefect:3.8.8-python3.12",
+      "ports": [
+        {
+          "container": 4200
+        }
+      ],
+      "environment": {},
+      "command": "prefect server start --host 0.0.0.0",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (SQLite); PostgreSQL en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/prefecthq/prefect"
+      ]
+    },
+    "kestra-io/kestra": {
+      "kind": "service",
+      "image": "kestra/kestra:v2.0.6",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": "server standalone",
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL (o H2 en modo local)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/kestra/kestra",
+        "https://github.com/kestra-io/kestra/blob/HEAD/docker-compose-dind.yml"
+      ]
+    },
+    "hatchet-dev/hatchet": {
+      "kind": "service",
+      "image": "ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5",
+      "ports": [
+        {
+          "container": 8888,
+          "label": "UI"
+        },
+        {
+          "container": 7077,
+          "label": "gRPC"
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/hatchet-dev/hatchet/hatchet-lite",
+        "https://github.com/hatchet-dev/hatchet/blob/HEAD/docker-compose.release.yml"
+      ]
+    },
+    "grafana/grafana": {
+      "kind": "service",
+      "image": "grafana/grafana:13.2.4",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "GF_SECURITY_ADMIN_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (fuente de datos, por ejemplo Prometheus)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/grafana/grafana",
+        "https://github.com/grafana/grafana/blob/HEAD/devenv/docker/ha_test/docker-compose.yaml"
+      ]
+    },
+    "prometheus/prometheus": {
+      "kind": "service",
+      "image": "prom/prometheus:v3.15.0",
+      "ports": [
+        {
+          "container": 9090
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Configuración en prometheus.yml"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/prom/prometheus",
+        "https://github.com/prometheus/prometheus#readme"
+      ]
+    },
+    "louislam/uptime-kuma": {
+      "kind": "service",
+      "image": "louislam/uptime-kuma:2.5.6",
+      "ports": [
+        {
+          "container": 3001
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/louislam/uptime-kuma",
+        "https://github.com/louislam/uptime-kuma/blob/HEAD/compose.yaml"
+      ]
+    },
+    "netdata/netdata": {
+      "kind": "service",
+      "image": "netdata/netdata:v2.12.1",
+      "ports": [
+        {
+          "container": 19999
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Requiere montar /proc y /sys del host y cap_add SYS_PTRACE"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/netdata/netdata"
+      ]
+    },
+    "coroot/coroot": {
+      "kind": "stack",
+      "image": "ghcr.io/coroot/coroot:1.27.4",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Usar el compose oficial",
+        "Prometheus, ClickHouse, coroot-node-agent"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/coroot/coroot",
+        "https://github.com/coroot/coroot/blob/HEAD/deploy/docker-compose.yaml"
+      ]
+    },
+    "healthchecks/healthchecks": {
+      "kind": "service",
+      "image": "healthchecks/healthchecks:v4.4",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "SECRET_KEY": "<secreto>",
+        "SITE_ROOT": "",
+        "DB": "postgres",
+        "DB_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL (o SQLite)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/healthchecks/healthchecks"
+      ]
+    },
+    "strapi/strapi": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 1337
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Sin imagen oficial vigente: el proyecto se crea con create-strapi y se construye su propia imagen",
+        "PostgreSQL, MySQL o SQLite"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/strapi/strapi"
+      ]
+    },
+    "payloadcms/payload": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "mongodb"
+        ]
+      },
+      "notes": [
+        "Es un framework sobre Next.js: las plantillas traen su Dockerfile para construir la imagen",
+        "MongoDB o PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/payloadcms/payload"
+      ]
+    },
+    "TryGhost/Ghost": {
+      "kind": "service",
+      "image": "ghost:6.71.0",
+      "ports": [
+        {
+          "container": 2368
+        }
+      ],
+      "environment": {
+        "url": "",
+        "database__client": "mysql",
+        "database__connection__host": "",
+        "database__connection__password": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Docker Official Image",
+        "MySQL 8"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/ghost",
+        "https://github.com/TryGhost/Ghost/blob/HEAD/compose.dev.analytics.yaml"
+      ]
+    },
+    "keystonejs/keystone": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Es un framework: se construye una imagen propia",
+        "PostgreSQL o SQLite"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/keystonejs/keystone"
+      ]
+    },
+    "BookStackApp/BookStack": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mariadb",
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Sin imagen oficial: la documentada es de LinuxServer.io (comunitaria)",
+        "MySQL o MariaDB"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/BookStackApp/BookStack"
+      ]
+    },
+    "Unleash/unleash": {
+      "kind": "service",
+      "image": "unleashorg/unleash-server:8.2.0",
+      "ports": [
+        {
+          "container": 4242
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/unleashorg/unleash-server",
+        "https://github.com/Unleash/unleash/blob/HEAD/docker-compose-enterprise.yml"
+      ]
+    },
+    "Flagsmith/flagsmith": {
+      "kind": "service",
+      "image": "flagsmith/flagsmith:2.286.0",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "DJANGO_SECRET_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/flagsmith/flagsmith",
+        "https://github.com/Flagsmith/flagsmith/blob/HEAD/docker-compose.flags-only.yml"
+      ]
+    },
+    "open-feature/flagd": {
+      "kind": "service",
+      "image": "ghcr.io/open-feature/flagd:v0.18.2",
+      "ports": [
+        {
+          "container": 8013
+        }
+      ],
+      "environment": {},
+      "command": "start --uri file:/etc/flagd/flags.json",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Las banderas se montan como archivo"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/open-feature/flagd",
+        "https://github.com/open-feature/flagd#readme"
+      ]
+    },
+    "featbit/featbit": {
+      "kind": "stack",
+      "image": "featbit/featbit-ui:6.0.1",
+      "ports": [
+        {
+          "container": 8081,
+          "label": "UI"
+        },
+        {
+          "container": 5000,
+          "label": "API"
+        },
+        {
+          "container": 5100,
+          "label": "evaluación"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Usar el compose oficial",
+        "Cadenas de conexión con <secreto>",
+        "PostgreSQL (o MongoDB y Redis)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/featbit/featbit-ui",
+        "https://github.com/featbit/featbit/blob/HEAD/docker-compose-mongodb.yml"
+      ]
+    },
+    "openflagr/flagr": {
+      "kind": "service",
+      "image": "ghcr.io/openflagr/flagr:1.2.4",
+      "ports": [
+        {
+          "container": 18000
+        }
+      ],
+      "environment": {
+        "FLAGR_DB_DBDRIVER": "sqlite3"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (SQLite); MySQL o PostgreSQL en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/openflagr/flagr",
+        "https://github.com/openflagr/flagr/blob/HEAD/integration_tests/docker-compose.yml"
+      ]
+    },
+    "apache/apisix": {
+      "kind": "service",
+      "image": "apache/apisix:3.19.0-debian",
+      "ports": [
+        {
+          "container": 9080,
+          "label": "proxy"
+        },
+        {
+          "container": 9180,
+          "label": "admin"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "etcd"
+        ]
+      },
+      "notes": [
+        "Compose oficial en el repositorio apisix-docker",
+        "Clave de admin en config.yaml (<secreto>)",
+        "etcd"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/apache/apisix"
+      ]
+    },
+    "traefik/traefik": {
+      "kind": "service",
+      "image": "traefik:v3.7.15",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 8080,
+          "label": "dashboard"
+        }
+      ],
+      "environment": {},
+      "command": "--providers.docker --api.insecure=true (solo en pruebas)",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/traefik",
+        "https://github.com/traefik/traefik/blob/HEAD/docs/content/user-guides/docker-compose/acme-dns/docker-compose.yml"
+      ]
+    },
+    "caddyserver/caddy": {
+      "kind": "service",
+      "image": "caddy:2.11.7",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image",
+        "Configuración en Caddyfile"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/caddy"
+      ]
+    },
+    "envoyproxy/envoy": {
+      "kind": "service",
+      "image": "envoyproxy/envoy:v1.40.0",
+      "ports": [
+        {
+          "container": 10000,
+          "label": "listener de ejemplo"
+        },
+        {
+          "container": 9901,
+          "label": "admin"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Configuración en envoy.yaml"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/envoyproxy/envoy",
+        "https://github.com/envoyproxy/envoy/blob/HEAD/ci/docker-compose.yml"
+      ]
+    },
+    "krakend/krakend-ce": {
+      "kind": "service",
+      "image": "krakend:3.0.1",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image",
+        "Configuración en krakend.json"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/krakend",
+        "https://github.com/krakend/krakend-ce#readme"
+      ]
+    },
+    "coollabsio/coolify": {
+      "kind": "stack",
+      "image": "ghcr.io/coollabsio/coolify:4.4.6",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis",
+          "soketi"
+        ]
+      },
+      "notes": [
+        "Instalación oficial con script en un servidor dedicado",
+        "Las genera el script de instalación",
+        "PostgreSQL, Redis, Soketi"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/coollabsio/coolify",
+        "https://github.com/coollabsio/coolify/blob/HEAD/docker-compose-maxio.dev.yml"
+      ]
+    },
+    "dokku/dokku": {
+      "kind": "stack",
+      "image": "dokku/dokku:0.38.31",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        },
+        {
+          "container": 22,
+          "label": "SSH"
+        }
+      ],
+      "environment": {
+        "DOKKU_HOSTNAME": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se instala en un servidor dedicado; no es para un compose de arranque",
+        "Docker del host"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/dokku/dokku"
+      ]
+    },
+    "k3s-io/k3s": {
+      "kind": "kubernetes",
+      "image": "rancher/k3s:v1.37.1-k3s1",
+      "ports": [
+        {
+          "container": 6443
+        }
+      ],
+      "environment": {
+        "K3S_TOKEN": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Distribución de Kubernetes; contenedor privilegiado"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/rancher/k3s"
+      ]
+    },
+    "rancher/rancher": {
+      "kind": "kubernetes",
+      "image": "rancher/rancher:v2.15.2",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {
+        "CATTLE_BOOTSTRAP_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Contenedor privilegiado; administra clústeres Kubernetes"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/rancher/rancher",
+        "https://github.com/rancher/rancher#readme"
+      ]
+    },
+    "argoproj/argo-cd": {
+      "kind": "kubernetes",
+      "image": "quay.io/argoproj/argocd:v3.5.5",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se instala con los manifiestos oficiales en Kubernetes, no con compose",
+        "Clúster Kubernetes"
+      ],
+      "review": null,
+      "source": [
+        "https://quay.io/repository/argoproj/argocd"
+      ]
+    },
+    "kubero-dev/kubero": {
+      "kind": "kubernetes",
+      "image": "ghcr.io/kubero-dev/kubero/kubero:v3.1.1",
+      "ports": [
+        {
+          "container": 2000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se instala en Kubernetes con su CLI",
+        "Clúster Kubernetes"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/kubero-dev/kubero/kubero",
+        "https://github.com/kubero-dev/kubero/blob/HEAD/docker-compose.kind.yaml"
+      ]
+    },
+    "hoppscotch/hoppscotch": {
+      "kind": "service",
+      "image": "hoppscotch/hoppscotch:2026.9.0",
+      "ports": [
+        {
+          "container": 3000,
+          "label": "app"
+        },
+        {
+          "container": 3100,
+          "label": "admin"
+        },
+        {
+          "container": 3170,
+          "label": "backend"
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "JWT_SECRET": "<secreto>",
+        "SESSION_SECRET": "<secreto>",
+        "DATA_ENCRYPTION_KEY": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Imagen todo en uno (AIO)",
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/hoppscotch/hoppscotch"
+      ]
+    },
+    "swagger-api/swagger-ui": {
+      "kind": "service",
+      "image": "swaggerapi/swagger-ui:v5.34.0",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {
+        "SWAGGER_JSON_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "SWAGGER_JSON_URL: o URL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/swaggerapi/swagger-ui"
+      ]
+    },
+    "Kong/insomnia": {
+      "kind": "desktop",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Aplicación de escritorio; no se despliega en Docker"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/Kong/insomnia"
+      ]
+    },
+    "mockoon/mockoon": {
+      "kind": "cli",
+      "image": "mockoon/cli:9.9.0",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {},
+      "command": "--data /data/mock.json",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "CLI que sirve el mock; no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/mockoon/cli"
+      ]
+    },
+    "OpenAPITools/openapi-generator": {
+      "kind": "cli",
+      "image": "openapitools/openapi-generator-cli:v7.26.0",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en el build o en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/openapitools/openapi-generator-cli",
+        "https://github.com/OpenAPITools/openapi-generator#readme"
+      ]
+    },
+    "calcom/cal.diy": {
+      "kind": "service",
+      "image": "calcom/cal.com:v6.2.0",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "DATABASE_URL": "<secreto>",
+        "NEXTAUTH_SECRET": "<secreto>",
+        "CALENDSO_ENCRYPTION_KEY": "<secreto>",
+        "NEXT_PUBLIC_WEBAPP_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "PostgreSQL"
+      ],
+      "review": "La imagen calcom/cal.diy no está en Docker Hub; existe calcom/cal.com:v6.2.0. Confirmar el nombre con el compose del repositorio.",
+      "source": [
+        "https://hub.docker.com/r/calcom/cal.com",
+        "https://github.com/calcom/cal.diy/blob/HEAD/docker-compose.yml"
+      ]
+    },
+    "documenso/documenso": {
+      "kind": "service",
+      "image": "documenso/documenso:v2.21.0",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "NEXTAUTH_SECRET": "<secreto>",
+        "NEXT_PRIVATE_ENCRYPTION_KEY": "<secreto>",
+        "NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY": "<secreto>",
+        "NEXT_PRIVATE_DATABASE_URL": "<secreto>",
+        "NEXT_PUBLIC_WEBAPP_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Requiere un certificado para firmar (.p12)",
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/documenso/documenso",
+        "https://github.com/documenso/documenso/blob/HEAD/docker/production/compose.yml"
+      ]
+    },
+    "makeplane/plane": {
+      "kind": "stack",
+      "image": "makeplane/plane-frontend:v1.4.2",
+      "ports": [
+        {
+          "container": 80
+        }
+      ],
+      "environment": {
+        "SECRET_KEY": "<secreto>",
+        "POSTGRES_PASSWORD": "<secreto>",
+        "RABBITMQ_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis",
+          "rabbitmq",
+          "minio"
+        ]
+      },
+      "notes": [
+        "Instalación oficial con el script setup.sh",
+        "PostgreSQL, Valkey o Redis, RabbitMQ, MinIO"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/makeplane/plane-frontend",
+        "https://github.com/makeplane/plane/blob/HEAD/deployments/cli/community/docker-compose.yml"
+      ]
+    },
+    "odoo/odoo": {
+      "kind": "service",
+      "image": "odoo:19.0",
+      "ports": [
+        {
+          "container": 8069
+        }
+      ],
+      "environment": {
+        "HOST": "",
+        "USER": "",
+        "PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image",
+        "PostgreSQL"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/odoo"
+      ]
+    },
+    "paperless-ngx/paperless-ngx": {
+      "kind": "service",
+      "image": "ghcr.io/paperless-ngx/paperless-ngx:3.3.3",
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {
+        "PAPERLESS_REDIS": "",
+        "PAPERLESS_SECRET_KEY": "<secreto>",
+        "PAPERLESS_DBHOST": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "Redis; PostgreSQL opcional (SQLite por defecto)"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/paperless-ngx/paperless-ngx",
+        "https://github.com/paperless-ngx/paperless-ngx/blob/HEAD/docker/compose/docker-compose.mariadb-tika.yml"
+      ]
+    },
+    "frappe/hrms": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mariadb",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Sin imagen lista: se construye con frappe_docker agregando la app hrms",
+        "MariaDB, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/frappe/hrms/blob/HEAD/docker/docker-compose.yml"
+      ]
+    },
+    "Qloapps/QloApps": {
+      "kind": "service",
+      "image": "webkul/qloapps_docker:1.6.1",
+      "ports": [
+        {
+          "container": 80
+        }
+      ],
+      "environment": {
+        "MYSQL_ROOT_PASSWORD": "<secreto>",
+        "MYSQL_DATABASE": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Imagen publicada por Webkul, la organización del proyecto",
+        "MySQL (incluido en la imagen)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/webkul/qloapps_docker",
+        "https://github.com/Qloapps/QloApps#readme"
+      ]
+    },
+    "appsmithorg/appsmith": {
+      "kind": "service",
+      "image": "appsmith/appsmith-ce:v2.5.0",
+      "ports": [
+        {
+          "container": 80
+        },
+        {
+          "container": 443
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (la imagen incluye MongoDB y Redis)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/appsmith/appsmith-ce",
+        "https://github.com/appsmithorg/appsmith/blob/HEAD/deploy/aws_ami/docker-compose.yml"
+      ]
+    },
+    "ToolJet/ToolJet": {
+      "kind": "service",
+      "image": "tooljet/tooljet-ce:v3.20.246-lts",
+      "ports": [
+        {
+          "container": 80
+        }
+      ],
+      "environment": {
+        "TOOLJET_HOST": "",
+        "LOCKBOX_MASTER_KEY": "<secreto>",
+        "SECRET_KEY_BASE": "<secreto>",
+        "PG_HOST": "",
+        "PG_PASS": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/tooljet/tooljet-ce",
+        "https://github.com/ToolJet/ToolJet/blob/HEAD/deploy/docker/docker-compose-db.yaml"
+      ]
+    },
+    "refinedev/refine": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/refinedev/refine"
+      ]
+    },
+    "marmelab/react-admin": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/marmelab/react-admin"
+      ]
+    },
+    "lowcoder-org/lowcoder": {
+      "kind": "service",
+      "image": "lowcoderorg/lowcoder-ce:2.7.6",
+      "ports": [
+        {
+          "container": 3000
+        }
+      ],
+      "environment": {
+        "LOWCODER_DB_ENCRYPTION_PASSWORD": "<secreto>",
+        "LOWCODER_DB_ENCRYPTION_SALT": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (la imagen todo en uno incluye MongoDB y Redis)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/lowcoderorg/lowcoder-ce",
+        "https://github.com/lowcoder-org/lowcoder/blob/HEAD/deploy/docker/docker-compose-multi.yaml"
+      ]
+    },
+    "trufflesecurity/trufflehog": {
+      "kind": "cli",
+      "image": "trufflesecurity/trufflehog:3.99.3",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/trufflesecurity/trufflehog",
+        "https://github.com/trufflesecurity/trufflehog#readme"
+      ]
+    },
+    "aquasecurity/trivy": {
+      "kind": "cli",
+      "image": "aquasec/trivy:0.76.0",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/aquasec/trivy",
+        "https://github.com/aquasecurity/trivy#readme"
+      ]
+    },
+    "gitleaks/gitleaks": {
+      "kind": "cli",
+      "image": "ghcr.io/gitleaks/gitleaks:v8.30.1",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/gitleaks/gitleaks",
+        "https://github.com/gitleaks/gitleaks#readme"
+      ]
+    },
+    "zaproxy/zaproxy": {
+      "kind": "cli",
+      "image": "ghcr.io/zaproxy/zaproxy:2.17.0",
+      "ports": [
+        {
+          "container": 8080,
+          "label": "solo en modo daemon"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se usa en pruebas de seguridad o en CI; no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/zaproxy/zaproxy"
+      ]
+    },
+    "semgrep/semgrep": {
+      "kind": "cli",
+      "image": "semgrep/semgrep:1.181.0",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/semgrep/semgrep",
+        "https://github.com/semgrep/semgrep#readme"
+      ]
+    },
+    "anchore/grype": {
+      "kind": "cli",
+      "image": "anchore/grype:v0.120.1",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (se usa en CI); no entra como servicio del compose"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/anchore/grype"
+      ]
+    },
+    "openbao/openbao": {
+      "kind": "service",
+      "image": "quay.io/openbao/openbao:2.7.1",
+      "ports": [
+        {
+          "container": 8200
+        }
+      ],
+      "environment": {
+        "BAO_DEV_ROOT_TOKEN_ID": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "BAO_DEV_ROOT_TOKEN_ID: solo en modo dev",
+        "Ninguna en modo dev"
+      ],
+      "review": null,
+      "source": [
+        "https://quay.io/repository/openbao/openbao"
+      ]
+    },
+    "mui/material-ui": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/mui/material-ui"
+      ]
+    },
+    "chakra-ui/chakra-ui": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/chakra-ui/chakra-ui"
+      ]
+    },
+    "ant-design/ant-design": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/ant-design/ant-design"
+      ]
+    },
+    "recharts/recharts": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/recharts/recharts"
+      ]
+    },
+    "apache/echarts": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/apache/echarts"
+      ]
+    },
+    "Project-OSRM/osrm-backend": {
+      "kind": "service",
+      "image": "ghcr.io/project-osrm/osrm-backend:26.4.0",
+      "ports": [
+        {
+          "container": 5000
+        }
+      ],
+      "environment": {},
+      "command": "osrm-routed --algorithm mld /data/mapa.osrm",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Antes hay que preprocesar un mapa de OpenStreetMap (osrm-extract)"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/project-osrm/osrm-backend",
+        "https://github.com/Project-OSRM/osrm-backend#readme"
+      ]
+    },
+    "graphhopper/graphhopper": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 8989
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Sin imagen oficial: se ejecuta como .jar con un mapa de OpenStreetMap"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/graphhopper/graphhopper"
+      ]
+    },
+    "google/or-tools": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/google/or-tools"
+      ]
+    },
+    "osm-search/Nominatim": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgis/postgis"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Sin imagen oficial: la habitual es mediagis/nominatim (comunitaria)",
+        "PostgreSQL con PostGIS"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/osm-search/Nominatim"
+      ]
+    },
+    "postgis/postgis": {
+      "kind": "service",
+      "image": "postgis/postgis:17-3.5",
+      "ports": [
+        {
+          "container": 5432
+        }
+      ],
+      "environment": {
+        "POSTGRES_PASSWORD": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/postgis/postgis",
+        "https://github.com/postgis/postgis#readme"
+      ]
+    },
+    "traccar/traccar": {
+      "kind": "service",
+      "image": "traccar/traccar:6.16.0",
+      "ports": [
+        {
+          "container": 8082,
+          "label": "web"
+        },
+        {
+          "container": 5000,
+          "range_end": 5150,
+          "label": "dispositivos"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Ninguna (H2); MySQL o PostgreSQL en producción"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/traccar/traccar"
+      ]
+    },
+    "openboxes/openboxes": {
+      "kind": "service",
+      "image": "ghcr.io/openboxes/openboxes:v0.9.8",
+      "ports": [
+        {
+          "container": 8080
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Revisar el compose del repositorio",
+        "Conexión a MySQL con <secreto>",
+        "MySQL"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/openboxes/openboxes",
+        "https://github.com/openboxes/openboxes/blob/HEAD/docker/docker-compose-base.yml"
+      ]
+    },
+    "maplibre/maplibre-gl-js": {
+      "kind": "library",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://github.com/maplibre/maplibre-gl-js"
+      ]
+    },
+    "jitsi/jitsi-meet": {
+      "kind": "stack",
+      "image": "jitsi/web:stable-11031",
+      "ports": [
+        {
+          "container": 8443,
+          "label": "HTTPS"
+        },
+        {
+          "container": 8000,
+          "label": "HTTP"
+        },
+        {
+          "container": 10000,
+          "protocol": "udp",
+          "label": "media"
+        }
+      ],
+      "environment": {
+        "JICOFO_AUTH_PASSWORD": "<secreto>",
+        "JVB_AUTH_PASSWORD": "<secreto>",
+        "PUBLIC_URL": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Compose oficial en el repositorio docker-jitsi-meet",
+        "Incluidas en el stack (Prosody, Jicofo, JVB)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/jitsi/web"
+      ]
+    },
+    "livekit/livekit": {
+      "kind": "service",
+      "image": "livekit/livekit-server:v1.13.10",
+      "ports": [
+        {
+          "container": 7880,
+          "label": "HTTP y WebSocket"
+        },
+        {
+          "container": 7881,
+          "label": "TCP"
+        },
+        {
+          "container": 7882,
+          "protocol": "udp"
+        }
+      ],
+      "environment": {
+        "LIVEKIT_KEYS": "<secreto>"
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "LIVEKIT_KEYS: o comando --dev en pruebas",
+        "Ninguna (Redis para varios nodos)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/livekit/livekit-server"
+      ]
+    },
+    "Chocobozzz/PeerTube": {
+      "kind": "service",
+      "image": "chocobozzz/peertube:v8.3.1",
+      "ports": [
+        {
+          "container": 9000
+        }
+      ],
+      "environment": {
+        "PEERTUBE_SECRET": "<secreto>",
+        "PEERTUBE_DB_HOSTNAME": "",
+        "PEERTUBE_DB_PASSWORD": "<secreto>",
+        "PEERTUBE_WEBSERVER_HOSTNAME": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": [
+          "redis"
+        ]
+      },
+      "notes": [
+        "PostgreSQL, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/chocobozzz/peertube",
+        "https://github.com/Chocobozzz/PeerTube/blob/HEAD/support/docker/production/docker-compose.yml"
+      ]
+    },
+    "owncast/owncast": {
+      "kind": "service",
+      "image": "owncast/owncast:0.3.0",
+      "ports": [
+        {
+          "container": 8080,
+          "label": "web"
+        },
+        {
+          "container": 1935,
+          "label": "RTMP"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/owncast/owncast"
+      ]
+    },
+    "bluenviron/mediamtx": {
+      "kind": "service",
+      "image": "bluenviron/mediamtx:1.21.2",
+      "ports": [
+        {
+          "container": 8554,
+          "label": "RTSP"
+        },
+        {
+          "container": 1935,
+          "label": "RTMP"
+        },
+        {
+          "container": 8888,
+          "label": "HLS"
+        },
+        {
+          "container": 8889,
+          "label": "WebRTC"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/bluenviron/mediamtx"
+      ]
+    },
+    "ossrs/srs": {
+      "kind": "service",
+      "image": "ossrs/srs:v6.0-r2",
+      "ports": [
+        {
+          "container": 1935,
+          "label": "RTMP"
+        },
+        {
+          "container": 1985,
+          "label": "API"
+        },
+        {
+          "container": 8080,
+          "label": "HTTP"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/ossrs/srs",
+        "https://github.com/ossrs/srs#readme"
+      ]
+    },
+    "openedx/openedx-platform": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se despliega con Tutor (overhangio/tutor), que genera el compose"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/openedx/openedx-platform"
+      ]
+    },
+    "frappe/lms": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [
+        {
+          "container": 8000
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mariadb",
+          "redis"
+        ]
+      },
+      "notes": [
+        "Sin imagen lista: se construye con frappe_docker agregando la app lms",
+        "MariaDB, Redis"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/frappe/lms/blob/HEAD/docker/docker-compose.yml"
+      ]
+    },
+    "classroomio/classroomio": {
+      "kind": "stack",
+      "image": "classroomio/dashboard:1.0.0",
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "supabase/supabase"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Revisar el compose del repositorio",
+        "Claves de Supabase con <secreto>",
+        "Supabase (PostgreSQL)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/classroomio/dashboard",
+        "https://github.com/classroomio/classroomio/blob/HEAD/docker-compose.images.yaml"
+      ]
+    },
+    "chamilo/chamilo-lms": {
+      "kind": "no_official_image",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": [
+          "mariadb",
+          "mysql"
+        ]
+      },
+      "notes": [
+        "Sin imagen oficial",
+        "MySQL o MariaDB"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/chamilo/chamilo-lms"
+      ]
+    },
+    "overhangio/tutor": {
+      "kind": "cli",
+      "image": null,
+      "ports": [],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Herramienta de línea de comandos (pip install tutor) que genera el compose de Open edX; no entra como servicio del compose",
+        "Docker en el host"
+      ],
+      "review": null,
+      "source": [
+        "https://github.com/overhangio/tutor"
+      ]
+    },
+    "influxdata/influxdb": {
+      "kind": "service",
+      "image": "influxdb:3.12.1-core",
+      "ports": [
+        {
+          "container": 8181
+        }
+      ],
+      "environment": {},
+      "command": "influxdb3 serve --node-id node0 --object-store file; token de admin con <secreto>",
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image (InfluxDB 3 Core)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/influxdb"
+      ]
+    },
+    "eclipse-mosquitto/mosquitto": {
+      "kind": "service",
+      "image": "eclipse-mosquitto:2.1.2-alpine",
+      "ports": [
+        {
+          "container": 1883,
+          "label": "MQTT"
+        },
+        {
+          "container": 9001,
+          "label": "WebSocket"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Docker Official Image",
+        "Configuración en mosquitto.conf"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/_/eclipse-mosquitto",
+        "https://github.com/eclipse-mosquitto/mosquitto#readme"
+      ]
+    },
+    "home-assistant/core": {
+      "kind": "service",
+      "image": "ghcr.io/home-assistant/home-assistant:2026.10.2",
+      "ports": [
+        {
+          "container": 8123
+        }
+      ],
+      "environment": {
+        "TZ": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [
+        "Se recomienda network_mode: host"
+      ],
+      "review": null,
+      "source": [
+        "https://ghcr.io/home-assistant/home-assistant"
+      ]
+    },
+    "Koenkk/zigbee2mqtt": {
+      "kind": "service",
+      "image": "koenkk/zigbee2mqtt:2.14.2",
+      "ports": [
+        {
+          "container": 8080,
+          "label": "frontend"
+        }
+      ],
+      "environment": {
+        "TZ": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "eclipse-mosquitto/mosquitto"
+        ],
+        "external": [
+          "adaptador Zigbee"
+        ]
+      },
+      "notes": [
+        "Broker MQTT (por ejemplo, Mosquitto) y un adaptador Zigbee"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/koenkk/zigbee2mqtt"
+      ]
+    },
+    "nanomq/nanomq": {
+      "kind": "service",
+      "image": "emqx/nanomq:0.25.6",
+      "ports": [
+        {
+          "container": 1883,
+          "label": "MQTT"
+        },
+        {
+          "container": 8083,
+          "label": "WebSocket"
+        },
+        {
+          "container": 8081,
+          "label": "HTTP"
+        }
+      ],
+      "environment": {},
+      "command": null,
+      "depends_on": {
+        "catalog": [],
+        "external": []
+      },
+      "notes": [],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/emqx/nanomq",
+        "https://github.com/nanomq/nanomq#readme"
+      ]
+    },
+    "openremote/core": {
+      "kind": "stack",
+      "image": "openremote/manager:1.32.1",
+      "ports": [
+        {
+          "container": 443
+        },
+        {
+          "container": 80
+        }
+      ],
+      "environment": {
+        "OR_ADMIN_PASSWORD": "<secreto>",
+        "OR_HOSTNAME": ""
+      },
+      "command": null,
+      "depends_on": {
+        "catalog": [
+          "postgres/postgres"
+        ],
+        "external": []
+      },
+      "notes": [
+        "Usar el compose oficial",
+        "Incluidas en el stack (Keycloak, PostgreSQL, proxy)"
+      ],
+      "review": null,
+      "source": [
+        "https://hub.docker.com/r/openremote/manager",
+        "https://github.com/openremote/core/blob/HEAD/balena/docker-compose.yml"
+      ]
+    }
+  }
+}
+
