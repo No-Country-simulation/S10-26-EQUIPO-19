@@ -1,7 +1,8 @@
 import os
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
+from app.core.rate_limit import github_rate_limiter
 from app.services.github_inventory_service import (
     enrich_github_inventory,
 )
@@ -19,6 +20,7 @@ router = APIRouter(
     response_model=GithubInventoryResponse,
     summary="Sincronizar inventario de repositorios",
     description="Endpoint protegido para sincronización e ingesta masiva hacia Supabase.",
+    dependencies=[Depends(github_rate_limiter)],
 )
 async def sync_repositories(
     limit: int | None = Query(

@@ -1,3 +1,4 @@
+import os
 import time
 from collections import defaultdict
 from fastapi import HTTPException, Request, status
@@ -17,22 +18,27 @@ class InMemoryRateLimiter:
 
     def _get_client_ip(self, request: Request) -> str:
         """Obtiene la IP real del cliente evitando spoofing de cabeceras (H4)."""
-        # Cloudflare en producción garantiza 'cf-connecting-ip' (no falsificable por el cliente)
-        cf_ip = request.headers.get("cf-connecting-ip")
-        if cf_ip:
-            return cf_ip.strip()
+        is_production = (
+            os.getenv("ENVIRONMENT", "development").lower() == "production"
+            or os.getenv("RENDER", "").lower() == "true"
+        )
 
-        # En conexiones directas o desarrollo local, confiar en la conexión TCP real (client.host)
-        # para evitar que un atacante saltee el limitador inyectando X-Forwarded-For falsos
+        # Solo confiar en cabeceras de proxy cuando corre detrás de Cloudflare/Render en producción
+        if is_production:
+            cf_ip = request.headers.get("cf-connecting-ip")
+            if cf_ip:
+                return cf_ip.strip()
+
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                # Tomar la última IP agregada por el proxy más cercano
+                ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+                if ips:
+                    return ips[-1]
+
+        # En conexiones directas o desarrollo local, confiar únicamente en la conexión TCP real (client.host)
         if request.client and request.client.host:
             return request.client.host
-
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            # Tomar la última IP agregada por el proxy más cercano
-            ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
-            if ips:
-                return ips[-1]
 
         return "unknown"
 
