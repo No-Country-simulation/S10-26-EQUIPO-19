@@ -7,6 +7,7 @@ from app.routers import (
     repositories,
     github_router,
     github_inventory_router,
+    compose,  
 )
 from app.schemas import (
     ChatRequest,
@@ -19,7 +20,7 @@ from app.schemas import (
 
 app = FastAPI(
     title="OpenBridge API",
-    description="Catálogo inteligente de herramientas Open Source y Asistente RAG",
+    description="Catálogo inteligente de ferramentas Open Source y Asistente RAG",
     version="1.0.0",
 )
 
@@ -31,15 +32,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(github_inventory_router.router)
 app.include_router(github_router.router)
 app.include_router(categories.router)
 app.include_router(repositories.router)
+app.include_router(compose.router)  
 
 
 @app.get("/health", tags=["Health Check"])
 def health_check():
-    """Ruta básica de verificación del estado del servidor."""
     return {"status": "ok", "message": "El backend de OpenBridge está activo y funcionando"}
 
 
@@ -50,7 +52,6 @@ def health_check():
     summary="Consultar al Asistente Consultor RAG",
 )
 def chat_with_assistant(request: ChatRequest):
-    """Recibe la consulta del usuario en lenguaje natural y devuelve recomendaciones, fuentes y arquitectura."""
     return ChatResponse(
         answer=(
             "Para un entorno donde prima la simplicidad y el uso directo con Python, te recomiendo **Chroma**. "
@@ -130,3 +131,4 @@ def chat_with_assistant(request: ChatRequest):
             ],
         ),
     )
+
