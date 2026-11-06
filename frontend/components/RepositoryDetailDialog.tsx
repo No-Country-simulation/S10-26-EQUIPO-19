@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import HealthBadge from "@/components/HealthBadge";
 import { AlertList } from "@/components/RiskAlerts";
-import { ApiError, getRepository } from "@/lib/api";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
+import { getRepository } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
 
-type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; message: string };
+type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; error: FriendlyError };
 
 // Componentes del health score con su puntaje máximo (documento Health Score de repositorios).
 // La barra muestra el porcentaje logrado de cada componente, como en el prototipo.
@@ -20,11 +22,6 @@ const SCORE_PARTS: { key: keyof HealthScoreDetails; label: string; hint: string;
 
 const panel = "flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6";
 
-function errorMessage(err: unknown) {
-  if (err instanceof ApiError && err.status === 404) return "No encontramos este repositorio, o su ficha todavía no está disponible en la API.";
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa que el backend esté corriendo.";
-  return "Ocurrió un error al cargar la ficha. Intenta de nuevo en unos minutos.";
-}
 
 // Ficha técnica (5.6) en una ventana emergente grande con scroll interno, como definió el equipo con Diseño:
 // "X" arriba para cerrar y "← Volver al catálogo" al final. Usa <dialog>: cierra con Esc, mantiene el foco
@@ -41,6 +38,7 @@ export default function RepositoryDetailDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [attempt, setAttempt] = useState(0);
   const close = () => ref.current?.close();
 
   // Abre o cierra la ventana y bloquea el scroll de la página de fondo mientras está abierta.
@@ -62,11 +60,15 @@ export default function RepositoryDetailDialog({
     scrollRef.current?.scrollTo({ top: 0 });
     getRepository(repoId)
       .then((repo) => !cancelled && setStatus({ kind: "ok", repo }))
-      .catch((err) => !cancelled && setStatus({ kind: "error", message: errorMessage(err) }));
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn(err);
+        setStatus({ kind: "error", error: friendlyError(err, "la ficha de esta herramienta") });
+      });
     return () => {
       cancelled = true;
     };
-  }, [repoId]);
+  }, [repoId, attempt]);
 
   return (
     <dialog
@@ -97,11 +99,12 @@ export default function RepositoryDetailDialog({
           </div>
         </div>
       )}
+      <SlowNotice active={status.kind === "loading"} />
       {status.kind === "error" && (
-        <div role="alert" className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-8 text-center">
-          <h2 id="ficha-titulo" className="text-2xl font-bold">Ficha no disponible</h2>
-          <p className="text-text-muted">{status.message}</p>
-        </div>
+        <>
+          <h2 id="ficha-titulo" className="sr-only">Ficha no disponible</h2>
+          <ErrorNotice error={status.error} onRetry={() => setAttempt((n) => n + 1)} />
+        </>
       )}
           {status.kind === "ok" && <DetailBody repo={status.repo} onSelect={onSelect} />}
           {status.kind !== "ok" && <BackButton onClick={close} />}

@@ -15,11 +15,57 @@ import { MOCK_CATEGORIES, compareMock, getMockDetail, listMock, mockChat, search
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
 
-/** Error de la API con su código HTTP, para mostrar mensajes distintos (404, sin conexión, etc.). */
+/** Tipo de falla, para mostrar al usuario un mensaje claro sin detalles técnicos (ver lib/errors.ts). */
+export type ApiErrorKind = "offline" | "timeout" | "unreachable" | "server" | "rate_limit" | "not_found" | "invalid" | "unavailable";
+
+/** Error de una consulta al servicio. `message` es interno (consola); al usuario se le muestra friendlyError(). */
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public kind: ApiErrorKind = kindFromStatus(status),
+    /** Texto del campo "detail" del servidor, solo para validaciones (400) que se pueden mostrar tal cual. */
+    public detail: string | null = null,
+  ) {
     super(message);
   }
+}
+
+function kindFromStatus(status: number): ApiErrorKind {
+  if (status === 429) return "rate_limit";
+  if (status === 404) return "not_found";
+  if (status === 405) return "unavailable";
+  if (status === 400 || status === 422) return "invalid";
+  if (status >= 500) return "server";
+  return "unreachable";
+}
+
+/** Tiempo máximo de espera. El plan gratuito de Render tarda ~50 s en despertar el servidor. */
+const TIMEOUT_MS = 60_000;
+const ASSISTANT_TIMEOUT_MS = 90_000;
+
+/** Hace la consulta con tiempo máximo y convierte cualquier falla en un ApiError clasificado. */
+async function request<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT_MS): Promise<T> {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    throw new ApiError(0, `Sin conexión a internet (${path})`, "offline");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { cache: "no-store", ...init, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) throw new ApiError(0, `Tiempo de espera agotado (${path})`, "timeout");
+    if (typeof navigator !== "undefined" && navigator.onLine === false) throw new ApiError(0, `Sin conexión a internet (${path})`, "offline");
+    throw new ApiError(0, `Sin respuesta del servicio (${path}): ${String(err)}`, "unreachable");
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) {
+    const detail = await errorDetail(res);
+    throw new ApiError(res.status, `HTTP ${res.status} en ${path}`, kindFromStatus(res.status), detail);
+  }
+  return res.json() as Promise<T>;
 }
 
 function toQuery(params: Record<string, unknown>) {
@@ -31,15 +77,8 @@ function toQuery(params: Record<string, unknown>) {
   return text ? `?${text}` : "";
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, { cache: "no-store" });
-  } catch {
-    throw new ApiError(0, "No pudimos conectar con la API.");
-  }
-  if (!res.ok) throw new ApiError(res.status, `La API respondió ${res.status} en ${path}`);
-  return res.json() as Promise<T>;
+function getJson<T>(path: string): Promise<T> {
+  return request<T>(path);
 }
 
 /** Simula la latencia de la red con los datos de ejemplo, para ver los estados de carga. */
@@ -66,7 +105,7 @@ export async function searchRepositories(params: SearchParams): Promise<Paginate
 export async function getRepository(id: number): Promise<RepositoryDetail> {
   if (USE_MOCK) {
     const detail = getMockDetail(id);
-    if (!detail) throw new ApiError(404, `El repositorio con id ${id} no fue encontrado.`);
+    if (!detail) throw new ApiError(404, `Repositorio ${id} no encontrado (datos de ejemplo)`);
     return delay(detail);
   }
   return getJson<RepositoryDetail>(`/repositories/${id}`);
@@ -92,37 +131,27 @@ async function errorDetail(res: Response): Promise<string | null> {
 /** 4.4 · Asistente consultor: descripción del negocio → stack recomendado y justificado. */
 export async function askAssistant(message: string, history: ChatMessage[] = []): Promise<ChatResponse> {
   if (USE_MOCK) return new Promise((resolve) => setTimeout(() => resolve(mockChat(message)), 600));
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}/assistant/chat`, {
+  return request<ChatResponse>(
+    "/assistant/chat",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // La API acepta hasta 20 mensajes de historial, de hasta 4000 caracteres cada uno.
+      // El servicio acepta hasta 20 mensajes de historial, de hasta 4000 caracteres cada uno.
       body: JSON.stringify({
         message,
         conversation_history: history.slice(-20).map((m) => ({ role: m.role, content: m.content.slice(0, 4000) })),
       }),
-    });
-  } catch {
-    throw new ApiError(0, "No pudimos conectar con la API.");
-  }
-  if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /assistant/chat`);
-  return res.json() as Promise<ChatResponse>;
+    },
+    ASSISTANT_TIMEOUT_MS,
+  );
 }
 
 /** 9.5 · Comparación lado a lado de 2 o 3 repositorios. */
 export async function compareRepositories(ids: number[]): Promise<CompareResponse> {
   if (USE_MOCK) {
     const result = compareMock(ids);
-    if (!result) throw new ApiError(404, "No se encontraron algunos de los repositorios.");
+    if (!result) throw new ApiError(404, "Repositorios no encontrados (datos de ejemplo)");
     return delay(result);
   }
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}/repositories/compare?ids=${ids.join(",")}`, { cache: "no-store" });
-  } catch {
-    throw new ApiError(0, "No pudimos conectar con la API.");
-  }
-  if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /repositories/compare`);
-  return res.json() as Promise<CompareResponse>;
+  return request<CompareResponse>(`/repositories/compare?ids=${ids.join(",")}`);
 }

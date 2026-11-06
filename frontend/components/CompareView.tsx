@@ -6,21 +6,25 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import HealthBadge from "@/components/HealthBadge";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertBadges } from "@/components/RiskAlerts";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { ApiError, compareRepositories } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
 import type { CompareResponse, RepositoryDetail } from "@/types/api";
 
 // Comparador de herramientas lado a lado (9.5): consume /repositories/compare.
 
-type Status = { kind: "loading" } | { kind: "ok"; data: CompareResponse } | { kind: "error"; message: string };
+type Status = { kind: "loading" } | { kind: "ok"; data: CompareResponse } | { kind: "error"; error: FriendlyError };
 
-function errorMessage(err: unknown) {
-  if (err instanceof ApiError && err.status === 400) return err.message;
-  // 422: la API todavía no tiene la ruta /compare y la toma como si fuera /{id}.
-  if (err instanceof ApiError && err.status === 422) return "El comparador todavía no está disponible en esta versión de la API.";
-  if (err instanceof ApiError && err.status === 404) return err.message;
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa que el backend esté corriendo.";
-  return "Ocurrió un error al cargar la comparación. Intenta de nuevo en unos minutos.";
+function compareError(err: unknown): FriendlyError {
+  // Validaciones del servidor (cantidad o formato): sus textos ya están pensados para el usuario.
+  if (err instanceof ApiError && err.kind === "invalid" && err.status === 400 && err.detail) {
+    return { title: "Revisa tu selección", message: err.detail, retry: false };
+  }
+  if (err instanceof ApiError && err.kind === "not_found") {
+    return { title: "Alguna herramienta ya no está disponible", message: "Vuelve al catálogo y elige otra para comparar.", retry: false };
+  }
+  return friendlyError(err, "la comparación");
 }
 
 function parseIds(raw: string | null) {
@@ -144,22 +148,27 @@ export default function CompareView() {
   const key = ids.join(",");
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [openId, setOpenId] = useState<number | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     if (ids.length < 2) {
-      setStatus({ kind: "error", message: "Elige al menos 2 herramientas en el catálogo para compararlas." });
+      setStatus({ kind: "error", error: { title: "Elige al menos 2 herramientas", message: "Vuelve al catálogo y marca entre 2 y 3 herramientas con \"+ Comparar\".", retry: false } });
       return;
     }
     setStatus({ kind: "loading" });
     compareRepositories(ids)
       .then((data) => !cancelled && setStatus({ kind: "ok", data }))
-      .catch((err) => !cancelled && setStatus({ kind: "error", message: errorMessage(err) }));
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn(err);
+        setStatus({ kind: "error", error: compareError(err) });
+      });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, attempt]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -170,14 +179,17 @@ export default function CompareView() {
         <h1 className="text-3xl font-bold">Comparar herramientas</h1>
       </header>
 
+      <SlowNotice active={status.kind === "loading"} />
       {status.kind === "loading" && (
         <div className="h-64 animate-pulse rounded-[var(--radius-card)] border border-border bg-card" aria-label="Cargando la comparación" />
       )}
 
       {status.kind === "error" && (
-        <p role="alert" className="rounded-[var(--radius-card)] border border-dashed border-border p-8 text-center text-text-muted">
-          {status.message}
-        </p>
+        <ErrorNotice error={status.error} onRetry={() => setAttempt((n) => n + 1)}>
+          <Link href="/" className="inline-flex h-11 items-center rounded-[var(--radius-pill)] border border-border px-6 font-semibold hover:bg-surface-hover">
+            Volver al catálogo
+          </Link>
+        </ErrorNotice>
       )}
 
       {status.kind === "ok" && <CompareTable data={status.data} onOpen={setOpenId} />}
