@@ -1,0 +1,19 @@
+name: OpenBridge Keep Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping OpenBridge
+        run: |
+          curl -f https://openbridge-rcv2.onrender.com/health

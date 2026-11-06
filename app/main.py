@@ -225,4 +225,3 @@ def _build_chat_response(result: dict) -> ChatResponse:
         suggested_questions=questions[:3],
         architecture=ArchitectureProposal(components=components, connections=connections) if components else None,
     )
-

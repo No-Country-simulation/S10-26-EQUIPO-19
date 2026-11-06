@@ -90,3 +90,20 @@ class RepositoryDetailResponse(RepositoryListItem):
     synced_at: datetime | None = Field(default=None, description="Fecha de sincronización del pipeline")
     metrics: MetricDetail
     integrations: list[IntegrationSummary] = Field(default=[], description="Ideas de integración asociadas al repositorio")
+
+
+class RepositoryCompareResponse(BaseModel):
+    repositories: list[RepositoryDetailResponse] = Field(
+        ...,
+        description="Lista de repositorios a comparar (2 o 3) con sus fichas técnicas completas",
+    )
+    same_category: bool = Field(
+        ...,
+        description="Indica si todos los repositorios pertenecen a la misma categoría",
+        examples=[True],
+    )
+    category_name: str | None = Field(
+        default=None,
+        description="Nombre de la categoría compartida si coinciden",
+        examples=["Búsqueda Vectorial"],
+    )

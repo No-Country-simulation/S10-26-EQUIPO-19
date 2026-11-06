@@ -20,10 +20,12 @@ Abre <http://localhost:3000>.
 
 ## Variables de entorno
 
-| Variable | Para qué sirve | Valor por defecto |
+| Variable | Para qué sirve | Valor en `.env.example` |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | URL base de la API del backend | `http://localhost:8000/api/v1` |
-| `NEXT_PUBLIC_USE_MOCK` | `true` usa los datos de ejemplo de `data/mock.ts`; `false` consulta la API | `true` |
+| `NEXT_PUBLIC_API_URL` | URL base de la API del backend | `https://openbridge-rcv2.onrender.com/api/v1` (API desplegada). Para la API local: `http://localhost:8000/api/v1` |
+| `NEXT_PUBLIC_USE_MOCK` | `false` consulta la API; `true` usa los datos de ejemplo de `data/mock.ts` | `false` |
+
+La API desplegada está en el plan gratuito de Render, que se suspende cuando no se usa: la primera carga puede tardar cerca de un minuto mientras el servicio despierta.
 
 Nunca subas claves ni tokens al repositorio: van en `.env.local`, que está ignorado por git.
 

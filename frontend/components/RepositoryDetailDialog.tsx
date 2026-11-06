@@ -2,28 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import HealthBadge from "@/components/HealthBadge";
-import { ApiError, getRepository } from "@/lib/api";
+import { AlertList } from "@/components/RiskAlerts";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
+import { getRepository } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
 
-type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; message: string };
+type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; error: FriendlyError };
 
 // Componentes del health score con su puntaje máximo (documento Health Score de repositorios).
 // La barra muestra el porcentaje logrado de cada componente, como en el prototipo.
 const SCORE_PARTS: { key: keyof HealthScoreDetails; label: string; hint: string; max: number }[] = [
-  { key: "maintenance", label: "Mantenimiento", hint: "Releases y respuesta a issues", max: 30 },
-  { key: "commit_activity", label: "Actividad", hint: "Commits y pull requests recientes", max: 25 },
+  { key: "maintenance", label: "Mantenimiento", hint: "Días desde el último commit", max: 30 },
+  { key: "commit_activity", label: "Actividad", hint: "Commits de los últimos 90 días", max: 25 },
   { key: "popularity", label: "Popularidad", hint: "Estrellas y uso en la comunidad", max: 15 },
   { key: "forks", label: "Forks", hint: "Adopción y contribuciones externas", max: 10 },
 ];
 
 const panel = "flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6";
 
-function errorMessage(err: unknown) {
-  if (err instanceof ApiError && err.status === 404) return "No encontramos este repositorio, o su ficha todavía no está disponible en la API.";
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa que el backend esté corriendo.";
-  return "Ocurrió un error al cargar la ficha. Intenta de nuevo en unos minutos.";
-}
 
 // Ficha técnica (5.6) en una ventana emergente grande con scroll interno, como definió el equipo con Diseño:
 // "X" arriba para cerrar y "← Volver al catálogo" al final. Usa <dialog>: cierra con Esc, mantiene el foco
@@ -40,6 +38,7 @@ export default function RepositoryDetailDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [attempt, setAttempt] = useState(0);
   const close = () => ref.current?.close();
 
   // Abre o cierra la ventana y bloquea el scroll de la página de fondo mientras está abierta.
@@ -61,11 +60,15 @@ export default function RepositoryDetailDialog({
     scrollRef.current?.scrollTo({ top: 0 });
     getRepository(repoId)
       .then((repo) => !cancelled && setStatus({ kind: "ok", repo }))
-      .catch((err) => !cancelled && setStatus({ kind: "error", message: errorMessage(err) }));
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn(err);
+        setStatus({ kind: "error", error: friendlyError(err, "la ficha de esta herramienta") });
+      });
     return () => {
       cancelled = true;
     };
-  }, [repoId]);
+  }, [repoId, attempt]);
 
   return (
     <dialog
@@ -96,11 +99,12 @@ export default function RepositoryDetailDialog({
           </div>
         </div>
       )}
+      <SlowNotice active={status.kind === "loading"} />
       {status.kind === "error" && (
-        <div role="alert" className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-8 text-center">
-          <h2 id="ficha-titulo" className="text-2xl font-bold">Ficha no disponible</h2>
-          <p className="text-text-muted">{status.message}</p>
-        </div>
+        <>
+          <h2 id="ficha-titulo" className="sr-only">Ficha no disponible</h2>
+          <ErrorNotice error={status.error} onRetry={() => setAttempt((n) => n + 1)} />
+        </>
       )}
           {status.kind === "ok" && <DetailBody repo={status.repo} onSelect={onSelect} />}
           {status.kind !== "ok" && <BackButton onClick={close} />}
@@ -148,6 +152,7 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
           <p className="text-sm text-text-muted">{repo.full_name}</p>
         </div>
         <p className="max-w-[70ch] text-lg text-text-muted">{description}</p>
+        <AlertList alerts={repo.alerts} />
         <div className="flex flex-wrap gap-3">
           {docsUrl && (
             <a
@@ -172,43 +177,10 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
         </div>
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-5">
-          <section aria-labelledby="ideas" className={panel}>
-            <h2 id="ideas" className="text-xl font-semibold">
-              {repo.integrations.length > 1 ? `Ideas de integración (${repo.integrations.length})` : "Idea de integración"}
-            </h2>
-            {repo.integrations.length === 0 && (
-              <p className="text-text-muted">Todavía no hay ideas de integración para este repositorio.</p>
-            )}
-            {repo.integrations.map((idea) => (
-              <IntegrationIdea key={idea.id} idea={idea} />
-            ))}
-          </section>
-
-          {cases.length > 0 && (
-            <section aria-labelledby="casos" className={panel}>
-              <h2 id="casos" className="text-xl font-semibold">Casos de negocio</h2>
-              <ul className="flex flex-col gap-3">
-                {cases.map((c) => (
-                  <li key={c.id} className="rounded-xl bg-surface-hover px-4 py-3">{c.name}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {(repo.detected_stack.length > 0 || repo.integration_methods_suggested.length > 0) && (
-            <section aria-labelledby="stack" className={panel}>
-              <h2 id="stack" className="text-xl font-semibold">Stack e integración</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ChipList title="Stack detectado" items={repo.detected_stack} />
-                <ChipList title="Cómo se integra" items={repo.integration_methods_suggested} />
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-5">
+      {/* Orden de la ficha: primero los datos que pide la consigna (health score y métricas, lado a lado),
+          luego las ideas de integración a todo el ancho y al final la información de apoyo. */}
+      <div className="flex flex-col gap-5">
+        <div className="grid gap-5 md:grid-cols-2">
           <HealthPanel repo={repo} />
 
           <section aria-labelledby="metricas" className={panel}>
@@ -231,30 +203,104 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
               </a>
             )}
           </section>
-
-          {related.length > 0 && (
-            <section aria-labelledby="relacionados" className={panel}>
-              <h2 id="relacionados" className="text-xl font-semibold">Repositorios relacionados</h2>
-              <ul className="flex flex-col gap-3">
-                {related.map((rel) => (
-                  <li key={rel.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelect(rel.id)}
-                      className="flex w-full flex-col gap-0.5 rounded-xl border border-border px-4 py-3 text-left hover:border-primary hover:bg-surface-hover"
-                    >
-                      <span className="font-semibold">{rel.full_name}</span>
-                      {rel.role && <span className="text-sm text-text-muted">{rel.role}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
+
+        <section aria-labelledby="ideas" className={panel}>
+          <h2 id="ideas" className="text-xl font-semibold">
+            {repo.integrations.length > 1 ? `Ideas de integración (${repo.integrations.length})` : "Idea de integración"}
+          </h2>
+          {repo.integrations.length === 0 && (
+            <p className="text-text-muted">Todavía no hay ideas de integración para este repositorio.</p>
+          )}
+          {repo.integrations.map((idea) => (
+            <IntegrationIdea key={idea.id} idea={idea} defaultOpen={repo.integrations.length === 1} />
+          ))}
+        </section>
+
+        {cases.length > 0 && (
+          <details className={`group ${panel}`}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <h2 className="text-xl font-semibold">Casos de negocio ({cases.length})</h2>
+              <Chevron />
+            </summary>
+            <ul className="flex flex-col gap-3">
+              {cases.map((c) => (
+                <li key={c.id} className="rounded-xl bg-surface-hover px-4 py-3">{c.name}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        {related.length > 0 && (
+          <section aria-labelledby="relacionados" className={panel}>
+            <h2 id="relacionados" className="text-xl font-semibold">Repositorios relacionados</h2>
+            <ul className="flex flex-wrap gap-2">
+              {related.map((rel) => (
+                <li key={rel.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(rel.id)}
+                    title={`Abrir la ficha de ${rel.full_name}`}
+                    className="rounded-[var(--radius-pill)] border border-border px-4 py-2 text-sm font-semibold hover:border-primary hover:bg-surface-hover"
+                  >
+                    {rel.full_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {(repo.detected_stack.length > 0 || repo.integration_methods_suggested.length > 0) && (
+          <section aria-labelledby="stack" className={panel}>
+            <h2 id="stack" className="text-xl font-semibold">Stack e integración</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ChipList title="Stack detectado" items={repo.detected_stack} />
+              <ChipList title="Cómo se integra" items={repo.integration_methods_suggested} />
+            </div>
+          </section>
+        )}
       </div>
 
     </>
+  );
+}
+
+// Copia el snippet al portapapeles y confirma con "Copiado" durante 2 segundos.
+function CopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<"idle" | "done" | "error">("idle");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+    setTimeout(() => setState("idle"), 2000);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-live="polite"
+      className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-pill)] border border-[#0f172a]/20 bg-white px-3 text-sm font-semibold text-[#0f172a] hover:bg-brand-indigo-soft"
+    >
+      <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {state === "done" ? <path d="M20 6 9 17l-5-5" /> : <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
+      </svg>
+      {state === "done" ? "Copiado" : state === "error" ? "No se pudo copiar" : "Copiar"}
+    </button>
+  );
+}
+
+// Flecha de los bloques desplegables: gira cuando el bloque está abierto (requiere la clase "group" en <details>).
+function Chevron() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform group-open:rotate-180">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 
@@ -329,47 +375,73 @@ function ChipList({ title, items }: { title: string; items: string[] }) {
 }
 
 // Bloque de la idea de integración, con el estilo del prototipo (borde rosa sobre fondo rosa suave, texto oscuro).
-function IntegrationIdea({ idea }: { idea: Integration }) {
+// Se muestra plegado (tipo, dificultad, código y propósito) y se despliega al hacer clic, para que la ficha
+// no se haga larga cuando el repositorio tiene varias ideas. Si es la única idea, empieza abierta.
+function IntegrationIdea({ idea, defaultOpen }: { idea: Integration; defaultOpen: boolean }) {
   return (
-    <article className="flex flex-col gap-3 rounded-r-xl border-l-4 border-brand-pink bg-brand-pink-soft p-4 text-[#0f172a] sm:p-5">
-      <div className="flex flex-wrap gap-1.5 text-xs">
-        <span className="rounded-md bg-brand-indigo-soft px-2 py-0.5 font-medium">{idea.integration_type}</span>
-        <span className="rounded-md bg-brand-indigo-soft px-2 py-0.5 font-medium">Dificultad {idea.difficulty.toLowerCase()}</span>
-        <span className="px-1 py-0.5 font-semibold text-brand-pink-deep">{idea.code}</span>
+    <details open={defaultOpen} className="group rounded-r-xl border-l-4 border-brand-pink bg-brand-pink-soft text-[#0f172a]">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-r-xl p-4 sm:p-5 [&::-webkit-details-marker]:hidden">
+        <span className="flex flex-col gap-2">
+          <span className="flex flex-wrap gap-1.5 text-xs">
+            <span className="rounded-md bg-brand-indigo-soft px-2 py-0.5 font-medium">{idea.integration_type}</span>
+            <span className="rounded-md bg-brand-indigo-soft px-2 py-0.5 font-medium">Dificultad {idea.difficulty.toLowerCase()}</span>
+            <span className="px-1 py-0.5 font-semibold text-brand-pink-deep">{idea.code}</span>
+          </span>
+          <h3 className="text-lg font-semibold">{idea.purpose}</h3>
+        </span>
+        <span className="mt-1 flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-pink-deep">
+          <span className="group-open:hidden">Ver detalles</span>
+          <span className="hidden group-open:inline">Ocultar</span>
+          <Chevron />
+        </span>
+      </summary>
+      <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
+        {idea.role && (
+          <p>
+            <strong>Rol en la integración:</strong>{" "}
+            {idea.role === "principal"
+              ? "herramienta principal"
+              : `se integra con ${idea.related_repositories?.find((r) => r.role === "principal")?.full_name ?? "la herramienta principal"}`}
+          </p>
+        )}
+        {idea.triggers_or_webhooks && <p><strong>Disparadores:</strong> {idea.triggers_or_webhooks}</p>}
+        {idea.compatible_stack.length > 0 && <p><strong>Compatible con:</strong> {idea.compatible_stack.join(", ")}</p>}
+        {idea.main_steps.length > 0 && (
+          <div>
+            <strong>Pasos principales</strong>
+            <ol className="mt-1 list-decimal pl-5">
+              {idea.main_steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+        {idea.example_snippet && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <strong>Snippet de ejemplo</strong>
+              <CopyButton text={idea.example_snippet} />
+            </div>
+            <pre className="overflow-x-auto rounded-xl bg-[#0f172a] p-4 font-mono text-sm leading-relaxed text-[#e2e8f0]">
+              <code>{idea.example_snippet}</code>
+            </pre>
+          </div>
+        )}
+        {splitUrls(idea.documentation_url).length > 0 && (
+          <div className="flex flex-col gap-1 text-sm">
+            <strong>Documentación de la integración</strong>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1">
+              {splitUrls(idea.documentation_url).map((url) => (
+                <li key={url}>
+                  <a href={url} target="_blank" rel="noreferrer" title={url} className="font-semibold text-brand-indigo-strong hover:underline">
+                    {urlHost(url)} ↗
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
-      <h3 className="text-lg font-semibold">{idea.purpose}</h3>
-      {idea.role && <p><strong>Rol en la integración:</strong> {idea.role}</p>}
-      {idea.triggers_or_webhooks && <p><strong>Disparadores:</strong> {idea.triggers_or_webhooks}</p>}
-      {idea.compatible_stack.length > 0 && <p><strong>Compatible con:</strong> {idea.compatible_stack.join(", ")}</p>}
-      {idea.main_steps.length > 0 && (
-        <div>
-          <strong>Pasos principales</strong>
-          <ol className="mt-1 list-decimal pl-5">
-            {idea.main_steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </div>
-      )}
-      {idea.example_snippet && (
-        <pre className="overflow-x-auto rounded-xl bg-[#0f172a] p-4 font-mono text-sm leading-relaxed text-[#e2e8f0]">
-          <code>{idea.example_snippet}</code>
-        </pre>
-      )}
-      {splitUrls(idea.documentation_url).length > 0 && (
-        <div className="flex flex-col gap-1 text-sm">
-          <strong>Documentación de la integración</strong>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1">
-            {splitUrls(idea.documentation_url).map((url) => (
-              <li key={url}>
-                <a href={url} target="_blank" rel="noreferrer" title={url} className="font-semibold text-brand-indigo-strong hover:underline">
-                  {urlHost(url)} ↗
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </article>
+    </details>
   );
 }
