@@ -1,7 +1,10 @@
+import re
 import math
 from datetime import datetime
 from typing import Literal
-from fastapi import APIRouter, HTTPException, Query
+import os
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.core.rate_limit import repositories_rate_limiter
 from app.database import get_supabase_client
 from app.schemas import (
     BusinessCaseItem,
@@ -10,14 +13,20 @@ from app.schemas import (
     MetricDetail,
     MetricSummary,
     RelatedRepositoryItem,
+    RepositoryCompareResponse,
     RepositoryDetailResponse,
     RepositoryListItem,
     RepositoryPaginationResponse,
 )
+from app.services.risk_evaluator import evaluate_repository_risk
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+is_production = ENVIRONMENT == "production"
 
 router = APIRouter(
     prefix="/api/v1/repositories",
     tags=["Repositorios"],
+    dependencies=[Depends(repositories_rate_limiter)],
 )
 
 FALLBACK_REPOSITORIES = [
@@ -39,7 +48,7 @@ FALLBACK_REPOSITORIES = [
         category=CategoryResponse(id=15, name="Búsqueda Vectorial", repositories_count=5),
         metrics=MetricSummary(health_score=91, health_status="Activo"),
     ),
-       RepositoryListItem(
+    RepositoryListItem(
         id=102,
         github_id=23489110,
         name="chroma",
@@ -116,7 +125,7 @@ FALLBACK_REPOSITORIES = [
 
 def _build_fallback_detail(repo: RepositoryListItem) -> RepositoryDetailResponse:
     """Construye la ficha técnica de respaldo a partir de un item base del catálogo."""
-    return RepositoryDetailResponse(
+    detail = RepositoryDetailResponse(
         id=repo.id,
         github_id=repo.github_id,
         name=repo.name,
@@ -213,6 +222,12 @@ def _build_fallback_detail(repo: RepositoryListItem) -> RepositoryDetailResponse
             )
         ],
     )
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
+    return detail
 
 
 def _map_repository_row(row: dict) -> RepositoryListItem:
@@ -225,7 +240,7 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
     if isinstance(raw_metrics, list):
         raw_metrics = raw_metrics[0] if raw_metrics else {}
 
-    return RepositoryListItem(
+    item = RepositoryListItem(
         id=row["id"],
         github_id=row["github_id"],
         name=row["name"],
@@ -249,6 +264,12 @@ def _map_repository_row(row: dict) -> RepositoryListItem:
             health_status=raw_metrics.get("health_status"),
         ),
     )
+    item.alerts = evaluate_repository_risk(
+        license=item.license,
+        health_status=item.metrics.health_status if item.metrics else None,
+        is_archived=False,
+    ).alerts
+    return item
 
 
 def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
@@ -310,8 +331,8 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
             )
         )
 
-    return RepositoryDetailResponse(
-        **base_item.model_dump(exclude={"metrics"}),
+    detail = RepositoryDetailResponse(
+        **base_item.model_dump(exclude={"metrics", "alerts"}),
         homepage=row.get("homepage"),
         detected_stack=row.get("detected_stack") or [],
         integration_methods_suggested=row.get("integration_methods_suggested") or [],
@@ -333,6 +354,12 @@ def _map_repository_detail_row(row: dict) -> RepositoryDetailResponse:
         ),
         integrations=integrations_list,
     )
+    detail.alerts = evaluate_repository_risk(
+        license=detail.license,
+        health_status=detail.metrics.health_status if detail.metrics else None,
+        is_archived=detail.archived,
+    ).alerts
+    return detail
 
 
 def _filter_in_memory(
@@ -432,8 +459,17 @@ def get_repositories(
                     total_pages=total_pages,
                     items=items,
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
     sorted_fallback = sorted(
         FALLBACK_REPOSITORIES,
@@ -444,6 +480,14 @@ def get_repositories(
         ),
         reverse=is_desc,
     )
+
+    for item in sorted_fallback:
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
+
     total = len(sorted_fallback)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_fallback[start : start + page_size]
@@ -503,13 +547,16 @@ def search_repositories(
             )
 
             if q and q.strip():
-                clean_q = q.strip()
-                query = query.or_(
-                    f"name.ilike.%{clean_q}%,"
-                    f"full_name.ilike.%{clean_q}%,"
-                    f"description.ilike.%{clean_q}%,"
-                    f"description_es.ilike.%{clean_q}%"
-                )
+                # Sanitizar q para prevenir inyección de filtros PostgREST (Hallazgo H3):
+                # Se eliminan comas, paréntesis, comillas y caracteres de control que dividen o inyectan cláusulas en query.or_
+                clean_q = re.sub(r"[,()%\"'\\]", " ", q).strip()
+                if clean_q:
+                    query = query.or_(
+                        f"name.ilike.%{clean_q}%,"
+                        f"full_name.ilike.%{clean_q}%,"
+                        f"description.ilike.%{clean_q}%,"
+                        f"description_es.ilike.%{clean_q}%"
+                    )
 
             if category_id is not None:
                 query = query.eq("category_id", category_id)
@@ -544,8 +591,17 @@ def search_repositories(
                     total_pages=total_pages,
                     items=items,
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
     filtered = _filter_in_memory(
         repos=FALLBACK_REPOSITORIES,
@@ -566,6 +622,14 @@ def search_repositories(
         ),
         reverse=is_desc,
     )
+
+    for item in sorted_filtered:
+        item.alerts = evaluate_repository_risk(
+            license=item.license,
+            health_status=item.metrics.health_status if item.metrics else None,
+            is_archived=False,
+        ).alerts
+
     total = len(sorted_filtered)
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     paginated_items = sorted_filtered[start : start + page_size]
@@ -579,16 +643,9 @@ def search_repositories(
     )
 
 
-@router.get(
-    "/{id}",
-    response_model=RepositoryDetailResponse,
-    summary="Ficha técnica de un repositorio",
-    description="Devuelve la ficha completa de un repositorio con métricas detalladas e ideas de integración estructuradas.",
-)
-def get_repository_detail(id: int):
-    """Obtiene la ficha técnica completa de un repositorio por su ID interno."""
+def _fetch_repository_detail(repo_id: int) -> RepositoryDetailResponse | None:
+    """Recupera la ficha técnica completa de un repositorio desde Supabase o desde los datos de respaldo."""
     supabase = get_supabase_client()
-
     if supabase:
         try:
             response = (
@@ -599,17 +656,130 @@ def get_repository_detail(id: int):
                     "integration_repositories(role, repositories(id, full_name)), "
                     "integration_business_cases(business_cases(id, name))))"
                 )
-                .eq("id", id)
+                .eq("id", repo_id)
                 .execute()
             )
             if response.data:
                 return _map_repository_detail_row(response.data[0])
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
-    fallback_repo = next((r for r in FALLBACK_REPOSITORIES if r.id == id), None)
+    fallback_repo = next((r for r in FALLBACK_REPOSITORIES if r.id == repo_id), None)
     if fallback_repo:
         return _build_fallback_detail(fallback_repo)
+
+    return None
+
+
+@router.get(
+    "/compare",
+    response_model=RepositoryCompareResponse,
+    summary="Comparación lado a lado de repositorios",
+    description="Permite comparar de 2 a 3 herramientas lado a lado con sus fichas técnicas, métricas detalladas y evaluación de categoría.",
+    responses={
+        400: {
+            "description": "Cantidad de IDs inválida, duplicados o formato numérico incorrecto.",
+            "content": {"application/json": {"example": {"detail": "Se requieren al menos 2 repositorios para realizar la comparación."}}},
+        },
+        404: {
+            "description": "Uno o más repositorios solicitados no existen.",
+            "content": {"application/json": {"example": {"detail": "No se encontraron los siguientes repositorios: 999."}}},
+        },
+    },
+)
+def compare_repositories(
+    ids: list[str] = Query(
+        ...,
+        description="Lista de 2 o 3 IDs de repositorios a comparar. Soporta formato separado por comas (?ids=101,102) o múltiple (?ids=101&ids=102).",
+        examples=[["101,102"]],
+    ),
+):
+    """Obtiene las fichas técnicas y métricas comparativas para 2 o 3 repositorios."""
+    parsed_ids: list[int] = []
+    for item in ids:
+        for part in str(item).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if not part.isdigit():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El ID '{part}' no es válido. Debe ser un número entero positivo.",
+                )
+            parsed_ids.append(int(part))
+
+    if len(parsed_ids) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Se requieren al menos 2 repositorios para realizar la comparación.",
+        )
+
+    if len(parsed_ids) > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Se pueden comparar como máximo 3 repositorios a la vez.",
+        )
+
+    if len(parsed_ids) != len(set(parsed_ids)):
+        raise HTTPException(
+            status_code=400,
+            detail="No se pueden enviar repositorios duplicados para la comparación.",
+        )
+
+    repositories_found: list[RepositoryDetailResponse] = []
+    missing_ids: list[int] = []
+
+    for repo_id in parsed_ids:
+        repo = _fetch_repository_detail(repo_id)
+        if repo:
+            repositories_found.append(repo)
+        else:
+            missing_ids.append(repo_id)
+
+    if missing_ids:
+        missing_str = ", ".join(map(str, missing_ids))
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontraron los siguientes repositorios: {missing_str}.",
+        )
+
+    category_ids = {r.category.id for r in repositories_found}
+    same_category = len(category_ids) == 1
+    category_name = repositories_found[0].category.name if same_category else None
+
+    return RepositoryCompareResponse(
+        repositories=repositories_found,
+        same_category=same_category,
+        category_name=category_name,
+    )
+
+
+@router.get(
+    "/{id}",
+    response_model=RepositoryDetailResponse,
+    summary="Ficha técnica de un repositorio",
+    description="Devuelve la ficha completa de un repositorio con métricas detalladas e ideas de integración estructuradas.",
+    responses={
+        404: {
+            "description": "El repositorio solicitado no fue encontrado.",
+            "content": {"application/json": {"example": {"detail": "El repositorio con id 1 no fue encontrado."}}},
+        }
+    },
+)
+def get_repository_detail(id: int):
+    """Obtiene la ficha técnica completa de un repositorio por su ID interno."""
+    repo = _fetch_repository_detail(id)
+    if repo:
+        return repo
 
     raise HTTPException(
         status_code=404,

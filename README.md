@@ -2,8 +2,8 @@
 
 > Catálogo inteligente de herramientas open-source con asistente de arquitectura basado en IA (RAG).
 
-**Simulación Laboral Abierta · NoCountry** · Equipo **S10-26-equipo 19**
-**Sector:** Developer Tools / Servicios de Consultoría Tech (B2B)
+**Simulación Laboral Abierta · NoCountry** · Equipo **S10-26-equipo 19**  
+**Sector:** Developer Tools / Servicios de Consultoría Tech (B2B)  
 
 ![Estado](https://img.shields.io/badge/estado-en%20planificaci%C3%B3n-blue)
 
@@ -19,6 +19,7 @@
 - [Stack tecnológico](#-stack-tecnológico)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Instalación y ejecución](#-instalación-y-ejecución)
+- [Despliegue en producción](#-despliegue-en-producción)
 - [Equipo](#-equipo)
 
 ---
@@ -37,9 +38,9 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 
 **OpenBridge** centraliza, categoriza y cura un catálogo de herramientas open-source con ideas de integración estructuradas, y suma un **asistente consultor con IA (RAG)** que analiza la descripción de un negocio y recomienda la combinación técnica ideal.
 
-> **Ejemplo:**
-> *Input:* "Estoy construyendo un e-commerce B2B de logística"
-> *Output:* mapa de arquitectura recomendado con un stack open-source justificado y cómo conectar sus componentes.
+> **Ejemplo:**  
+> *Input:* "Estoy construyendo un e-commerce B2B de logística"  
+> *Output:* mapa de arquitectura recomendado con un stack open-source justificado y cómo conectar sus componentes.  
 
 ## ✨ Funcionalidades
 
@@ -81,10 +82,11 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 ```text
 S10-26-EQUIPO-19/
 ├── app/                  # Código fuente del backend (FastAPI)
-│   ├── routers/          # Endpoints de la API separados por dominio (categories, repositories)
+│   ├── core/             # Componentes transversales (rate limiting, middlewares de seguridad)
+│   ├── routers/          # Endpoints de la API separados por dominio (categories, repositories, github)
 │   ├── schemas/          # Modelos de validación Pydantic
 │   ├── database.py       # Configuración y cliente de conexión a Supabase
-│   ├── main.py           # Instancia de FastAPI, configuración de CORS y rutas base
+│   ├── main.py           # Instancia de FastAPI, configuración de CORS, cabeceras y rutas base
 │   └── __init__.py
 ├── docs/                 # Documentación técnica (guía de estilo, contrato de API)
 │   └── api-contract.md   # Especificación del contrato de API REST
@@ -173,6 +175,73 @@ La API quedará escuchando en: `http://127.0.0.1:8000`
   Disponible en [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) para explorar y probar todos los endpoints documentados.
 - **Documentación alternativa (Redoc):**  
   Disponible en [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+
+---
+
+## 🚀 Despliegue en Producción
+
+### ☁️ Plataforma elegida: Render
+Para el backend de **OpenBridge** el equipo técnico definió a **[Render](https://render.com)** como la plataforma oficial de alojamiento (Web Service) debido a las siguientes razones técnicas:
+1. **Despliegue continuo nativo (CI/CD):** Se conecta directamente con la rama `main` del repositorio de GitHub, ejecutando la compilación y el arranque automáticamente ante cada cambio integrado.
+2. **Compatibilidad ASGI y Uvicorn:** Permite ejecutar aplicaciones asíncronas FastAPI en Python sin necesidad de configurar y mantener manualmente servidores dedicados ni proxies inversos.
+3. **Capa de seguridad y SSL administrada:** Integración nativa con Cloudflare en el borde que provee certificados TLS/HTTPS automáticos, mitigación de ataques volumétricos y enrutamiento seguro.
+4. **Administración centralizada de variables de entorno:** Gestión segura de secretos en producción sin exponer credenciales en el código fuente.
+
+### 📦 Pasos para el despliegue
+
+#### 1. Configuración del servicio en Render
+1. Acceder al panel de control de [Render](https://dashboard.render.com/) y crear un nuevo **Web Service**.
+2. Conectar el repositorio de GitHub: `No-Country-simulation/S10-26-EQUIPO-19`.
+3. Establecer los parámetros de ejecución:
+   - **Environment:** `Python 3`
+   - **Root Directory:** `./`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Auto-Deploy:** `Yes` (para desplegar automáticamente ante pushes a `main`).
+
+#### 2. Variables de entorno en producción
+En la sección **Environment** del Web Service en Render, configurar las variables necesarias (sin incluir secretos reales en el repositorio):
+
+| Variable | Descripción | Valor / Ejemplo |
+|---|---|---|
+| `SUPABASE_URL` | URL del proyecto Supabase | `https://<proyecto>.supabase.co` |
+| `SUPABASE_KEY` | Clave de servicio / API Key de Supabase | *(service_role o anon key)* |
+| `GITHUB_TOKEN` | Token de acceso personal de GitHub (PAT) para ingesta y consultas | `ghp_xxxxxxxxxxxx` |
+| `ENVIRONMENT` | Entorno de ejecución (`production` deshabilita `/docs` y `/redoc` por seguridad) | `production` |
+| `ALLOWED_ORIGINS` | Lista blanca de dominios autorizados para CORS separados por coma | `https://openbridge-rcv2.onrender.com,http://localhost:3000` |
+| `SYNC_API_KEY` | Clave secreta para autorizar peticiones al endpoint de sincronización (`/sync`) | `tu_clave_secreta` |
+| `PORT` | Puerto HTTP (asignado dinámicamente por Render) | `10000` |
+
+### 🔄 Pipeline y tareas automatizadas (GitHub Actions)
+
+El repositorio incluye dos flujos automatizados en `.github/workflows/`:
+- **Sincronización de repositorios (`github_sync.yml`):** Ejecuta periódicamente la ingesta y actualización de métricas del catálogo de GitHub en Supabase.
+- **Keep-Alive de producción (`keep-alive.yml` y `keep_alive.py`):** Ejecuta un ping HTTP cada 10 minutos contra el endpoint `/health` de Render para evitar la suspensión por inactividad (*cold start*) propia de las instancias gratuitas, garantizando disponibilidad continua para el frontend.
+
+### ✅ Prueba de arranque y verificación
+
+El backend en producción se encuentra operativo y validado en la siguiente URL base:
+**`https://openbridge-rcv2.onrender.com`**
+
+Para verificar el arranque correcto:
+```bash
+curl -f https://openbridge-rcv2.onrender.com/health
+```
+
+**Respuesta esperada (HTTP 200 OK):**
+```json
+{
+  "status": "ok",
+  "message": "El backend de OpenBridge está activo y funcionando"
+}
+```
+
+En este entorno productivo:
+- La documentación `/docs` y `/openapi.json` se encuentra restringida bajo `ENVIRONMENT=production`.
+- Se aplican las cabeceras de endurecimiento de seguridad (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `Content-Security-Policy`).
+- El rate limiting se encuentra activo para proteger los recursos de IA y llamadas a GitHub.
+
+---
 
 ## 👥 Equipo
 

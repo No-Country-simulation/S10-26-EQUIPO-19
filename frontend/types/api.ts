@@ -19,6 +19,13 @@ export type RepositoryMetricsSummary = {
   health_status: HealthStatus | null;
 };
 
+/** Alerta de riesgo por mantenimiento o licencia (9.3). */
+export type RepositoryAlert = {
+  type: "maintenance" | "license" | string;
+  title: string;
+  message: string;
+};
+
 export type RepositoryListItem = {
   id: number;
   github_id: number;
@@ -37,6 +44,8 @@ export type RepositoryListItem = {
   pushed_at: string | null;
   category: CategoryRef;
   metrics: RepositoryMetricsSummary;
+  /** Alertas de riesgo (9.3). Puede faltar si la API todavía no las entrega. */
+  alerts?: RepositoryAlert[];
 };
 
 export type PaginatedRepositories = {
@@ -131,4 +140,76 @@ export type RepositoryDetail = Omit<RepositoryListItem, "metrics"> & {
   synced_at: string | null;
   metrics: RepositoryMetricsDetail;
   integrations: Integration[];
+};
+
+/** Asistente consultor (4.4): mensaje del historial. */
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ChatSource = {
+  repository_id: number;
+  name: string;
+  full_name: string;
+  url: string;
+  relevance_score: number;
+};
+
+export type ArchitectureComponent = {
+  key: string;
+  repository_id: number;
+  full_name: string;
+  role: string;
+  license: string | null;
+  health_status: HealthStatus | null;
+  justification: string;
+  alerts?: RepositoryAlert[];
+};
+
+export type ArchitectureConnection = {
+  from: string;
+  to: string;
+  label: string;
+  verified: boolean;
+  integration_code: string | null;
+};
+
+export type ChatResponse = {
+  answer: string;
+  sources: ChatSource[];
+  suggested_questions: string[];
+  architecture: { components: ArchitectureComponent[]; connections: ArchitectureConnection[] } | null;
+};
+
+/** Comparador lado a lado (9.5): fichas completas de 2 o 3 repositorios. */
+export type CompareResponse = {
+  repositories: RepositoryDetail[];
+  same_category: boolean;
+  category_name: string | null;
+};
+
+/** 9.2 · docker-compose de arranque. POST /compose con los full_name del stack recomendado. */
+export type ComposeRequest = { repositories: string[] };
+
+export type ComposeService = {
+  full_name: string;
+  service: string;
+  image: string;
+  ports: string[];
+};
+
+export type ComposeSkipped = {
+  full_name: string;
+  /** Motivo legible, por ejemplo: "Es una librería: se instala como dependencia". */
+  reason: string;
+};
+
+export type ComposeResponse = {
+  filename: string;
+  /** Contenido YAML listo para guardar como docker-compose.yml. */
+  content: string;
+  services: ComposeService[];
+  skipped: ComposeSkipped[];
+  warnings: string[];
 };

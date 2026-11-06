@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Roboto } from "next/font/google";
 import Link from "next/link";
+import ConnectionBanner from "@/components/ConnectionBanner";
 import Header from "@/components/Header";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       {/* suppressHydrationWarning: algunas extensiones del navegador agregan atributos al body antes de que cargue React. */}
       <body className="min-h-screen bg-surface font-sans text-text antialiased" suppressHydrationWarning>
+        <ConnectionBanner />
         <Header />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="border-t border-border px-4 py-6 text-center text-sm text-text-muted">

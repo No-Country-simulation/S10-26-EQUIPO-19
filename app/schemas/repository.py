@@ -3,6 +3,12 @@ from pydantic import BaseModel, Field
 from app.schemas.category import CategoryResponse
 
 
+class RepositoryAlert(BaseModel):
+    type: str = Field(..., description="Tipo de alerta ('maintenance' o 'license')", examples=["maintenance"])
+    title: str = Field(..., description="Título corto de la alerta", examples=["Archivado"])
+    message: str = Field(..., description="Mensaje explicativo de la alerta", examples=["Repositorio archivado..."])
+
+
 class MetricSummary(BaseModel):
     health_score: int = Field(..., ge=0, le=100, description="Puntuación global de salud de 0 a 100", examples=[91])
     health_status: str | None = Field(default=None, description="Estado de salud ('Activo', 'En riesgo', 'Abandonado' o null)", examples=["Activo"])
@@ -61,6 +67,7 @@ class RepositoryListItem(BaseModel):
     pushed_at: datetime | None = Field(default=None, description="Fecha del último push a cualquier rama")
     category: CategoryResponse
     metrics: MetricSummary
+    alerts: list[RepositoryAlert] = Field(default=[], description="Lista de alertas asociadas al repositorio")
 
 
 class RepositoryPaginationResponse(BaseModel):
@@ -83,3 +90,20 @@ class RepositoryDetailResponse(RepositoryListItem):
     synced_at: datetime | None = Field(default=None, description="Fecha de sincronización del pipeline")
     metrics: MetricDetail
     integrations: list[IntegrationSummary] = Field(default=[], description="Ideas de integración asociadas al repositorio")
+
+
+class RepositoryCompareResponse(BaseModel):
+    repositories: list[RepositoryDetailResponse] = Field(
+        ...,
+        description="Lista de repositorios a comparar (2 o 3) con sus fichas técnicas completas",
+    )
+    same_category: bool = Field(
+        ...,
+        description="Indica si todos los repositorios pertenecen a la misma categoría",
+        examples=[True],
+    )
+    category_name: str | None = Field(
+        default=None,
+        description="Nombre de la categoría compartida si coinciden",
+        examples=["Búsqueda Vectorial"],
+    )

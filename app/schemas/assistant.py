@@ -1,14 +1,31 @@
 from pydantic import BaseModel, Field
+from app.schemas.repository import RepositoryAlert
 
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Rol del emisor: 'user' o 'assistant'", examples=["user"])
-    content: str = Field(..., description="Mensaje de la conversación", examples=["Hola, busco una base vectorial"])
+    content: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000,
+        description="Mensaje de la conversación",
+        examples=["Hola, busco una base vectorial"],
+    )
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, description="Pregunta o consulta del usuario", examples=["¿Qué base vectorial me recomiendan para Python?"])
-    conversation_history: list[ChatMessage] = Field(default=[], description="Historial previo de la conversación para mantener contexto")
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Pregunta o consulta del usuario",
+        examples=["¿Qué base vectorial me recomiendan para Python?"],
+    )
+    conversation_history: list[ChatMessage] = Field(
+        default=[],
+        max_length=20,
+        description="Historial previo de la conversación para mantener contexto",
+    )
 
 
 class ChatSource(BaseModel):
@@ -28,6 +45,7 @@ class ArchitectureComponent(BaseModel):
     health_score: int | None = None
     health_status: str | None = Field(default=None, description="Estado de mantenimiento", examples=["Activo"])
     justification: str = Field(..., description="Justificación técnica de la elección")
+    alerts: list[RepositoryAlert] = Field(default=[], description="Alertas de riesgo asociadas al componente")
 
 
 class ArchitectureConnection(BaseModel):

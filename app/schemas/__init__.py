@@ -8,6 +8,7 @@ from app.schemas.repository import (
     RepositoryListItem,
     RepositoryPaginationResponse,
     RepositoryDetailResponse,
+    RepositoryCompareResponse,
 )
 from app.schemas.assistant import (
     ChatMessage,
