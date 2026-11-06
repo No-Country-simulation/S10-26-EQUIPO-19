@@ -10,9 +10,12 @@ class ContextBuilder:
         requirements: dict,
         repositories: list[dict],
         semantic_results: list[dict] | None = None,
+        integration_context: list[dict] | None = None,
     ) -> str:
 
         semantic_results = semantic_results or []
+
+        integration_context = integration_context or []
 
         semantic_by_repository = {}
 
@@ -78,6 +81,32 @@ class ContextBuilder:
                 repository_context += f"- {content}\n"
 
             context.append(repository_context)
+
+        context.append("\nINTEGRACIONES ASOCIADAS A LOS CASOS DE NEGOCIO:")
+
+        if not integration_context:
+            context.append(
+                "No se encontraron integraciones asociadas a los casos de negocio."
+            )
+
+        for integration in integration_context:
+            integration_text = (
+                f"\nIntegration ID: {integration.get('id')}\n"
+                f"Propósito: {integration.get('purpose')}\n"
+                f"Tipo: {integration.get('integration_type')}\n"
+                f"Dificultad: {integration.get('difficulty')}\n"
+                f"Estado: {integration.get('status')}\n"
+                "Repositorios asociados:\n"
+            )
+
+            for repository in integration.get("repositories", []):
+                integration_text += (
+                    f"- {repository.get('full_name')} "
+                    f"| Rol: {repository.get('role')} "
+                    f"| Lenguaje: {repository.get('language')}\n"
+                )
+
+            context.append(integration_text)
 
         context.append(
             "\nINSTRUCCIONES DE RESPUESTA:\n"

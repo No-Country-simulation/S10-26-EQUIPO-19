@@ -11,6 +11,7 @@ from app.services.gemini_embedding_service import GeminiEmbeddingService
 from app.services.llm_service import LLMService
 from app.services.sql_search_service import SQLSearchService
 from app.services.vector_search_service import VectorSearchService
+from app.services.business_case_search_service import BusinessCaseSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class AssistantOrchestrator:
         compatibility_engine: CompatibilityEngine | None = None,
         context_builder: ContextBuilder | None = None,
         llm: LLMService | None = None,
+        business_case_search: BusinessCaseSearchService | None = None,
     ):
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
@@ -64,6 +66,10 @@ class AssistantOrchestrator:
             ),
         )
 
+        self.business_case_search = (
+            business_case_search or BusinessCaseSearchService(llm=self.llm)
+        )
+
 
 
     async def process_message(self, message: str) -> dict:
@@ -75,6 +81,62 @@ class AssistantOrchestrator:
 
         # 1. Analyze user requirements.
         requirements = self.requirements_analyzer.analyze(message)
+
+        # 1.1 Find relevant business cases.
+        business_cases = await self.business_case_search.find_relevant_business_cases(
+            query=message,
+        )
+
+        logger.info(
+            "Relevant business cases found: %s",
+            [case["id"] for case in business_cases],
+        )
+
+        # 1.2 Retrieve integrations associated with business cases.
+        business_case_ids = [
+            case["id"]
+            for case in business_cases
+        ]
+
+        integrations = self.business_case_search.get_integrations_by_business_case_ids(
+            business_case_ids=business_case_ids,
+        )
+
+        logger.info(
+            "Business case integrations found: %s",
+            len(integrations),
+        )
+
+        # 1.3 Retrieve repositories associated with integrations.
+        integration_ids = [
+            integration["id"]
+            for integration in integrations
+        ]
+
+        repositories_by_integration = (
+            self.business_case_search.get_repositories_by_integration_ids(
+                integration_ids=integration_ids,
+            )
+        )
+
+        logger.info(
+            "Repositories grouped by integration: %s",
+            sum(
+                len(repositories)
+                for repositories in repositories_by_integration.values()
+            ),
+        )
+
+        # 1.4 Build business integration context.
+        integration_context = self.business_case_search.build_integration_context(
+            integrations=integrations,
+            repositories_by_integration=repositories_by_integration,
+        )
+
+        logger.info(
+            "Integration context built: %s integrations",
+            len(integration_context),
+        )
 
         logger.info("Detected requirements: %s", requirements)
 
@@ -165,12 +227,6 @@ class AssistantOrchestrator:
                 ],
             )
 
-        if missing_ids:
-            logger.warning(
-                "Semantic results contain repositories not found in SQL results: %s",
-                missing_ids,
-            )
-
         similarities = {}
 
         for result in semantic_results:
@@ -195,7 +251,10 @@ class AssistantOrchestrator:
             requirements=requirements,
             repositories=ranked_repositories,
             semantic_results=semantic_results,
+            integration_context=integration_context,
         )
+
+        print("Context length:", len(context))
 
         # 7. Generate final answer.
         answer = await self.llm.generate_response(context)

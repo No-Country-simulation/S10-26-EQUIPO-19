@@ -1,4 +1,6 @@
 import logging
+import asyncio
+import random
 
 from google import genai
 from google.genai import types
@@ -8,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 class LLMService:
 
-    DEFAULT_MODEL = "gemini-3.6-flash"
+    DEFAULT_MODEL = "gemini-3.1-flash-lite"
+    FALLBACK_MODEL = "gemini-3.5-flash-lite"
+    MAX_RETRIES = 3
+    RETRY_DELAY = 1.5
 
     def __init__(
         self,
@@ -49,31 +54,76 @@ class LLMService:
             response_mime_type="application/json" if json_mode else "text/plain",
         )
 
-        try:
-            response = await self.client.aio.models.generate_content(
-                model=self.model,
-                contents=context,
-                config=config,
-            )
+        models = [self.model, self.FALLBACK_MODEL]
 
-            content = response.text
+        for model_index, model in enumerate(models):
+            for attempt in range(self.MAX_RETRIES + 1):
+                try:
+                    response = await self.client.aio.models.generate_content(
+                        model=model,
+                        contents=context,
+                        config=config,
+                    )
 
-            if not content:
-                raise RuntimeError("Gemini returned an empty response")
+                    content = response.text
 
-            logger.info(
-                "Response generated successfully using Gemini model %s",
-                self.model,
-            )
+                    if not content:
+                        raise RuntimeError("Gemini returned an empty response")
 
-            return content.strip()
+                    logger.info(
+                        "Response generated successfully using Gemini model %s",
+                        model,
+                    )
 
-        except Exception:
-            logger.exception(
-                "Gemini generation failed | model=%s",
-                self.model,
-            )
-            raise
+                    return content.strip()
+
+                except Exception as exc:
+                    error_message = str(exc).upper()
+
+                    retryable = any(
+                        indicator in error_message
+                        for indicator in (
+                            "503",
+                            "429",
+                            "UNAVAILABLE",
+                            "RESOURCE_EXHAUSTED",
+                        )
+                    )
+
+                    if not retryable:
+                        logger.exception(
+                            "Gemini generation failed | model=%s",
+                            model,
+                        )
+                        raise
+
+                    if attempt == self.MAX_RETRIES:
+                        if model_index == len(models) - 1:
+                            logger.exception(
+                                "All Gemini models exhausted | model=%s",
+                                model,
+                            )
+                            raise
+
+                        logger.warning(
+                            "Model %s exhausted retries. Switching to fallback: %s",
+                            model,
+                            self.FALLBACK_MODEL,
+                        )
+                        break
+
+                    delay = self.RETRY_DELAY + random.uniform(0, 0.5)
+
+                    logger.warning(
+                        "Gemini temporarily unavailable | model=%s | "
+                        "retry in %.2f seconds | attempt %s/%s",
+                        model,
+                        delay,
+                        attempt + 1,
+                        self.MAX_RETRIES,
+                    )
+
+                    await asyncio.sleep(delay)
 
     async def generate_response(self, context: str) -> str:
         return await self._generate(context)

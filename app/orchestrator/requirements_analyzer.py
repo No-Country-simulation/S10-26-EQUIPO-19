@@ -76,6 +76,88 @@ class RequirementsAnalyzer:
             "graphql",
             "endpoints",
         ],
+        "catálogo de productos": [
+            "catálogo de productos",
+            "catalogo de productos",
+            "catálogo",
+            "catalogo",
+            "product catalog",
+            "product management",
+            "gestión de productos",
+            "gestionar productos",
+            "catálogos de productos",
+            "catalogos de productos",
+            "catálogos",
+            "catalogos",
+        ],
+        "gestión de pedidos": [
+            "gestión de pedidos",
+            "gestionar pedidos",
+            "administración de pedidos",
+            "administrar pedidos",
+            "procesamiento de pedidos",
+            "order management",
+            "order processing",
+            "orders",
+            "pedidos",
+            "gestionar pedidos",
+            "administrar pedidos",
+        ],
+        "gestión de pagos": [
+            "gestión de pagos",
+            "gestionar pagos",
+            "procesamiento de pagos",
+            "payment processing",
+            "payment management",
+            "payments",
+            "pasarelas de pago",
+            "payment gateways",
+            "pagos",
+            "gestionar pagos",
+            "administrar pagos",
+        ],
+        "notificaciones": [
+            "notificaciones",
+            "notificación",
+            "notifications",
+            "notification system",
+            "email notifications",
+            "sms",
+            "push notifications",
+        ],
+        "logística y envíos": [
+            "logística",
+            "logistica",
+            "gestión logística",
+            "gestion logistica",
+            "gestión de envíos",
+            "gestion de envios",
+            "gestionar envíos",
+            "envíos",
+            "envios",
+            "shipping",
+            "fulfillment",
+            "delivery management",
+        ],
+        "gestión de inventario": [
+            "gestión de inventario",
+            "gestion de inventario",
+            "gestionar inventario",
+            "control de stock",
+            "gestión de stock",
+            "inventory management",
+            "inventory",
+            "stock management",
+        ],
+        "integración de servicios externos": [
+            "integración de servicios externos",
+            "integracion de servicios externos",
+            "integrar servicios externos",
+            "integración con servicios externos",
+            "integraciones externas",
+            "third-party integrations",
+            "external service integration",
+        ],
         "base de datos vectorial": [
             "base vectorial",
             "vector database",
@@ -106,10 +188,13 @@ class RequirementsAnalyzer:
     def _normalize(text: str) -> str:
         text = text.lower().strip()
         text = unicodedata.normalize("NFKD", text)
-        return "".join(
+
+        text = "".join(
             char for char in text
             if not unicodedata.combining(char)
         )
+
+        return re.sub(r"\s+", " ", text)
 
     @staticmethod
     def _contains_term(text: str, term: str) -> bool:
