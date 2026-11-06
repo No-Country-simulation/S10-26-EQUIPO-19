@@ -40,6 +40,8 @@ DEFAULT_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "https://openbridge-rcv2.onrender.com",
+    "https://openbridge-dev.vercel.app",
+    "https://openbridge-seven.vercel.app"
 ]
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
 if env_origins:
