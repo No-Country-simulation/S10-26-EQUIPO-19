@@ -1,5 +1,6 @@
 import logging
 import os
+import json
 
 from dotenv import load_dotenv
 
@@ -202,6 +203,18 @@ class AssistantOrchestrator:
             for repository in sql_results
         }
 
+        logger.info(
+            "Retrieved repositories: %s",
+            [
+                {
+                    "id": repository.get("id"),
+                    "full_name": repository.get("full_name"),
+                    "category": repository.get("category_slug"),
+                }
+                for repository in repositories_by_id.values()
+            ],
+        )
+
         semantic_repository_ids = {
             result["repository_id"]
             for result in semantic_results
@@ -227,6 +240,26 @@ class AssistantOrchestrator:
                 ],
             )
 
+        for repositories in repositories_by_integration.values():
+            for item in repositories:
+                repository = item["repository"]
+                repository_id = repository["id"]
+
+                existing_repository = repositories_by_id.get(repository_id, {})
+
+                repositories_by_id[repository_id] = {
+                    **repository,
+                    **existing_repository,
+                }
+
+        logger.info(
+            "Logistics repositories: %s",
+            {
+                repository_id: repositories_by_id.get(repository_id, {}).get("full_name")
+                for repository_id in [79, 28, 3, 48, 121, 126]
+            },
+        )
+
         similarities = {}
 
         for result in semantic_results:
@@ -245,6 +278,16 @@ class AssistantOrchestrator:
             similarities=similarities,
         )
 
+        for repository_id in [79, 28, 3, 48, 121]:
+            repository = repositories_by_id.get(repository_id)
+            if repository:
+                logger.info(
+                    "Repository %s | health_status=%r | health_score=%r",
+                    repository.get("full_name"),
+                    repository.get("health_status"),
+                    repository.get("health_score"),
+                )
+
         # 6. Build LLM context.
         context = self.context_builder.build(
             query=message,
@@ -256,8 +299,137 @@ class AssistantOrchestrator:
 
         print("Context length:", len(context))
 
-        # 7. Generate final answer.
-        answer = await self.llm.generate_response(context)
+        architecture_response = await self.llm.generate_architecture(context)
+
+        try:
+            architecture_data = json.loads(architecture_response)
+        except json.JSONDecodeError:
+            logger.exception("Failed to parse generated architecture JSON")
+            architecture_data = {}
+
+        valid_components = []
+
+        for component in architecture_data.get("components", []):
+            repository_id = component.get("repository_id")
+            repository = repositories_by_id.get(repository_id)
+
+            if not repository:
+                logger.warning(
+                    "Architecture component references unknown repository: %s",
+                    repository_id,
+                )
+                continue
+
+            if component.get("full_name") != repository.get("full_name"):
+                logger.warning(
+                    "Architecture component name mismatch for repository ID %s",
+                    repository_id,
+                )
+                continue
+
+            component["license"] = repository.get("license")
+            component["health_score"] = repository.get("health_score")
+            component["health_status"] = repository.get("health_status")
+
+            logger.info(
+                "Validated architecture component: %s",
+                component,
+            )
+
+            valid_components.append(component)
+
+        architecture_data["components"] = valid_components
+
+        valid_keys = {component["key"] for component in valid_components}
+
+        valid_connections = []
+
+        integration_codes_by_pair = {}
+
+        for integration in integration_context:
+            repository_ids = {
+                item.get("repository", {}).get("id")
+                for item in integration.get("repositories", [])
+                if item.get("repository", {}).get("id") is not None
+            }
+
+            for repository_id_a in repository_ids:
+                for repository_id_b in repository_ids:
+                    if repository_id_a >= repository_id_b:
+                        continue
+
+                    integration_codes_by_pair[
+                        (repository_id_a, repository_id_b)
+                    ] = integration.get("integration_code")
+
+        for connection in architecture_data.get("connections", []):
+            if (
+                connection.get("from") not in valid_keys
+                or connection.get("to") not in valid_keys
+            ):
+                logger.warning(
+                    "Discarding connection with invalid references: %s",
+                    connection,
+                )
+                continue
+
+            from_key = connection.get("from")
+            to_key = connection.get("to")
+
+            from_component = next(
+                component
+                for component in valid_components
+                if component["key"] == from_key
+            )
+
+            to_component = next(
+                component
+                for component in valid_components
+                if component["key"] == to_key
+            )
+
+            repository_ids = sorted([
+                from_component["repository_id"],
+                to_component["repository_id"],
+            ])
+
+            connection["integration_code"] = integration_codes_by_pair.get(
+                tuple(repository_ids)
+            )
+
+            valid_connections.append(connection)
+
+        architecture_data["connections"] = valid_connections
+
+        response_context = (
+            f"{context}\n\n"
+            "ARQUITECTURA TÉCNICA VALIDADA:\n"
+            f"{json.dumps(architecture_data, ensure_ascii=False, indent=2)}\n\n"
+            "IMPORTANTE: La arquitectura anterior es la propuesta definitiva. "
+            "La respuesta textual debe describir exactamente esos componentes. "
+            "No agregues alternativas ni repositorios que no formen parte "
+            "de la arquitectura validada."
+        )
+
+        answer = await self.llm.generate_response(response_context)
+
+        logger.info(
+            "Final validated architecture: %s",
+            json.dumps(architecture_data, ensure_ascii=False, indent=2),
+        )
+
+        if valid_components:
+            repository_id = valid_components[0]["repository_id"]
+            repository = repositories_by_id[repository_id]
+
+            logger.info(
+                "Architecture repository metadata: %s",
+                {
+                    "license": repository.get("license"),
+                    "health_score": repository.get("health_score"),
+                    "health_status": repository.get("health_status"),
+                },
+            )
 
         # 8. Build response sources.
         sources = []
@@ -288,6 +460,9 @@ class AssistantOrchestrator:
         return {
             "answer": answer,
             "sources": sources,
-            "suggested_questions": [],
-            "architecture": None,
+            "suggested_questions": architecture_data.get("suggested_questions", []),
+            "architecture": {
+                "components": architecture_data.get("components", []),
+                "connections": architecture_data.get("connections", []),
+            },
         }

@@ -46,15 +46,25 @@ class BusinessCaseSearchService:
         relations_response = (
             self.supabase
             .table("integration_business_cases")
-            .select("integration_id")
+            .select("integration_id, business_case_id")
             .in_("business_case_id", business_case_ids)
             .execute()
         )
 
-        integration_ids = list({
-            relation["integration_id"]
-            for relation in relations_response.data or []
-        })
+        relations = relations_response.data or []
+
+        business_case_ids_by_integration = {}
+
+        for relation in relations:
+            integration_id = relation["integration_id"]
+            business_case_id = relation["business_case_id"]
+
+            business_case_ids_by_integration.setdefault(
+                integration_id,
+                [],
+            ).append(business_case_id)
+
+        integration_ids = list(business_case_ids_by_integration)
 
         if not integration_ids:
             return []
@@ -67,7 +77,17 @@ class BusinessCaseSearchService:
             .execute()
         )
 
-        return integrations_response.data or []
+        integrations = integrations_response.data or []
+
+        for integration in integrations:
+            integration["business_case_ids"] = (
+                business_case_ids_by_integration.get(
+                    integration["id"],
+                    [],
+                )
+            )
+
+        return integrations
 
     def get_repositories_by_integration_ids(
         self,
@@ -98,7 +118,7 @@ class BusinessCaseSearchService:
         repositories_response = (
             self.supabase
             .table("repositories")
-            .select("*")
+            .select("*, metrics(health_status)")
             .in_("id", repository_ids)
             .execute()
         )
@@ -107,6 +127,14 @@ class BusinessCaseSearchService:
             repository["id"]: repository
             for repository in repositories_response.data or []
         }
+
+        for repository in repositories_by_id.values():
+            metrics = repository.get("metrics") or {}
+
+            if isinstance(metrics, list):
+                metrics = metrics[0] if metrics else {}
+
+            repository["health_status"] = metrics.get("health_status")
 
         grouped_repositories = {
             integration_id: []
@@ -141,12 +169,17 @@ class BusinessCaseSearchService:
 
             integration_context = {
                 **integration,
+                "integration_code": f"INT-{integration_id:03d}",
+                "business_case_ids": integration.get("business_case_ids", []),
                 "repositories": [
                     {
+                        "repository_id": item["repository"]["id"],
                         "full_name": item["repository"]["full_name"],
                         "description": item["repository"]["description"],
                         "language": item["repository"]["language"],
                         "url": item["repository"]["url"],
+                        "license": item["repository"].get("license"),
+                        "health_score": item["repository"].get("health_score"),
                         "role": item["role"],
                     }
                     for item in repositories_by_integration.get(

@@ -25,6 +25,7 @@ class ArchitectureComponent(BaseModel):
     full_name: str = Field(..., description="Owner y repo", examples=["chroma-core/chroma"])
     role: str = Field(..., description="Función del componente en la arquitectura")
     license: str | None = Field(default=None, description="Licencia del repositorio", examples=["Apache-2.0"])
+    health_score: int | None = None
     health_status: str | None = Field(default=None, description="Estado de mantenimiento", examples=["Activo"])
     justification: str = Field(..., description="Justificación técnica de la elección")
 
@@ -40,7 +41,10 @@ class ArchitectureConnection(BaseModel):
 
 
 class ArchitectureProposal(BaseModel):
-    components: list[ArchitectureComponent] = Field(default=[], description="Componentes de la arquitectura propuesta")
+    components: list[ArchitectureComponent] = Field(
+        default_factory=list,
+        description="Componentes de la arquitectura propuesta",
+    )
     connections: list[ArchitectureConnection] = Field(default=[], description="Conexiones entre los componentes")
 
 

@@ -86,6 +86,7 @@ class CompatibilityEngine:
             compatibility_score = 0
 
         return {
+            **repository,
             "repository_id": repository.get("id"),
             "full_name": repository.get("full_name"),
             "compatibility_score": round(compatibility_score, 2),

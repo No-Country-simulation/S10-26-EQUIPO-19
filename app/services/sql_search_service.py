@@ -5,6 +5,24 @@ from app.database import get_supabase_client
 
 class SQLSearchService:
 
+    def __init__(self, supabase: Client | None = None):
+        self.supabase = supabase or get_supabase_client()
+
+        if self.supabase is None:
+            raise RuntimeError("Supabase client is not available")
+
+    @staticmethod
+    def _attach_health_status(repositories: list[dict]) -> list[dict]:
+        for repository in repositories:
+            metrics = repository.get("metrics") or {}
+
+            if isinstance(metrics, list):
+                metrics = metrics[0] if metrics else {}
+
+            repository["health_status"] = metrics.get("health_status")
+
+        return repositories
+
     def get_repositories_by_ids(
         self,
         repository_ids: list[int],
@@ -16,18 +34,12 @@ class SQLSearchService:
         response = (
             self.supabase
             .table("repositories")
-            .select("*")
+            .select("*, metrics(health_status)")
             .in_("id", repository_ids)
             .execute()
         )
 
-        return response.data or []
-
-    def __init__(self, supabase: Client | None = None):
-        self.supabase = supabase or get_supabase_client()
-
-        if self.supabase is None:
-            raise RuntimeError("Supabase client is not available")
+        return self._attach_health_status(response.data or [])
 
     def search_repositories(
         self,
@@ -48,9 +60,12 @@ class SQLSearchService:
         if offset < 0:
             raise ValueError("offset cannot be negative")
 
-        query = self.supabase.table("repositories").select("*")
+        query = (
+            self.supabase
+            .table("repositories")
+            .select("*, metrics(health_status)")
+        )
 
-        # Category filter: resolve slug to category ID.
         if category_slug:
             category_response = (
                 self.supabase
@@ -67,7 +82,6 @@ class SQLSearchService:
             category_id = category_response.data[0]["id"]
             query = query.eq("category_id", category_id)
 
-        # Metadata filters.
         if language:
             query = query.eq("language", language)
 
@@ -86,7 +100,6 @@ class SQLSearchService:
         if exclude_archived:
             query = query.eq("archived", False)
 
-        # Ordering and pagination.
         response = (
             query
             .order("health_score", desc=True)
@@ -95,4 +108,4 @@ class SQLSearchService:
             .execute()
         )
 
-        return response.data or []
+        return self._attach_health_status(response.data or [])
