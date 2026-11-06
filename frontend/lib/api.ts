@@ -5,12 +5,13 @@ import type {
   ChatMessage,
   ChatResponse,
   CompareResponse,
+  ComposeResponse,
   ListParams,
   PaginatedRepositories,
   RepositoryDetail,
   SearchParams,
 } from "@/types/api";
-import { MOCK_CATEGORIES, compareMock, getMockDetail, listMock, mockChat, searchMock } from "@/data/mock";
+import { MOCK_CATEGORIES, compareMock, composeMock, getMockDetail, listMock, mockChat, searchMock } from "@/data/mock";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
@@ -145,6 +146,19 @@ export async function askAssistant(message: string, history: ChatMessage[] = [])
     ASSISTANT_TIMEOUT_MS,
   );
 }
+
+/** 9.2 · docker-compose de arranque para las herramientas del stack recomendado. */
+export async function generateCompose(fullNames: string[]): Promise<ComposeResponse> {
+  if (USE_MOCK) return delay(composeMock(fullNames));
+  return request<ComposeResponse>("/compose", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repositories: fullNames.slice(0, 10) }),
+  });
+}
+
+/** 9.2 · El botón del docker-compose se muestra solo si está activado (cuando exista el servicio /compose). */
+export const COMPOSE_ENABLED = USE_MOCK || process.env.NEXT_PUBLIC_ENABLE_COMPOSE === "true";
 
 /** 9.5 · Comparación lado a lado de 2 o 3 repositorios. */
 export async function compareRepositories(ids: number[]): Promise<CompareResponse> {

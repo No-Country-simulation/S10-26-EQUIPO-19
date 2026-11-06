@@ -3,6 +3,7 @@
 import type {
   ChatResponse,
   CompareResponse,
+  ComposeResponse,
   Category,
   Integration,
   ListParams,
@@ -283,4 +284,37 @@ export function compareMock(ids: number[]): CompareResponse | null {
   const list = repositories as RepositoryDetail[];
   const same = new Set(list.map((r) => r.category.id)).size === 1;
   return { repositories: list, same_category: same, category_name: same ? list[0].category.name : null };
+}
+
+// docker-compose de ejemplo (9.2). Solo para el modo mock: las imágenes y versiones son ilustrativas;
+// la API real usa los datos Docker revisados del inventario.
+const MOCK_DOCKER: Record<string, { service: string; image: string; ports: string[]; env?: Record<string, string>; command?: string }> = {
+  "keycloak/keycloak": { service: "keycloak", image: "quay.io/keycloak/keycloak:26.0", ports: ["8080:8080"], env: { KC_BOOTSTRAP_ADMIN_USERNAME: "admin", KC_BOOTSTRAP_ADMIN_PASSWORD: "<secreto>" }, command: "start-dev" },
+  "traccar/traccar": { service: "traccar", image: "traccar/traccar:6.5", ports: ["8082:8082"] },
+  "novuhq/novu": { service: "novu", image: "ghcr.io/novuhq/novu/api:2.0.0", ports: ["3000:3000"], env: { JWT_SECRET: "<secreto>" } },
+  "postgres/postgres": { service: "postgres", image: "postgres:17", ports: ["5432:5432"], env: { POSTGRES_PASSWORD: "<secreto>" } },
+};
+const MOCK_LIBRARIES = new Set(["nextauthjs/next-auth"]);
+
+export function composeMock(fullNames: string[]): ComposeResponse {
+  const services = fullNames.filter((n) => MOCK_DOCKER[n]).map((n) => ({ full_name: n, ...MOCK_DOCKER[n] }));
+  const skipped = fullNames
+    .filter((n) => !MOCK_DOCKER[n])
+    .map((n) => ({ full_name: n, reason: MOCK_LIBRARIES.has(n) ? "Es una librería: se instala como dependencia del proyecto." : "Todavía no tiene datos Docker revisados en el catálogo." }));
+  const lines = ["# docker-compose de arranque generado por OpenBridge (datos de ejemplo).", "# Reemplaza cada <secreto> antes de levantarlo.", "services:"];
+  for (const s of services) {
+    const d = MOCK_DOCKER[s.full_name];
+    lines.push(`  ${d.service}:`, `    image: ${d.image}`);
+    if (d.command) lines.push(`    command: ${d.command}`);
+    lines.push("    ports:", ...d.ports.map((p) => `      - "${p}"`));
+    if (d.env) lines.push("    environment:", ...Object.entries(d.env).map(([k, v]) => `      ${k}: "${v}"`));
+  }
+  for (const s of skipped) lines.push(`# ${s.full_name}: ${s.reason}`);
+  return {
+    filename: "docker-compose.yml",
+    content: lines.join("\n") + "\n",
+    services: services.map(({ full_name, service, image, ports }) => ({ full_name, service, image, ports })),
+    skipped,
+    warnings: services.some((s) => MOCK_DOCKER[s.full_name].env) ? ["Hay variables marcadas como <secreto>: reemplázalas por valores propios antes de levantar el stack."] : [],
+  };
 }
