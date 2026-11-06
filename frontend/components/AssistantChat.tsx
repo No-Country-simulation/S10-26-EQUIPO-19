@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import ArchitectureMap from "@/components/ArchitectureMap";
 import ComposePanel from "@/components/ComposePanel";
 import HealthBadge from "@/components/HealthBadge";
+import Markdown from "@/components/Markdown";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertList } from "@/components/RiskAlerts";
 import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
@@ -33,17 +34,6 @@ function assistantError(err: unknown): FriendlyError {
     return { title: "Asistente no disponible", message: "El asistente no está disponible en este momento. Inténtalo más tarde.", retry: false };
   }
   return friendlyError(err, "la recomendación");
-}
-
-/** Convierte el **negrita** de la respuesta en <strong>, sin interpretar HTML. */
-function richText(text: string): ReactNode[] {
-  return text.split(/\n{2,}/).map((para, i) => (
-    <p key={i}>
-      {para.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-        part.startsWith("**") && part.endsWith("**") ? <strong key={j}>{part.slice(2, -2)}</strong> : part,
-      )}
-    </p>
-  ));
 }
 
 export default function AssistantChat() {
@@ -200,7 +190,7 @@ function AssistantAnswer({
 
   return (
     <article className="flex max-w-full flex-col gap-4 self-start rounded-[var(--radius-card)] border border-border bg-card p-5">
-      <div className="flex flex-col gap-2 leading-relaxed">{richText(response.answer)}</div>
+      <div className="flex flex-col gap-2 leading-relaxed"><Markdown text={response.answer} /></div>
 
       {components.length > 0 && (
         <section aria-label="Stack recomendado" className="flex flex-col gap-3">
