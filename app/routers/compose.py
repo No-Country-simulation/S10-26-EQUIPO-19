@@ -1,33 +1,21 @@
 import re
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, status, Depends
 
+from app.core.rate_limit import repositories_rate_limiter
 from app.services.compose_generator import ComposeGeneratorService
 
 router = APIRouter(prefix="/api/v1", tags=["Compose Generator"])
 
 REPO_REGEX = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
-
-
-class ComposeRequest(BaseModel):
-    repositories: List[str]
-
-
-def rate_limiter():
-    
-    pass
-
-
 generator_service = ComposeGeneratorService()
 
 
-@router.post("/compose", dependencies=[Depends(rate_limiter)])
-def generate_compose(payload: ComposeRequest):
-    repos = payload.repositories
+@router.post("/compose", dependencies=[Depends(repositories_rate_limiter)])
+def generate_compose(payload: dict):
+    repos = payload.get("repositories", [])
 
-    
-    if not repos or len(repos) == 0:
+    if not isinstance(repos, list) or len(repos) == 0:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="La lista de repositorios no puede estar vacía."
@@ -40,11 +28,10 @@ def generate_compose(payload: ComposeRequest):
         )
 
     for repo in repos:
-        if not REPO_REGEX.match(repo):
+        if not isinstance(repo, str) or not REPO_REGEX.match(repo):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"El formato del repositorio '{repo}' es inválido. Debe ser 'owner/repo'."
             )
 
     return generator_service.generate(repos)
-

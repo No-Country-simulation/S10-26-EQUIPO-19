@@ -5,7 +5,7 @@ import yaml
 
 
 def sanitize_service_name(name: str) -> str:
-
+    
     name = name.lower()
     name = re.sub(r'[^a-z0-9-]', '-', name)
     name = re.sub(r'-+', '-', name).strip('-')
@@ -35,8 +35,12 @@ class ComposeGeneratorService:
         for p in raw_ports:
             if isinstance(p, dict):
                 container_port = p.get("container")
+                range_end = p.get("range_end")
                 if container_port:
-                    ports_list.append(f"{container_port}:{container_port}")
+                    if range_end:
+                        ports_list.append(f"{container_port}-{range_end}:{container_port}-{range_end}")
+                    else:
+                        ports_list.append(f"{container_port}:{container_port}")
             elif isinstance(p, (str, int)):
                 ports_list.append(f"{p}:{p}")
         return ports_list
@@ -46,11 +50,10 @@ class ComposeGeneratorService:
         services_response: List[dict] = []
         skipped_response: List[dict] = []
         warnings: List[str] = []
-        used_ports: Dict[str, str] = {} 
+        used_ports: Dict[str, str] = {}
         has_secrets = False
         processed_catalog_deps: Set[str] = set()
 
- 
         queue: List[str] = list(request_repos)
 
         for repo_name in queue:
@@ -68,13 +71,15 @@ class ComposeGeneratorService:
             image = repo_info.get("image")
             review = repo_info.get("review")
 
+           
+            if review and repo_name in request_repos:
+                warnings.append(f"Nota de revisión para '{repo_name}': {review}")
+
           
             if kind == "stack":
                 if repo_name in request_repos:
                     source_url = self._get_primary_source(repo_info)
                     reason = f"Es un stack multicontenedor complejo. Se recomienda usar su compose oficial: {source_url}"
-                    if review:
-                        reason += f" (Nota de revisión: {review})"
                     skipped_response.append({"full_name": repo_name, "reason": reason})
                 continue
 
@@ -105,7 +110,6 @@ class ComposeGeneratorService:
                     })
                 continue
 
-        
             if ":latest" in image or ":" not in image:
                 if repo_name in request_repos:
                     skipped_response.append({
@@ -114,18 +118,15 @@ class ComposeGeneratorService:
                     })
                 continue
 
-   
             service_name = sanitize_service_name(repo_name.split("/")[-1])
             ports = self._process_ports(repo_info)
             env_vars = dict(repo_info.get("environment", {}))
             command = repo_info.get("command")
 
-     
             for v in env_vars.values():
                 if v == "<secreto>":
                     has_secrets = True
 
-   
             for p in ports:
                 host_port = p.split(":")[0]
                 if host_port in used_ports and used_ports[host_port] != service_name:
@@ -135,41 +136,25 @@ class ComposeGeneratorService:
                 else:
                     used_ports[host_port] = service_name
 
-       
-            service_spec: Dict[str, Any] = {"image": image}
-
-            if command:
-                service_spec["command"] = command
-            if ports:
-                service_spec["ports"] = ports
-            if env_vars:
-                service_spec["environment"] = env_vars
-
-            services_map[service_name] = service_spec
-
-       
-            if repo_name in request_repos:
-                services_response.append({
-                    "full_name": repo_name,
-                    "service": service_name,
-                    "image": image,
-                    "ports": ports
-                })
-
-            
+        
+            depends_on_list: List[str] = []
             depends_on_data = repo_info.get("depends_on", {})
             catalog_deps = depends_on_data.get("catalog", [])
+
             for dep_repo in catalog_deps:
+                dep_service_name = sanitize_service_name(dep_repo.split("/")[-1])
+                depends_on_list.append(dep_service_name)
                 if dep_repo not in processed_catalog_deps and dep_repo not in request_repos:
                     processed_catalog_deps.add(dep_repo)
                     queue.append(dep_repo)
 
-        
             external_deps = depends_on_data.get("external", [])
             for ext in external_deps:
                 ext_name = ext.lower()
-               
                 if "redis" in ext_name and "valkey-io/valkey" in self.repositories:
+                    valkey_service_name = sanitize_service_name("valkey")
+                    if valkey_service_name not in depends_on_list:
+                        depends_on_list.append(valkey_service_name)
                     if "valkey-io/valkey" not in processed_catalog_deps and "valkey-io/valkey" not in request_repos:
                         processed_catalog_deps.add("valkey-io/valkey")
                         queue.append("valkey-io/valkey")
@@ -178,17 +163,36 @@ class ComposeGeneratorService:
                         f"El servicio '{service_name}' requiere la dependencia externa '{ext}' que está fuera del catálogo principal. Verifique la imagen oficial correspondiente."
                     )
 
+            service_spec: Dict[str, Any] = {"image": image}
+            if command:
+                service_spec["command"] = command
+            if ports:
+                service_spec["ports"] = ports
+            if env_vars:
+                service_spec["environment"] = env_vars
+            if depends_on_list:
+                service_spec["depends_on"] = depends_on_list
+
+            services_map[service_name] = service_spec
+
+            if repo_name in request_repos:
+                services_response.append({
+                    "full_name": repo_name,
+                    "service": service_name,
+                    "image": image,
+                    "ports": ports
+                })
+
         if has_secrets:
             warnings.append(
                 "Algunas variables de entorno contienen contraseñas o claves sensibles marcadas como '<secreto>'. Reemplácelas antes de ejecutar el contenedor."
             )
 
+       
         compose_dict = {
-            "version": "3.8",
             "services": services_map
         }
 
-       
         yaml_content = yaml.safe_dump(compose_dict, sort_keys=False, default_flow_style=False)
 
         return {
@@ -199,3 +203,4 @@ class ComposeGeneratorService:
             "warnings": warnings
         }
 
+    
