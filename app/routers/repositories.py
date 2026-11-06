@@ -1,7 +1,10 @@
+import re
 import math
 from datetime import datetime
 from typing import Literal
-from fastapi import APIRouter, HTTPException, Query
+import os
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.core.rate_limit import repositories_rate_limiter
 from app.database import get_supabase_client
 from app.schemas import (
     BusinessCaseItem,
@@ -17,9 +20,13 @@ from app.schemas import (
 )
 from app.services.risk_evaluator import evaluate_repository_risk
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+is_production = ENVIRONMENT == "production"
+
 router = APIRouter(
     prefix="/api/v1/repositories",
     tags=["Repositorios"],
+    dependencies=[Depends(repositories_rate_limiter)],
 )
 
 FALLBACK_REPOSITORIES = [
@@ -452,8 +459,17 @@ def get_repositories(
                     total_pages=total_pages,
                     items=items,
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
     sorted_fallback = sorted(
         FALLBACK_REPOSITORIES,
@@ -531,13 +547,16 @@ def search_repositories(
             )
 
             if q and q.strip():
-                clean_q = q.strip()
-                query = query.or_(
-                    f"name.ilike.%{clean_q}%,"
-                    f"full_name.ilike.%{clean_q}%,"
-                    f"description.ilike.%{clean_q}%,"
-                    f"description_es.ilike.%{clean_q}%"
-                )
+                # Sanitizar q para prevenir inyección de filtros PostgREST (Hallazgo H3):
+                # Se eliminan comas, paréntesis, comillas y caracteres de control que dividen o inyectan cláusulas en query.or_
+                clean_q = re.sub(r"[,()%\"'\\]", " ", q).strip()
+                if clean_q:
+                    query = query.or_(
+                        f"name.ilike.%{clean_q}%,"
+                        f"full_name.ilike.%{clean_q}%,"
+                        f"description.ilike.%{clean_q}%,"
+                        f"description_es.ilike.%{clean_q}%"
+                    )
 
             if category_id is not None:
                 query = query.eq("category_id", category_id)
@@ -572,8 +591,17 @@ def search_repositories(
                     total_pages=total_pages,
                     items=items,
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
     filtered = _filter_in_memory(
         repos=FALLBACK_REPOSITORIES,
@@ -633,8 +661,17 @@ def _fetch_repository_detail(repo_id: int) -> RepositoryDetailResponse | None:
             )
             if response.data:
                 return _map_repository_detail_row(response.data[0])
-        except Exception:
-            pass
+        except Exception as exc:
+            if is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="El servicio de base de datos no está disponible temporalmente.",
+                ) from exc
+    elif is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de base de datos no está disponible temporalmente.",
+        )
 
     fallback_repo = next((r for r in FALLBACK_REPOSITORIES if r.id == repo_id), None)
     if fallback_repo:

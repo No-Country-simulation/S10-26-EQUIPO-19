@@ -209,6 +209,7 @@ En la sección **Environment** del Web Service en Render, configurar las variabl
 | `GITHUB_TOKEN` | Token de acceso personal de GitHub (PAT) para ingesta y consultas | `ghp_xxxxxxxxxxxx` |
 | `ENVIRONMENT` | Entorno de ejecución (`production` deshabilita `/docs` y `/redoc` por seguridad) | `production` |
 | `ALLOWED_ORIGINS` | Lista blanca de dominios autorizados para CORS separados por coma | `https://openbridge-rcv2.onrender.com,http://localhost:3000` |
+| `SYNC_API_KEY` | Clave secreta para autorizar peticiones al endpoint de sincronización (`/sync`) | `tu_clave_secreta` |
 | `PORT` | Puerto HTTP (asignado dinámicamente por Render) | `10000` |
 
 ### 🔄 Pipeline y tareas automatizadas (GitHub Actions)
