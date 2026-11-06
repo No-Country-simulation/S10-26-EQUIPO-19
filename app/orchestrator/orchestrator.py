@@ -73,12 +73,17 @@ class AssistantOrchestrator:
 
 
 
-    async def process_message(self, message: str) -> dict:
+    async def process_message(
+        self,
+        message: str,
+        conversation_history: list[dict] | None = None,
+    ) -> dict:
 
         if not message or not message.strip():
             raise ValueError("Message cannot be empty")
 
-        logger.info("Processing assistant query: %s", message)
+        # No se registra el texto del usuario, solo su largo (privacidad).
+        logger.info("Processing assistant query (%s chars)", len(message))
 
         # 1. Analyze user requirements.
         requirements = self.requirements_analyzer.analyze(message)
@@ -155,7 +160,6 @@ class AssistantOrchestrator:
         logger.info(
             "Vector search parameters: %s",
             {
-                "query": message,
                 "match_threshold": 0.3,
                 "match_count": 50,
                 "language": requirements.get("language"),
@@ -252,14 +256,6 @@ class AssistantOrchestrator:
                     **existing_repository,
                 }
 
-        logger.info(
-            "Logistics repositories: %s",
-            {
-                repository_id: repositories_by_id.get(repository_id, {}).get("full_name")
-                for repository_id in [79, 28, 3, 48, 121, 126]
-            },
-        )
-
         similarities = {}
 
         for result in semantic_results:
@@ -278,16 +274,6 @@ class AssistantOrchestrator:
             similarities=similarities,
         )
 
-        for repository_id in [79, 28, 3, 48, 121]:
-            repository = repositories_by_id.get(repository_id)
-            if repository:
-                logger.info(
-                    "Repository %s | health_status=%r | health_score=%r",
-                    repository.get("full_name"),
-                    repository.get("health_status"),
-                    repository.get("health_score"),
-                )
-
         # 6. Build LLM context.
         context = self.context_builder.build(
             query=message,
@@ -297,7 +283,12 @@ class AssistantOrchestrator:
             integration_context=integration_context,
         )
 
-        print("Context length:", len(context))
+        # Historial reciente para las preguntas de seguimiento (máx. 6 mensajes).
+        history_text = self._format_history(conversation_history)
+        if history_text:
+            context = f"CONVERSACIÓN PREVIA:\n{history_text}\n\n{context}"
+
+        logger.debug("Context length: %s", len(context))
 
         architecture_response = await self.llm.generate_architecture(context)
 
@@ -330,6 +321,7 @@ class AssistantOrchestrator:
             component["license"] = repository.get("license")
             component["health_score"] = repository.get("health_score")
             component["health_status"] = repository.get("health_status")
+            component["is_archived"] = bool(repository.get("archived", False))
 
             logger.info(
                 "Validated architecture component: %s",
@@ -396,6 +388,8 @@ class AssistantOrchestrator:
             connection["integration_code"] = integration_codes_by_pair.get(
                 tuple(repository_ids)
             )
+            # Solo es verificada si existe una idea del catálogo que une a ambas.
+            connection["verified"] = connection["integration_code"] is not None
 
             valid_connections.append(connection)
 
@@ -432,9 +426,17 @@ class AssistantOrchestrator:
             )
 
         # 8. Build response sources.
+        # Primero los repositorios que forman parte de la arquitectura propuesta.
         sources = []
+        architecture_ids = [
+            component["repository_id"] for component in valid_components
+        ]
+        ordered_repositories = sorted(
+            ranked_repositories,
+            key=lambda repo: repo.get("repository_id") not in architecture_ids,
+        )
 
-        for repository in ranked_repositories:
+        for repository in ordered_repositories:
             repository_id = repository.get("repository_id")
 
             # Solo incluir repositorios con resultados semánticos.
@@ -466,3 +468,18 @@ class AssistantOrchestrator:
                 "connections": architecture_data.get("connections", []),
             },
         }
+
+    @staticmethod
+    def _format_history(conversation_history: list[dict] | None) -> str:
+        """Resume los últimos mensajes de la conversación para dar contexto al modelo."""
+        if not conversation_history:
+            return ""
+
+        lines = []
+        for item in conversation_history[-6:]:
+            role = "Usuario" if item.get("role") == "user" else "Asistente"
+            content = str(item.get("content", "")).strip()
+            if content:
+                lines.append(f"{role}: {content[:500]}")
+
+        return "\n".join(lines)
