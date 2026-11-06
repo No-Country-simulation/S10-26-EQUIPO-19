@@ -1,21 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError, generateCompose } from "@/lib/api";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
+import { ApiError, COMPOSE_ENABLED, generateCompose } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import type { ComposeResponse } from "@/types/api";
 
 // docker-compose de arranque (9.2): arma el archivo con las herramientas del stack recomendado,
 // usando solo imágenes oficiales del inventario. Las librerías y las herramientas sin datos Docker
 // se informan aparte.
 
-type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; data: ComposeResponse } | { kind: "error"; message: string };
+type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; data: ComposeResponse } | { kind: "error"; error: FriendlyError };
 
-function errorMessage(err: unknown) {
-  if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return "La generación del docker-compose todavía no está disponible en esta versión de la API.";
-  if (err instanceof ApiError && err.status === 429) return "Hiciste muchas solicitudes seguidas. Espera un minuto e intenta de nuevo.";
-  if (err instanceof ApiError && (err.status === 400 || err.status === 422)) return err.message;
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa tu conexión e intenta de nuevo.";
-  return "No pudimos generar el docker-compose. Intenta de nuevo en unos minutos.";
+function composeError(err: unknown): FriendlyError {
+  // Validaciones del servidor (cantidad o formato de las herramientas): sus textos ya son para el usuario.
+  if (err instanceof ApiError && err.kind === "invalid" && err.detail) {
+    return { title: "No pudimos armar el archivo", message: err.detail, retry: false };
+  }
+  if (err instanceof ApiError && (err.kind === "not_found" || err.kind === "unavailable")) {
+    return { title: "Función no disponible", message: "La generación del docker-compose no está disponible en este momento. Inténtalo más tarde.", retry: false };
+  }
+  return friendlyError(err, "el docker-compose");
 }
 
 function download(data: ComposeResponse) {
@@ -38,7 +43,8 @@ export default function ComposePanel({ fullNames }: { fullNames: string[] }) {
     try {
       setStatus({ kind: "ok", data: await generateCompose(fullNames) });
     } catch (err) {
-      setStatus({ kind: "error", message: errorMessage(err) });
+      console.warn(err);
+      setStatus({ kind: "error", error: composeError(err) });
     }
   }
 
@@ -52,7 +58,7 @@ export default function ComposePanel({ fullNames }: { fullNames: string[] }) {
     }
   }
 
-  if (fullNames.length === 0) return null;
+  if (!COMPOSE_ENABLED || fullNames.length === 0) return null;
 
   return (
     <section aria-label="docker-compose de arranque" className="flex flex-col gap-3">
@@ -70,11 +76,8 @@ export default function ComposePanel({ fullNames }: { fullNames: string[] }) {
         </div>
       )}
 
-      {status.kind === "error" && (
-        <p role="alert" className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-text-muted">
-          {status.message}
-        </p>
-      )}
+      <SlowNotice active={status.kind === "loading"} />
+      {status.kind === "error" && <ErrorNotice error={status.error} compact onRetry={() => void generate()} />}
 
       {status.kind === "ok" && (
         <div className="flex flex-col gap-3">

@@ -150,19 +150,15 @@ export async function askAssistant(message: string, history: ChatMessage[] = [])
 /** 9.2 · docker-compose de arranque para las herramientas del stack recomendado. */
 export async function generateCompose(fullNames: string[]): Promise<ComposeResponse> {
   if (USE_MOCK) return delay(composeMock(fullNames));
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}/compose`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repositories: fullNames.slice(0, 10) }),
-    });
-  } catch {
-    throw new ApiError(0, "No pudimos conectar con la API.");
-  }
-  if (!res.ok) throw new ApiError(res.status, (await errorDetail(res)) ?? `La API respondió ${res.status} en /compose`);
-  return res.json() as Promise<ComposeResponse>;
+  return request<ComposeResponse>("/compose", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repositories: fullNames.slice(0, 10) }),
+  });
 }
+
+/** 9.2 · El botón del docker-compose se muestra solo si está activado (cuando exista el servicio /compose). */
+export const COMPOSE_ENABLED = USE_MOCK || process.env.NEXT_PUBLIC_ENABLE_COMPOSE === "true";
 
 /** 9.5 · Comparación lado a lado de 2 o 3 repositorios. */
 export async function compareRepositories(ids: number[]): Promise<CompareResponse> {
