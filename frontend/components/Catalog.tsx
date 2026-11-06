@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import CatalogFilters, { EMPTY_FILTERS, type Filters } from "@/components/CatalogFilters";
 import RepositoryCard from "@/components/RepositoryCard";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { ApiError, getCategories, hasFilters, listRepositories, searchRepositories } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import type { Category, PaginatedRepositories, SearchParams, SortBy, SortOrder } from "@/types/api";
 
 const PAGE_SIZE = 12;
@@ -27,7 +29,40 @@ function orderLabel(sort: Sort) {
   return sort.order === "desc" ? "Mayor a menor" : "Menor a mayor";
 }
 
-type Status = { kind: "loading" } | { kind: "ok"; data: PaginatedRepositories } | { kind: "error"; message: string };
+type Status =
+  | { kind: "loading" }
+  | { kind: "ok"; data: PaginatedRepositories; cachedAt?: number }
+  | { kind: "error"; error: FriendlyError };
+
+// Copia local del catálogo (vista inicial y categorías): si el servicio no responde, se muestra la última
+// versión guardada en el navegador, con un aviso. Solo guarda datos públicos del catálogo.
+const CACHE_KEY = "openbridge:catalogo:v1";
+const CATEGORIES_KEY = "openbridge:categorias:v1";
+
+function readCache<T>(key: string): { data: T; savedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as { data: T; savedAt: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, data: T) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, savedAt: Date.now() }));
+  } catch {
+    // Sin espacio o almacenamiento bloqueado: se sigue sin copia local.
+  }
+}
+
+/** Fallas en las que conviene mostrar la copia local (no aplica a errores de datos). */
+function canUseCache(err: unknown) {
+  return err instanceof ApiError && ["offline", "timeout", "unreachable", "server"].includes(err.kind);
+}
+
+const savedAtText = (ms: number) =>
+  new Date(ms).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 function toSearchParams(f: Filters, page: number, sort: Sort): SearchParams {
   return {
@@ -43,12 +78,11 @@ function toSearchParams(f: Filters, page: number, sort: Sort): SearchParams {
   };
 }
 
-function errorMessage(err: unknown, filtered: boolean) {
-  if (err instanceof ApiError && err.status === 404 && filtered) {
-    return "La búsqueda con filtros todavía no está disponible en la API. Quita los filtros para ver el catálogo completo.";
+function catalogError(err: unknown, filtered: boolean): FriendlyError {
+  if (err instanceof ApiError && err.kind === "not_found" && filtered) {
+    return { title: "Búsqueda no disponible", message: "La búsqueda con filtros no está disponible en este momento. Quita los filtros para ver el catálogo completo.", retry: false };
   }
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa que el backend esté corriendo.";
-  return "Ocurrió un error al cargar los repositorios. Intenta de nuevo en unos minutos.";
+  return friendlyError(err, "las herramientas");
 }
 
 // Pantalla de catálogo (5.5) con buscador y filtros avanzados (5.7) y ficha técnica (5.6).
@@ -60,6 +94,9 @@ export default function Catalog() {
   const [request, setRequest] = useState<{ filters: Filters; page: number; sort: Sort }>({ filters: EMPTY_FILTERS, page: 1, sort: DEFAULT_SORT });
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [openId, setOpenId] = useState<number | null>(null);
+  // Cada clic en "Reintentar" vuelve a consultar con los mismos filtros.
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => setAttempt((n) => n + 1);
   // Repositorios elegidos para comparar: se mantienen al cambiar de página o de filtros.
   const [compare, setCompare] = useState<{ id: number; name: string }[]>([]);
 
@@ -70,8 +107,13 @@ export default function Catalog() {
   }
 
   useEffect(() => {
-    getCategories().then(setCategories).catch(() => setCategories([]));
-  }, []);
+    getCategories()
+      .then((list) => {
+        setCategories(list);
+        writeCache(CATEGORIES_KEY, list);
+      })
+      .catch(() => setCategories(readCache<Category[]>(CATEGORIES_KEY)?.data ?? []));
+  }, [attempt]);
 
   // Espera 300 ms sin cambios antes de consultar (evita una llamada por cada letra) y vuelve a la página 1.
   useEffect(() => {
@@ -90,13 +132,24 @@ export default function Catalog() {
     const filtered = hasFilters(params);
     setStatus({ kind: "loading" });
     const call = filtered ? searchRepositories(params) : listRepositories({ page, page_size: PAGE_SIZE, ...sort });
+    // Solo la vista inicial (sin filtros, página 1 y orden por defecto) se guarda y se recupera de la copia local.
+    const isDefaultView = !filtered && page === 1 && sort.sort_by === DEFAULT_SORT.sort_by && sort.order === DEFAULT_SORT.order;
     call
-      .then((data) => !cancelled && setStatus({ kind: "ok", data }))
-      .catch((err) => !cancelled && setStatus({ kind: "error", message: errorMessage(err, filtered) }));
+      .then((data) => {
+        if (cancelled) return;
+        setStatus({ kind: "ok", data });
+        if (isDefaultView) writeCache(CACHE_KEY, data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn(err);
+        const cached = isDefaultView && canUseCache(err) ? readCache<PaginatedRepositories>(CACHE_KEY) : null;
+        setStatus(cached ? { kind: "ok", data: cached.data, cachedAt: cached.savedAt } : { kind: "error", error: catalogError(err, filtered) });
+      });
     return () => {
       cancelled = true;
     };
-  }, [request]);
+  }, [request, attempt]);
 
   const goToPage = (page: number) => setRequest((prev) => ({ ...prev, page }));
   const changeSort = (sort: Sort) => setRequest((prev) => ({ ...prev, sort, page: 1 }));
@@ -138,11 +191,20 @@ export default function Catalog() {
           </div>
         </div>
 
-        {status.kind === "error" && (
-          <p role="alert" className="rounded-[var(--radius-card)] border border-dashed border-border p-8 text-center text-text-muted">
-            {status.message}
-          </p>
+        {status.kind === "error" && <ErrorNotice error={status.error} onRetry={retry} />}
+
+        {status.kind === "ok" && status.cachedAt && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-status-risk-bg px-4 py-3 text-sm text-status-risk">
+            <span>
+              No pudimos actualizar el catálogo. Te mostramos los datos de tu última visita ({savedAtText(status.cachedAt)}), que pueden no estar al día.
+            </span>
+            <button type="button" onClick={retry} className="font-semibold underline underline-offset-2">
+              Reintentar
+            </button>
+          </div>
         )}
+
+        <SlowNotice active={status.kind === "loading"} />
 
         {data && data.items.length === 0 && (
           <div className="flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-border p-8 text-center text-text-muted">
