@@ -5,7 +5,9 @@ import ArchitectureMap from "@/components/ArchitectureMap";
 import HealthBadge from "@/components/HealthBadge";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertList } from "@/components/RiskAlerts";
+import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { ApiError, askAssistant } from "@/lib/api";
+import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { downloadProposal } from "@/lib/exportProposal";
 import type { ArchitectureComponent, ChatMessage, ChatResponse } from "@/types/api";
 
@@ -22,11 +24,14 @@ const EXAMPLES = [
 
 type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; response: ChatResponse };
 
-function errorMessage(err: unknown) {
-  if (err instanceof ApiError && err.status === 429) return err.message;
-  if (err instanceof ApiError && err.status === 422) return "La consulta no es válida. Revisa que no supere los 2000 caracteres.";
-  if (err instanceof ApiError && err.status === 0) return "No pudimos conectar con la API. Revisa que el backend esté corriendo.";
-  return "Ocurrió un error al consultar al asistente. Intenta de nuevo en unos minutos.";
+function assistantError(err: unknown): FriendlyError {
+  if (err instanceof ApiError && err.kind === "invalid") {
+    return { title: "Revisa tu consulta", message: "La consulta no es válida. Revisa que no supere los 2000 caracteres.", retry: false };
+  }
+  if (err instanceof ApiError && (err.kind === "not_found" || err.kind === "unavailable")) {
+    return { title: "Asistente no disponible", message: "El asistente no está disponible en este momento. Inténtalo más tarde.", retry: false };
+  }
+  return friendlyError(err, "la recomendación");
 }
 
 /** Convierte el **negrita** de la respuesta en <strong>, sin interpretar HTML. */
@@ -44,7 +49,7 @@ export default function AssistantChat() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ error: FriendlyError; message: string; history: ChatMessage[] } | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -52,11 +57,12 @@ export default function AssistantChat() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns, loading]);
 
-  async function send(text: string) {
+  async function send(text: string, retryHistory?: ChatMessage[]) {
     const message = text.trim();
     if (!message || loading) return;
-    const history: ChatMessage[] = turns.map((t) => ({ role: t.role, content: t.content }));
-    setTurns((prev) => [...prev, { role: "user", content: message }]);
+    // Al reintentar, la pregunta ya está en pantalla: se reenvía con el mismo historial.
+    const history: ChatMessage[] = retryHistory ?? turns.map((t) => ({ role: t.role, content: t.content }));
+    if (!retryHistory) setTurns((prev) => [...prev, { role: "user", content: message }]);
     setInput("");
     setError(null);
     setLoading(true);
@@ -64,7 +70,8 @@ export default function AssistantChat() {
       const response = await askAssistant(message, history);
       setTurns((prev) => [...prev, { role: "assistant", content: response.answer, response }]);
     } catch (err) {
-      setError(errorMessage(err));
+      console.warn(err);
+      setError({ error: assistantError(err), message, history });
     } finally {
       setLoading(false);
     }
@@ -125,10 +132,11 @@ export default function AssistantChat() {
             Buscando en el catálogo y armando la recomendación…
           </p>
         )}
+        {loading && <SlowNotice active={loading} />}
         {error && (
-          <p role="alert" className="self-start rounded-2xl border border-dashed border-border px-4 py-3 text-text-muted">
-            {error}
-          </p>
+          <div className="self-stretch">
+            <ErrorNotice error={error.error} compact onRetry={() => void send(error.message, error.history)} />
+          </div>
         )}
         <div ref={endRef} />
       </section>
