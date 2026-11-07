@@ -4,7 +4,13 @@ import json
 
 from dotenv import load_dotenv
 
-from app.core.prompt_safety import USER_HISTORY_TAG, sanitize_answer, wrap_user_text
+from app.core.prompt_safety import (
+    META_ANSWER,
+    USER_HISTORY_TAG,
+    is_meta_request,
+    sanitize_answer,
+    wrap_user_text,
+)
 from app.orchestrator.requirements_analyzer import RequirementsAnalyzer
 from app.orchestrator.compatibility_engine import CompatibilityEngine
 from app.orchestrator.context_builder import ContextBuilder
@@ -93,6 +99,17 @@ class AssistantOrchestrator:
 
         # No se registra el texto del usuario, solo su largo (privacidad).
         logger.info("Processing assistant query (%s chars)", len(message))
+
+        # Preguntas sobre las instrucciones o la configuración del asistente:
+        # respuesta fija, sin llamar al modelo (N3: fuga parafraseada del prompt).
+        if is_meta_request(message):
+            logger.warning("Assistant meta request blocked")
+            return {
+                "answer": META_ANSWER,
+                "sources": [],
+                "suggested_questions": NO_STACK_QUESTIONS,
+                "architecture": {"components": [], "connections": []},
+            }
 
         # 1. Analyze user requirements.
         requirements = self.requirements_analyzer.analyze(message)

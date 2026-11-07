@@ -44,7 +44,48 @@ _INTERNAL_MARKERS = (
     "Devolvé exclusivamente JSON",
     "Tu tarea es responder la consulta del usuario",
     "Tu tarea es proponer una arquitectura",
+    # Autodescripción de las reglas (fuga parafraseada del prompt).
+    "sigo estas directrices",
+    "sigo estas reglas",
+    "mis directrices",
+    "mis instrucciones",
+    "las reglas que rigen mi funcionamiento",
+    "las instrucciones que recibí",
+    "las instrucciones que me dieron",
+    "mi función es actuar como",
 )
+
+# Pedidos sobre el propio asistente (sus instrucciones, reglas o configuración).
+# Se responden con un mensaje fijo, sin llamar al modelo.
+_META_REQUEST = re.compile(
+    r"("
+    r"system\s*prompt|prompt\s+del\s+sistema|prompt\s+interno|"
+    r"\b(tus|your)\s+(propias\s+)?(instrucciones|reglas|directrices|indicaciones|"
+    r"pautas|instructions|rules|guidelines|configuraci[oó]n|prompt)\b|"
+    r"\btu\s+(configuraci[oó]n|prompt|programaci[oó]n)\b|"
+    r"\b(instrucciones|reglas|directrices|indicaciones|instructions|rules)\s+"
+    r"(que\s+)?(te\s+(dieron|dan|pasaron|programaron)|you\s+(were\s+)?given)\b|"
+    r"c[oó]mo\s+(est[aá]s|fuiste)\s+(configurad|programad)|"
+    r"qu[eé]\s+(reglas|instrucciones)\s+(sigues|tienes|usas)|"
+    r"(repite|repetí|muestra|mostrá|traduce|traducí|resume|resumí)\s+(todo\s+)?"
+    r"(el\s+texto|lo)\s+(que\s+(est[aá]|hay)\s+)?(por\s+)?(encima|arriba|anterior)|"
+    r"ignor[aá]\s+(todas\s+)?(tus\s+instrucciones|las\s+instrucciones\s+(anteriores|previas))|"
+    r"ignore\s+(all\s+)?(previous|prior|your)\s+instructions"
+    r")",
+    re.IGNORECASE,
+)
+
+META_ANSWER = (
+    "Soy el asistente de OpenBridge: recomiendo stacks open source del catálogo para "
+    "lo que quieras construir. No comparto mis instrucciones internas ni detalles de "
+    "configuración. Cuéntame qué necesitas (por ejemplo, \"una tienda con pagos y envíos\") "
+    "y te propongo las herramientas y cómo conectarlas."
+)
+
+
+def is_meta_request(text: str) -> bool:
+    """True si el usuario pregunta por las instrucciones, reglas o configuración del asistente."""
+    return bool(_META_REQUEST.search(text or ""))
 
 # Línea final con un "código" suelto (p. ej. OBX-README-7Q3Z): típico de una
 # instrucción incrustada que pide agregar una marca al final.
