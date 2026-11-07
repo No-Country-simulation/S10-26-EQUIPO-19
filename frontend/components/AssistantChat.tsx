@@ -76,16 +76,16 @@ export default function AssistantChat() {
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold">Asistente de arquitectura</h1>
+        <h1 className="text-3xl font-bold">Hola, soy Toby 👋</h1>
         <p className="max-w-2xl text-text-muted">
-          Cuéntame qué estás construyendo y te propongo un stack open source con sus conexiones, usando solo herramientas del catálogo.
+          Soy el asistente de OpenBridge. Cuéntame qué quieres construir, aunque no sepas qué tecnologías necesitas, y te propongo un stack open source con sus conexiones, solo con herramientas de nuestro catálogo revisadas a diario.
         </p>
       </header>
 
       <section aria-label="Conversación" aria-live="polite" className="flex flex-col gap-4">
         {turns.length === 0 && (
           <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
-            <p className="text-text-muted">Describe tu negocio o producto, aunque no sepas qué tecnologías necesitas. Por ejemplo:</p>
+            <p className="text-text-muted">Por ejemplo:</p>
             <div className="flex flex-col gap-2">
               {EXAMPLES.map((ex) => (
                 <button
