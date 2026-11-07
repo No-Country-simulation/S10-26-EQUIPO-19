@@ -219,8 +219,8 @@ export default function AssistantChat() {
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-text-muted">
-          {turns.length > 0 ? (
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {turns.length > 0 && (
               <button
                 type="button"
                 onClick={newConversation}
@@ -229,11 +229,9 @@ export default function AssistantChat() {
               >
                 + Nueva conversación
               </button>
-              <span>Tu conversación se guarda solo en este navegador. Descarga la propuesta si quieres conservarla.</span>
-            </span>
-          ) : (
-            <span />
-          )}
+            )}
+            <span>Tu conversación se guarda solo en este navegador. Descarga la propuesta si quieres conservarla.</span>
+          </span>
           <span>
             {input.length}/{MAX_LENGTH}
           </span>
