@@ -6,7 +6,7 @@ import { AlertList } from "@/components/RiskAlerts";
 import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { getRepository } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
-import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
+import { compactNumber, formatDate, fullNumber, relativeTime, safeExternalUrl, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
 
 type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; error: FriendlyError };
@@ -133,7 +133,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id: number) => void }) {
   const description = repo.description_es || repo.description || "Sin descripción.";
-  const docsUrl = repo.homepage || repo.integrations.flatMap((i) => splitUrls(i.documentation_url))[0] || null;
+  const docsUrl = safeExternalUrl(repo.homepage) || repo.integrations.flatMap((i) => splitUrls(i.documentation_url))[0] || null;
 
   // Casos de negocio y repositorios relacionados de todas las ideas, sin repetidos.
   const cases = [...new Map(repo.integrations.flatMap((i) => i.business_cases).map((c) => [c.id, c])).values()];
