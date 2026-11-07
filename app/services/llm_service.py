@@ -1,4 +1,6 @@
 import logging
+
+from app.core.prompt_safety import USER_DATA_RULES
 import asyncio
 import random
 
@@ -215,6 +217,8 @@ class LLMService:
     - repository_id, full_name, license y health_status deben corresponder exactamente a los datos del contexto.
     - No inventes ni modifiques esos valores.
     - Si un dato no está disponible, utilizá null cuando el campo lo permita.
+
+    {USER_DATA_RULES}
     """
 
         return await self.generate_json_response(prompt)
@@ -285,6 +289,8 @@ class LLMService:
           Aclará que el uso interno sin distribución no obliga por sí solo
           a publicar el código fuente.
           No afirmes que cualquier uso obliga a liberar toda la solución.
+
+        {USER_DATA_RULES}
 
         Respondé en español, con una explicación técnica clara y estructurada.
         """
