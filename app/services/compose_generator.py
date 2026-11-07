@@ -29,6 +29,30 @@ class ComposeGeneratorService:
         sources = repo_info.get("source", [])
         return sources[0] if sources else "https://github.com"
 
+    # Registros de imágenes: no son guías de instalación.
+    _REGISTRY_HOSTS = ("hub.docker.com", "ghcr.io", "quay.io", "registry.")
+    # Archivos compose de desarrollo, pruebas o variantes: no sirven como guía de arranque.
+    _NON_OFFICIAL_COMPOSE = ("test", "dev.", "development", "override", "logs", "altcoins")
+
+    def _get_stack_guide(self, repo_name: str, repo_info: dict) -> str:
+        """Enlace para levantar un stack: su docker-compose del repositorio o, si no hay
+        uno apto, la página del repositorio. Nunca la página de la imagen en un registro."""
+        for url in repo_info.get("source", []):
+            lower = url.lower()
+            if any(host in lower for host in self._REGISTRY_HOSTS):
+                continue
+            if "compose" in lower and not any(tag in lower for tag in self._NON_OFFICIAL_COMPOSE):
+                # Se enlaza la carpeta que contiene el compose (suele traer su README
+                # con los pasos); si el archivo está en la raíz, el repositorio.
+                if "/blob/" in url:
+                    folder = url.rsplit("/", 1)[0]
+                    repo_root = f"https://github.com/{repo_name}/blob/HEAD"
+                    if folder.lower() == repo_root.lower():
+                        return f"https://github.com/{repo_name}"
+                    return folder.replace("/blob/", "/tree/", 1)
+                return url
+        return f"https://github.com/{repo_name}"
+
     def _process_ports(self, repo_info: dict) -> List[str]:
         ports_list = []
         raw_ports = repo_info.get("ports", [])
@@ -78,8 +102,11 @@ class ComposeGeneratorService:
           
             if kind == "stack":
                 if repo_name in request_repos:
-                    source_url = self._get_primary_source(repo_info)
-                    reason = f"Es un stack multicontenedor complejo. Se recomienda usar su compose oficial: {source_url}"
+                    guide_url = self._get_stack_guide(repo_name, repo_info)
+                    reason = (
+                        "Funciona con varios contenedores coordinados, así que conviene "
+                        f"levantarlo con la configuración del propio proyecto: {guide_url}"
+                    )
                     skipped_response.append({"full_name": repo_name, "reason": reason})
                 continue
 
@@ -203,4 +230,4 @@ class ComposeGeneratorService:
             "warnings": warnings
         }
 
-    
+    
