@@ -256,7 +256,10 @@ function AssistantAnswer({
         </div>
       )}
 
-      <ComposePanel fullNames={components.map((c) => c.full_name)} />
+      {/* vid-1 (QA N3): con varias herramientas y sin conexiones es una comparación de alternativas, no un stack para levantar junto. */}
+      {(components.length <= 1 || connections.length > 0) && (
+        <ComposePanel fullNames={components.map((c) => c.full_name)} />
+      )}
 
       <div className="flex justify-end border-t border-border pt-3">
         <button
