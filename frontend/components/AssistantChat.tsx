@@ -26,6 +26,47 @@ const EXAMPLES = [
 
 type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; response: ChatResponse };
 
+// QA N3 vid-3 (opción A): la última conversación se guarda solo en este navegador (localStorage).
+const STORAGE_KEY = "openbridge.asistente.conversacion.v1";
+const MAX_SAVED_TURNS = 20;
+
+function isTurn(value: unknown): value is Turn {
+  if (!value || typeof value !== "object") return false;
+  const t = value as Record<string, unknown>;
+  if (typeof t.content !== "string") return false;
+  if (t.role === "user") return true;
+  return t.role === "assistant" && !!t.response && typeof t.response === "object";
+}
+
+/** Recorta a los últimos mensajes y evita empezar con una respuesta sin su pregunta. */
+function trimTurns(turns: Turn[]): Turn[] {
+  const recent = turns.slice(-MAX_SAVED_TURNS);
+  return recent[0]?.role === "assistant" ? recent.slice(1) : recent;
+}
+
+function loadTurns(): Turn[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.every(isTurn)) return [];
+    const turns = trimTurns(parsed);
+    // Una pregunta sin respuesta (se cerró la página mientras esperaba) no se restaura.
+    return turns[turns.length - 1]?.role === "user" ? turns.slice(0, -1) : turns;
+  } catch {
+    return [];
+  }
+}
+
+function saveTurns(turns: Turn[]) {
+  try {
+    if (turns.length === 0) window.localStorage.removeItem(STORAGE_KEY);
+    else window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trimTurns(turns)));
+  } catch {
+    // Almacenamiento lleno o bloqueado (p. ej., navegación privada): la conversación sigue en pantalla.
+  }
+}
+
 function assistantError(err: unknown): FriendlyError {
   if (err instanceof ApiError && err.kind === "invalid") {
     return { title: "Revisa tu consulta", message: "La consulta no es válida. Revisa que no supere los 2000 caracteres.", retry: false };
@@ -43,6 +84,23 @@ export default function AssistantChat() {
   const [error, setError] = useState<{ error: FriendlyError; message: string; history: ChatMessage[] } | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [restored, setRestored] = useState(false);
+
+  // Se lee después de montar para que el HTML del servidor y el del navegador coincidan.
+  useEffect(() => {
+    setTurns(loadTurns());
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (restored) saveTurns(turns);
+  }, [turns, restored]);
+
+  function newConversation() {
+    setTurns([]);
+    setError(null);
+    setInput("");
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -160,9 +218,26 @@ export default function AssistantChat() {
             Enviar
           </button>
         </div>
-        <span className="self-end text-xs text-text-muted">
-          {input.length}/{MAX_LENGTH}
-        </span>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-text-muted">
+          {turns.length > 0 ? (
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <button
+                type="button"
+                onClick={newConversation}
+                disabled={loading}
+                className="font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                + Nueva conversación
+              </button>
+              <span>Tu conversación se guarda solo en este navegador. Descarga la propuesta si quieres conservarla.</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          <span>
+            {input.length}/{MAX_LENGTH}
+          </span>
+        </div>
       </form>
 
       <RepositoryDetailDialog repoId={openId} onClose={() => setOpenId(null)} onSelect={setOpenId} />
