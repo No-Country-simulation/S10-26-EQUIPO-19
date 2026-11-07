@@ -354,6 +354,20 @@ class AssistantOrchestrator:
                         (repository_id_a, repository_id_b)
                     ] = integration.get("integration_code")
 
+        # Ideas del catálogo que unen directamente a herramientas del stack,
+        # aunque no aparezcan en los casos de negocio encontrados.
+        try:
+            stack_pairs = self.business_case_search.get_integrations_between_repositories(
+                [component["repository_id"] for component in valid_components]
+            )
+        except Exception:
+            logger.exception("Failed to load catalog integrations for the stack")
+            stack_pairs = {}
+
+        for pair, idea in stack_pairs.items():
+            if idea.get("code"):
+                integration_codes_by_pair.setdefault(pair, idea["code"])
+
         for connection in architecture_data.get("connections", []):
             if (
                 connection.get("from") not in valid_keys
@@ -393,11 +407,38 @@ class AssistantOrchestrator:
 
             valid_connections.append(connection)
 
+        # Si existe una idea del catálogo entre dos herramientas del stack
+        # y el modelo no propuso esa conexión, se agrega como verificada.
+        connected_pairs = set()
+        key_by_repository = {
+            component["repository_id"]: component["key"]
+            for component in valid_components
+        }
+        for connection in valid_connections:
+            ids = sorted(
+                component["repository_id"]
+                for component in valid_components
+                if component["key"] in (connection.get("from"), connection.get("to"))
+            )
+            connected_pairs.add(tuple(ids))
+
+        for (repo_a, repo_b), idea in stack_pairs.items():
+            if (repo_a, repo_b) in connected_pairs or not idea.get("code"):
+                continue
+            purpose = (idea.get("purpose") or "Idea de integración del catálogo").strip()
+            valid_connections.append({
+                "from": key_by_repository[repo_a],
+                "to": key_by_repository[repo_b],
+                "label": purpose if len(purpose) <= 120 else purpose[:117] + "...",
+                "verified": True,
+                "integration_code": idea["code"],
+            })
+
         architecture_data["connections"] = valid_connections
 
         response_context = (
             f"{context}\n\n"
-            "ARQUITECTURA TÉCNICA VALIDADA:\n"
+            "STACK SELECCIONADO (uso interno, no menciones este título):\n"
             f"{json.dumps(architecture_data, ensure_ascii=False, indent=2)}\n\n"
             "IMPORTANTE: La arquitectura anterior es la propuesta definitiva. "
             "La respuesta textual debe describir exactamente esos componentes. "
@@ -438,6 +479,10 @@ class AssistantOrchestrator:
 
         for repository in ordered_repositories:
             repository_id = repository.get("repository_id")
+
+            # Solo herramientas del stack propuesto; sin stack, no hay fuentes.
+            if repository_id not in architecture_ids:
+                continue
 
             # Solo incluir repositorios con resultados semánticos.
             if repository_id not in similarities:

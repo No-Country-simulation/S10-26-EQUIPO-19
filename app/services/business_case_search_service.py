@@ -156,6 +156,63 @@ class BusinessCaseSearchService:
 
         return grouped_repositories
 
+    def get_integrations_between_repositories(
+        self,
+        repository_ids: list[int],
+    ) -> dict[tuple[int, int], dict]:
+        """Ideas del catálogo que unen a dos o más repositorios del stack.
+
+        Devuelve {(id_menor, id_mayor): {"code": ..., "purpose": ...}}.
+        """
+
+        repository_ids = list({rid for rid in repository_ids if rid is not None})
+
+        if len(repository_ids) < 2:
+            return {}
+
+        relations_response = (
+            self.supabase
+            .table("integration_repositories")
+            .select("integration_id, repository_id")
+            .in_("repository_id", repository_ids)
+            .execute()
+        )
+
+        repos_by_integration: dict[int, set[int]] = {}
+        for relation in relations_response.data or []:
+            repos_by_integration.setdefault(
+                relation["integration_id"], set()
+            ).add(relation["repository_id"])
+
+        shared_ids = [
+            integration_id
+            for integration_id, repos in repos_by_integration.items()
+            if len(repos) >= 2
+        ]
+
+        if not shared_ids:
+            return {}
+
+        integrations_response = (
+            self.supabase
+            .table("integrations")
+            .select("id, code, purpose")
+            .in_("id", shared_ids)
+            .execute()
+        )
+
+        pairs: dict[tuple[int, int], dict] = {}
+        for integration in integrations_response.data or []:
+            repos = sorted(repos_by_integration.get(integration["id"], set()))
+            for i, repo_a in enumerate(repos):
+                for repo_b in repos[i + 1:]:
+                    pairs.setdefault(
+                        (repo_a, repo_b),
+                        {"code": integration.get("code"), "purpose": integration.get("purpose")},
+                    )
+
+        return pairs
+
     def build_integration_context(
         self,
         integrations: list[dict],

@@ -208,6 +208,9 @@ class LLMService:
       "¿Cómo integro Novu para enviar notificaciones de pedidos?"
       "¿Cómo puedo combinar OSRM y Traccar para gestionar los envíos?"
     - Si no hay evidencia suficiente para una arquitectura, devolvé componentes y conexiones vacíos.
+    - Si devolvés componentes vacíos, las preguntas sugeridas deben invitar a
+      reformular la necesidad dentro del catálogo de OpenBridge, nunca a buscar
+      software fuera de él.
     - No incluyas Markdown ni explicaciones fuera del JSON.
     - repository_id, full_name, license y health_status deben corresponder exactamente a los datos del contexto.
     - No inventes ni modifiques esos valores.
@@ -226,7 +229,7 @@ class LLMService:
 
         Reglas:
         - Utilizá exclusivamente repositorios incluidos en
-          REPOSITORIOS AUTORIZADOS PARA RECOMENDAR.
+          CATÁLOGO PARA RECOMENDAR.
         - Podés presentar alternativas cuando existan varias opciones válidas.
         - Diferenciá claramente entre la plataforma principal y los componentes
           especializados que complementan su funcionalidad.
@@ -255,15 +258,25 @@ class LLMService:
         - Podés mencionar otras alternativas, pero diferenciá claramente
           entre alternativas evaluadas y componentes seleccionados.
         - No menciones repositorios que no estén incluidos en
-          REPOSITORIOS AUTORIZADOS PARA RECOMENDAR o que no estén disponibles
+          CATÁLOGO PARA RECOMENDAR o que no estén disponibles
           en el contexto de integraciones.
         - Cuando la arquitectura incluya OSRM y Traccar, explicá sus funciones
           por separado: OSRM para cálculo de rutas y Traccar para seguimiento
           de vehículos.
         - No atribuyas a un repositorio funcionalidades de otro.
         - Evitá expresiones que hagan referencia al contexto interno del sistema,
-          como "la información disponible", "los repositorios autorizados"
-          o "la evidencia proporcionada".
+          como "la información disponible", "la información proporcionada",
+          "los repositorios autorizados", "la lista proporcionada",
+          "los repositorios analizados", "la arquitectura técnica validada",
+          "el stack seleccionado", "el contexto" o "la evidencia proporcionada".
+          Hablá directamente del catálogo de OpenBridge o de las herramientas recomendadas.
+        - Si la consulta es muy general y no describe funcionalidades concretas
+          (por ejemplo, "quiero una app para mi negocio"), empezá con una frase
+          que diga qué tipo de negocio supusiste y cerrá invitando al usuario
+          a describir su negocio (qué vende u ofrece, a quién y qué procesos
+          quiere resolver) para ajustar la propuesta.
+        - Si ninguna herramienta del catálogo cubre la necesidad, decilo con
+          claridad y sin inventar alternativas fuera del catálogo.
         - Cuando recomiendes un repositorio con licencia GPL-3.0,
           explicá brevemente sus implicaciones:
           las obligaciones de distribuir el código fuente correspondiente

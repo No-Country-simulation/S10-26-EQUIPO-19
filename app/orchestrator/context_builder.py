@@ -69,7 +69,8 @@ class ContextBuilder:
 
         context = [
             "Eres un asistente técnico especializado en herramientas Open Source.",
-            "Responde utilizando exclusivamente la información proporcionada.",
+            "Usa solo los datos de este contexto, pero nunca le digas al usuario que existe "
+            "un contexto, una lista o información proporcionada: háblale de forma directa.",
             "No inventes características, integraciones ni compatibilidades.",
             "Si la información no es suficiente, indícalo explícitamente.",
             "Una similitud semántica alta no demuestra por sí sola que un repositorio "
@@ -81,12 +82,12 @@ class ContextBuilder:
             str(requirements),
             "",
             "REPOSITORIOS CON EVIDENCIA SEMÁNTICA:",
-            "REPOSITORIOS AUTORIZADOS PARA RECOMENDAR:",
+            "CATÁLOGO PARA RECOMENDAR:",
             *[
                 f"- {repository}"
                 for repository in sorted(allowed_repositories)
             ],
-            "REPOSITORIOS DISPONIBLES PARA LA ARQUITECTURA:",
+            "CATÁLOGO PARA LA ARQUITECTURA:",
             *[
                 f"- {repository}"
                 for repository in sorted(architecture_repositories)
@@ -171,11 +172,10 @@ class ContextBuilder:
             "comparte una funcionalidad técnica con la necesidad del usuario.\n"
             "- No presentes como recomendada o verificada una integración cuyo "
             "contexto de negocio corresponda a un dominio diferente.\n"
-            "- Recomendá exclusivamente repositorios incluidos en "
             "- Para las recomendaciones textuales, utilizá exclusivamente "
-            "repositorios incluidos en REPOSITORIOS AUTORIZADOS PARA RECOMENDAR.\n"
+            "repositorios incluidos en CATÁLOGO PARA RECOMENDAR.\n"
             "- Para la arquitectura, podés seleccionar repositorios incluidos en "
-            "REPOSITORIOS DISPONIBLES PARA LA ARQUITECTURA, siempre que aporten "
+            "CATÁLOGO PARA LA ARQUITECTURA, siempre que aporten "
             "directamente a los requisitos del usuario.\n"
             "- No presentes automáticamente todos los repositorios de las integraciones "
             "como recomendaciones.\n"
