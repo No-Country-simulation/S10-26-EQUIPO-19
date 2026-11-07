@@ -1,18 +1,28 @@
 import HealthBadge from "@/components/HealthBadge";
+import { AlertBadges } from "@/components/RiskAlerts";
 import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
 import type { RepositoryListItem } from "@/types/api";
 
 // Tarjeta del catálogo (5.5), según el prototipo: al hacer clic abre la ficha técnica (5.6).
-export default function RepositoryCard({ repo, onOpen }: { repo: RepositoryListItem; onOpen: (id: number) => void }) {
+export default function RepositoryCard({
+  repo,
+  onOpen,
+  reserveCorner = false,
+}: {
+  repo: RepositoryListItem;
+  onOpen: (id: number) => void;
+  /** Deja espacio arriba a la derecha para el botón "Comparar", que va fuera de la tarjeta. */
+  reserveCorner?: boolean;
+}) {
   const description = repo.description_es || repo.description || "Sin descripción.";
   return (
     <button
       type="button"
       onClick={() => onOpen(repo.id)}
       aria-label={`Ver la ficha de ${repo.name}`}
-      className="flex h-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary hover:bg-surface-hover"
+      className="flex h-full w-full min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary hover:bg-surface-hover"
     >
-      <span className="flex min-w-0 items-center gap-2 text-xs">
+      <span className={`flex min-w-0 items-center gap-2 text-xs ${reserveCorner ? "pr-28" : ""}`}>
         <span title={repo.category.name} className="min-w-0 truncate rounded-md bg-brand-pink-soft px-2 py-0.5 font-medium text-[#0f172a]">
           {repo.category.name}
         </span>
@@ -24,6 +34,7 @@ export default function RepositoryCard({ repo, onOpen }: { repo: RepositoryListI
         <span className="truncate text-xs text-text-muted">{repo.full_name}</span>
       </span>
       <span className="line-clamp-3 flex-1 text-sm text-text-muted">{description}</span>
+      <AlertBadges alerts={repo.alerts} />
       <span className="text-xs text-text-muted" title={formatDate(repo.last_commit_at)}>
         {repo.last_commit_at ? `Actualizado ${relativeTime(repo.last_commit_at)}` : "Sin fecha de actualización"}
       </span>

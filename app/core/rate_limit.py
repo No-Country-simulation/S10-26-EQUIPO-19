@@ -1,3 +1,4 @@
+import os
 import time
 from collections import defaultdict
 from fastapi import HTTPException, Request, status
@@ -16,18 +17,26 @@ class InMemoryRateLimiter:
         self.requests: dict[str, list[float]] = defaultdict(list)
 
     def _get_client_ip(self, request: Request) -> str:
-        """Obtiene la IP real del cliente considerando proxies y WAFs (Cloudflare/Render)."""
-        # Cloudflare inyecta 'cf-connecting-ip'
-        cf_ip = request.headers.get("cf-connecting-ip")
-        if cf_ip:
-            return cf_ip.strip()
+        """Obtiene la IP real del cliente evitando spoofing de cabeceras (H4)."""
+        is_production = (
+            os.getenv("ENVIRONMENT", "development").lower() == "production"
+            or os.getenv("RENDER", "").lower() == "true"
+        )
 
-        # Cabecera estándar de proxy inverso
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        # Solo confiar en cabeceras de proxy cuando corre detrás de Cloudflare/Render en producción
+        if is_production:
+            cf_ip = request.headers.get("cf-connecting-ip")
+            if cf_ip:
+                return cf_ip.strip()
 
-        # IP directa del cliente
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                # Tomar la última IP agregada por el proxy más cercano
+                ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+                if ips:
+                    return ips[-1]
+
+        # En conexiones directas o desarrollo local, confiar únicamente en la conexión TCP real (client.host)
         if request.client and request.client.host:
             return request.client.host
 
@@ -59,3 +68,6 @@ assistant_rate_limiter = InMemoryRateLimiter(requests_limit=10, window_seconds=6
 
 # Limitador para endpoints de GitHub (20 peticiones por minuto por IP)
 github_rate_limiter = InMemoryRateLimiter(requests_limit=20, window_seconds=60)
+
+# Limitador general para el catálogo de repositorios (60 peticiones por minuto por IP - H4)
+repositories_rate_limiter = InMemoryRateLimiter(requests_limit=60, window_seconds=60)
