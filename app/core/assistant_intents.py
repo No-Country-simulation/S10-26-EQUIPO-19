@@ -26,6 +26,12 @@ TOBY_ANSWER = (
     "conexiones, solo con herramientas de nuestro catálogo revisadas a diario."
 )
 
+# Respuesta fija a un agradecimiento suelto.
+THANKS_ANSWER = (
+    "¡De nada! 😊 Cuando quieras, cuéntame otro proyecto y te propongo su stack "
+    "open source."
+)
+
 REFERENCE_CLARIFICATION_ANSWER = (
     "No tengo contexto suficiente para saber a qué te refieres. ¿Me dices a qué "
     "herramienta o proyecto te refieres? Si está en el catálogo de OpenBridge, "
@@ -40,7 +46,70 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+def _plain_text(value: str) -> str:
+    """Texto normalizado sin signos: '¡Hola, Toby!' -> 'hola toby'."""
+    plain = re.sub(r"[^a-z0-9 ]+", " ", normalize_text(value))
+    return re.sub(r"\s+", " ", plain).strip()
+
+
 _PRODUCT_TERMS = re.compile(r"\b(openbridge|toby)\b")
+
+# Saludos sueltos: no piden nada más que la presentación del asistente.
+_GREETINGS = frozenset(
+    {
+        "toby",
+        "hola",
+        "hola toby",
+        "buenas",
+        "buenas toby",
+        "buenos dias",
+        "buenos dias toby",
+        "buen dia",
+        "buen dia toby",
+        "buenas tardes",
+        "buenas tardes toby",
+        "buenas noches",
+        "buenas noches toby",
+        "hey",
+        "hey toby",
+        "que tal",
+        "que tal toby",
+    }
+)
+
+# Preguntas sobre lo que Toby puede hacer.
+_CAPABILITY_PATTERNS = re.compile(
+    r"("
+    r"\bque\s+puedes\s+hacer\b|"
+    r"\bque\s+sabes\s+hacer\b|"
+    r"\ben\s+que\s+(me\s+)?puedes\s+ayudar\b|"
+    r"\bcomo\s+(me\s+)?puedes\s+ayudar\b|"
+    r"\bhablame\s+de\s+ti\b|"
+    r"\bpara\s+que\s+sirves\b"
+    r")"
+)
+
+# Agradecimientos sueltos: no piden nada más.
+_THANKS = frozenset(
+    {
+        "gracias",
+        "gracias toby",
+        "muchas gracias",
+        "muchas gracias toby",
+        "mil gracias",
+        "mil gracias toby",
+        "perfecto gracias",
+        "perfecto gracias toby",
+        "genial gracias",
+        "genial gracias toby",
+        "ok gracias",
+        "ok gracias toby",
+        "buenisimo gracias",
+        "buenisimo gracias toby",
+        "excelente gracias",
+        "excelente gracias toby",
+    }
+)
 
 # Preguntas sobre la identidad del asistente (Toby), no sobre el producto.
 _SELF_IDENTITY_PATTERNS = re.compile(
@@ -181,7 +250,7 @@ _TECHNOLOGY_TERMS = frozenset(
 
 
 def is_toby_identity_request(text: str) -> bool:
-    """True si el usuario pregunta quién es Toby o le pide presentarse."""
+    """True si el usuario saluda a Toby, pregunta quién es o qué puede hacer."""
     normalized = normalize_text(text)
 
     if not normalized:
@@ -190,22 +259,37 @@ def is_toby_identity_request(text: str) -> bool:
     if _PRESENTATION_EXCLUSIONS.search(normalized):
         return False
 
-    stripped = normalized.strip(" .,;:!?¿¡\"'")
+    plain = _plain_text(text)
 
-    if stripped in {"toby", "hola toby", "hey toby"}:
-        return True
-
-    if len(normalized.split()) > 14:
+    if not plain:
         return False
 
-    if _SELF_IDENTITY_PATTERNS.search(normalized):
+    if plain in _GREETINGS:
+        return True
+
+    if len(plain.split()) > 14:
+        return False
+
+    if _SELF_IDENTITY_PATTERNS.search(plain):
+        return True
+
+    if _CAPABILITY_PATTERNS.search(plain):
+        # "¿Qué puedes hacer con Keycloak?" pide una respuesta sobre la herramienta.
+        if re.search(r"\bcon\s+[a-z0-9]", plain):
+            return False
+
         return True
 
     return bool(
         _PRODUCT_TERMS.search(normalized)
-        and re.search(r"\btoby\b", normalized)
-        and _PRESENTATION_CUES.search(normalized)
+        and re.search(r"\btoby\b", plain)
+        and _PRESENTATION_CUES.search(plain)
     )
+
+
+def is_thanks(text: str) -> bool:
+    """True si el mensaje es solo un agradecimiento."""
+    return _plain_text(text) in _THANKS
 
 
 def is_product_presentation_request(text: str) -> bool:

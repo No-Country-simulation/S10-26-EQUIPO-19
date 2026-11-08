@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import json
@@ -14,10 +15,12 @@ from app.core.prompt_safety import (
 from app.core.assistant_intents import (
     PRODUCT_ANSWER,
     REFERENCE_CLARIFICATION_ANSWER,
+    THANKS_ANSWER,
     TOBY_ANSWER,
     extract_tool_mentions,
     has_unresolved_reference,
     is_product_presentation_request,
+    is_thanks,
     is_toby_identity_request,
     out_of_catalog_message,
 )
@@ -123,6 +126,11 @@ class AssistantOrchestrator:
             logger.warning("Assistant meta request blocked")
             return self._fixed_response(META_ANSWER)
 
+        # Agradecimiento suelto: respuesta fija, sin llamar al modelo.
+        if is_thanks(message):
+            logger.info("Assistant thanks answered without model")
+            return self._fixed_response(THANKS_ANSWER)
+
         # Presentación del asistente: Toby se presenta con una respuesta fija.
         if is_toby_identity_request(message):
             logger.info("Assistant identity answered without model")
@@ -161,9 +169,36 @@ class AssistantOrchestrator:
         # 1. Analyze user requirements.
         requirements = self.requirements_analyzer.analyze(retrieval_query)
 
-        # 1.1 Find relevant business cases.
-        business_cases = await self.business_case_search.find_relevant_business_cases(
-            query=retrieval_query,
+        # 2. Search repositories using SQL filters.
+        sql_results = self.sql_search.search_repositories(
+            category_slug=requirements.get("category_slug"),
+            language=requirements.get("language"),
+            license=requirements.get("license"),
+            min_stars=requirements.get("min_stars"),
+            min_health_score=requirements.get("min_health_score"),
+            exclude_archived=requirements.get("exclude_archived", True),
+            limit=100,
+        )
+
+        # 1.1 y 3 en paralelo: los casos de negocio usan el modelo y la
+        # búsqueda semántica usa embeddings. Son independientes, así que no
+        # tiene sentido sumar sus latencias una detrás de la otra.
+        business_cases, semantic_results = await asyncio.gather(
+            self.business_case_search.find_relevant_business_cases(
+                query=retrieval_query,
+            ),
+            self.vector_search.search(
+                query=retrieval_query,
+                match_threshold=0.3,
+                match_count=50,
+                language=requirements.get("language"),
+                category_slug=requirements.get("category_slug"),
+                license=requirements.get("license"),
+                technologies=None,
+                min_stars=requirements.get("min_stars"),
+                min_health_score=requirements.get("min_health_score"),
+                exclude_archived=requirements.get("exclude_archived", True),
+            ),
         )
 
         logger.info(
@@ -219,17 +254,6 @@ class AssistantOrchestrator:
 
         logger.info("Detected requirements: %s", requirements)
 
-        # 2. Search repositories using SQL filters.
-        sql_results = self.sql_search.search_repositories(
-            category_slug=requirements.get("category_slug"),
-            language=requirements.get("language"),
-            license=requirements.get("license"),
-            min_stars=requirements.get("min_stars"),
-            min_health_score=requirements.get("min_health_score"),
-            exclude_archived=requirements.get("exclude_archived", True),
-            limit=100,
-        )
-
         logger.info(
             "Vector search parameters: %s",
             {
@@ -242,20 +266,6 @@ class AssistantOrchestrator:
                 "min_health_score": requirements.get("min_health_score"),
                 "exclude_archived": requirements.get("exclude_archived", True),
             },
-        )
-
-        # 3. Search semantically using README embeddings.
-        semantic_results = await self.vector_search.search(
-            query=retrieval_query,
-            match_threshold=0.3,
-            match_count=50,
-            language=requirements.get("language"),
-            category_slug=requirements.get("category_slug"),
-            license=requirements.get("license"),
-            technologies=None,
-            min_stars=requirements.get("min_stars"),
-            min_health_score=requirements.get("min_health_score"),
-            exclude_archived=requirements.get("exclude_archived", True),
         )
 
         logger.info("SQL repositories found: %s", len(sql_results))
