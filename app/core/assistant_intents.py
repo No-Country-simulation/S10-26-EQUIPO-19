@@ -27,8 +27,8 @@ TOBY_ANSWER = (
 )
 
 REFERENCE_CLARIFICATION_ANSWER = (
-    "No tengo contexto suficiente para saber a qué te referís. ¿Me decís a qué "
-    "herramienta o proyecto te referís? Si está en el catálogo de OpenBridge, "
+    "No tengo contexto suficiente para saber a qué te refieres. ¿Me dices a qué "
+    "herramienta o proyecto te refieres? Si está en el catálogo de OpenBridge, "
     "puedo compararla, incluirla en un stack o mostrarte su ficha."
 )
 
@@ -131,17 +131,6 @@ _COMPARISON_PATTERNS = (
     ),
 )
 
-_SINGLE_MENTION_PATTERNS = (
-    re.compile(
-        r"\b(?:h[aá]blame|contame|cu[eé]ntame|"
-        r"qu[eé] es|qu[eé] sab[eé]s de|qu[eé] opin[aá]s de|"
-        r"me sirve|me servir[aá]|conoc[eé]s|recomend[aá]s)"
-        r"\s+(?:de\s+|sobre\s+)?(?:el|la|los|las)?\s*"
-        rf"({_CANDIDATE})",
-        re.IGNORECASE,
-    ),
-)
-
 # Palabras que nunca identifican una herramienta del catálogo.
 _GENERIC_TERMS = frozenset(
     {
@@ -158,6 +147,8 @@ _GENERIC_TERMS = frozenset(
         "son", "su", "sus", "te", "tiene", "tienen", "todo", "todos",
         "tu", "tus", "un", "una", "unas", "uno", "unos", "usted",
         "ustedes", "vos", "y", "ya", "yo",
+        # Referencias y valoraciones: no son nombres de herramientas.
+        "aquel", "aquella", "aquello", "mejor", "peor",
         # Términos de negocio o comparación, no productos.
         "precio", "precios", "costo", "costos", "plan", "planes",
         "licencia", "licencias", "caracteristica", "caracteristicas",
@@ -289,10 +280,11 @@ def _is_candidate(token: str, allow_technologies: bool = True) -> bool:
 
 
 def extract_tool_mentions(text: str) -> list[str]:
-    """Nombres de herramientas mencionadas de forma explícita.
+    """Herramientas mencionadas en una comparación explícita.
 
-    Primero busca comparaciones ("X con Y", "X vs Y"); si no hay, busca
-    pedidos sobre una herramienta concreta ("háblame de X", "qué es X").
+    Solo se consideran comparaciones ("X con Y", "X vs Y"). Las menciones
+    sueltas ("háblame de X") siguen el flujo normal: el prompt ya cubre las
+    herramientas que no están en el catálogo.
     """
     if not text or not text.strip():
         return []
@@ -317,21 +309,7 @@ def extract_tool_mentions(text: str) -> list[str]:
             for token in pair:
                 add(token)
 
-    if mentions:
-        return mentions
-
-    for pattern in _SINGLE_MENTION_PATTERNS:
-        match = pattern.search(text)
-
-        if not match:
-            continue
-
-        token = _clean_token(match.group(1))
-
-        if _is_candidate(token, allow_technologies=False):
-            add(token)
-
-        break
+    return mentions
 
     return mentions
 
@@ -360,8 +338,8 @@ def out_of_catalog_message(
 
     if present is None:
         return (
-            f"{phrase}. Solo recomiendo herramientas del catálogo; si me decís qué "
-            "necesitás resolver (por ejemplo, autenticación, pagos o notificaciones), "
+            f"{phrase}. Solo recomiendo herramientas del catálogo; si me dices qué "
+            "necesitas resolver (por ejemplo, autenticación, pagos o notificaciones), "
             "te propongo las que sí están."
         )
 
@@ -378,7 +356,7 @@ def out_of_catalog_message(
         return (
             f"{phrase}, así que no puedo hacer esa comparación con evidencia del "
             f"catálogo.\n\nNo tengo una alternativa equivalente a **{label}** en el "
-            "catálogo. Contame qué función necesitás cubrir y te propongo las "
+            "catálogo. Cuéntame qué función necesitas cubrir y te propongo las "
             "herramientas disponibles."
         )
 
@@ -392,5 +370,5 @@ def out_of_catalog_message(
         f"catálogo.\n\nDel catálogo tengo estas alternativas en la misma categoría "
         f"que **{label}**:\n"
         + "\n".join(lines)
-        + f"\n\n¿Querés que compare **{label}** con alguna de ellas?"
+        + f"\n\n¿Quieres que compare **{label}** con alguna de ellas?"
     )

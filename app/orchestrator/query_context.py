@@ -26,6 +26,8 @@ _CONTEXT_MARKERS = re.compile(
 )
 
 MAX_WORDS_WITHOUT_CONTEXT = 6
+# Un mensaje largo ya describe su necesidad: no se mezcla con el anterior.
+MAX_WORDS_WITH_CONTEXT = 15
 MAX_PREVIOUS_CHARS = 600
 
 
@@ -53,7 +55,12 @@ def is_context_dependent(message: str) -> bool:
     if not normalized:
         return False
 
-    if len(normalized.split()) <= MAX_WORDS_WITHOUT_CONTEXT:
+    words = len(normalized.split())
+
+    if words > MAX_WORDS_WITH_CONTEXT:
+        return False
+
+    if words <= MAX_WORDS_WITHOUT_CONTEXT:
         return True
 
     return bool(_CONTEXT_MARKERS.search(normalized))
