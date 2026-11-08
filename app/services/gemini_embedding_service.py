@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from collections import OrderedDict
 
 from google import genai
 from google.genai import errors, types
@@ -12,6 +13,9 @@ class GeminiEmbeddingService:
 
     MODEL = "gemini-embedding-2"
     DIMENSIONS = 768
+    # Caché en memoria para consultas repetidas (seguimientos, reintentos).
+    CACHE_MAX_ENTRIES = 128
+    CACHE_MAX_CHARS = 2000
 
     def __init__(
         self,
@@ -25,6 +29,29 @@ class GeminiEmbeddingService:
         self.client = genai.Client(api_key=api_key)
         self.max_retries = max_retries
         self.request_delay = request_delay
+        self._cache: OrderedDict[str, list[float]] = OrderedDict()
+
+    def _get_cached(self, key: str) -> list[float] | None:
+        if len(key) > self.CACHE_MAX_CHARS:
+            return None
+
+        cached = self._cache.get(key)
+
+        if cached is None:
+            return None
+
+        self._cache.move_to_end(key)
+        return cached
+
+    def _store_cached(self, key: str, embedding: list[float]) -> None:
+        if len(key) > self.CACHE_MAX_CHARS:
+            return
+
+        self._cache[key] = embedding
+        self._cache.move_to_end(key)
+
+        while len(self._cache) > self.CACHE_MAX_ENTRIES:
+            self._cache.popitem(last=False)
 
     @staticmethod
     def _get_retry_delay(exc: errors.APIError, attempt: int) -> float:
@@ -57,6 +84,12 @@ class GeminiEmbeddingService:
         else:
             content = text
 
+        cached = self._get_cached(content)
+
+        if cached is not None:
+            logger.info("Embedding served from cache")
+            return cached
+
         for attempt in range(self.max_retries + 1):
             try:
                 response = await self.client.aio.models.embed_content(
@@ -82,6 +115,8 @@ class GeminiEmbeddingService:
                     "Embedding generated successfully: %s dimensions",
                     len(embedding),
                 )
+
+                self._store_cached(content, embedding)
 
                 if self.request_delay > 0:
                     await asyncio.sleep(self.request_delay)

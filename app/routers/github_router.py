@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.rate_limit import github_rate_limiter
 from app.services.github_repository_service import (
-    get_rate_limit,
     get_repository,
 )
 
@@ -69,14 +68,5 @@ async def repository_endpoint(
     _validate_github_identifier(repo, "repo")
     try:
         return await get_repository(owner, repo)
-    except (ValueError, RuntimeError, httpx.HTTPError) as exc:
-        _raise_http_error(exc)
-
-
-@router.get("/rate-limit")
-async def rate_limit_endpoint():
-    """Consulta los límites de uso de la API de GitHub."""
-    try:
-        return await get_rate_limit()
     except (ValueError, RuntimeError, httpx.HTTPError) as exc:
         _raise_http_error(exc)

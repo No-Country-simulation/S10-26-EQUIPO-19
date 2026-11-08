@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import json
@@ -11,10 +12,24 @@ from app.core.prompt_safety import (
     sanitize_answer,
     wrap_user_text,
 )
+from app.core.assistant_intents import (
+    PRODUCT_ANSWER,
+    REFERENCE_CLARIFICATION_ANSWER,
+    THANKS_ANSWER,
+    TOBY_ANSWER,
+    extract_tool_mentions,
+    has_unresolved_reference,
+    is_product_presentation_request,
+    is_thanks,
+    is_toby_identity_request,
+    out_of_catalog_message,
+)
 from app.orchestrator.requirements_analyzer import RequirementsAnalyzer
 from app.orchestrator.compatibility_engine import CompatibilityEngine
 from app.orchestrator.context_builder import ContextBuilder
+from app.orchestrator.query_context import build_retrieval_query, last_user_message
 
+from app.services.catalog_name_index import CatalogNameIndex
 from app.services.gemini_embedding_service import GeminiEmbeddingService
 from app.services.llm_service import LLMService
 from app.services.sql_search_service import SQLSearchService
@@ -45,6 +60,7 @@ class AssistantOrchestrator:
         context_builder: ContextBuilder | None = None,
         llm: LLMService | None = None,
         business_case_search: BusinessCaseSearchService | None = None,
+        catalog_index: CatalogNameIndex | None = None,
     ):
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
@@ -86,6 +102,8 @@ class AssistantOrchestrator:
             business_case_search or BusinessCaseSearchService(llm=self.llm)
         )
 
+        self.catalog_index = catalog_index or CatalogNameIndex()
+
 
 
     async def process_message(
@@ -100,23 +118,87 @@ class AssistantOrchestrator:
         # No se registra el texto del usuario, solo su largo (privacidad).
         logger.info("Processing assistant query (%s chars)", len(message))
 
+        history = conversation_history or []
+
         # Preguntas sobre las instrucciones o la configuración del asistente:
         # respuesta fija, sin llamar al modelo (N3: fuga parafraseada del prompt).
         if is_meta_request(message):
             logger.warning("Assistant meta request blocked")
-            return {
-                "answer": META_ANSWER,
-                "sources": [],
-                "suggested_questions": NO_STACK_QUESTIONS,
-                "architecture": {"components": [], "connections": []},
-            }
+            return self._fixed_response(META_ANSWER)
+
+        # Agradecimiento suelto: respuesta fija, sin llamar al modelo.
+        if is_thanks(message):
+            logger.info("Assistant thanks answered without model")
+            return self._fixed_response(THANKS_ANSWER)
+
+        # Presentación del asistente: Toby se presenta con una respuesta fija.
+        if is_toby_identity_request(message):
+            logger.info("Assistant identity answered without model")
+            return self._fixed_response(TOBY_ANSWER)
+
+        # Presentación del producto: respuesta fija, sin buscar en el catálogo.
+        if is_product_presentation_request(message):
+            logger.info("Assistant product presentation answered without model")
+            return self._fixed_response(PRODUCT_ANSWER)
+
+        # "Aquel repositorio" en una conversación nueva: falta el antecedente.
+        if has_unresolved_reference(
+            message,
+            last_user_message(history) is not None,
+        ):
+            logger.info("Assistant reference clarification answered without model")
+            return self._fixed_response(REFERENCE_CLARIFICATION_ANSWER)
+
+        # Herramientas nombradas que no están en el catálogo: no se reemplazan
+        # en silencio por otras ni se arma un stack con ellas.
+        out_of_catalog_response = self._out_of_catalog_response(message)
+
+        if out_of_catalog_response is not None:
+            logger.info("Assistant out-of-catalog tool mentioned")
+            return out_of_catalog_response
+
+        # Un seguimiento corto no describe la necesidad por sí solo: se busca
+        # con el mensaje anterior del usuario, sin llamadas extra al modelo.
+        retrieval_query = build_retrieval_query(message, history)
+
+        if retrieval_query != message.strip():
+            logger.info(
+                "Assistant retrieval query expanded with the previous user message"
+            )
 
         # 1. Analyze user requirements.
-        requirements = self.requirements_analyzer.analyze(message)
+        requirements = self.requirements_analyzer.analyze(retrieval_query)
 
-        # 1.1 Find relevant business cases.
-        business_cases = await self.business_case_search.find_relevant_business_cases(
-            query=message,
+        # 2. Search repositories using SQL filters.
+        sql_results = self.sql_search.search_repositories(
+            category_slug=requirements.get("category_slug"),
+            language=requirements.get("language"),
+            license=requirements.get("license"),
+            min_stars=requirements.get("min_stars"),
+            min_health_score=requirements.get("min_health_score"),
+            exclude_archived=requirements.get("exclude_archived", True),
+            limit=100,
+        )
+
+        # 1.1 y 3 en paralelo: los casos de negocio usan el modelo y la
+        # búsqueda semántica usa embeddings. Son independientes, así que no
+        # tiene sentido sumar sus latencias una detrás de la otra.
+        business_cases, semantic_results = await asyncio.gather(
+            self.business_case_search.find_relevant_business_cases(
+                query=retrieval_query,
+            ),
+            self.vector_search.search(
+                query=retrieval_query,
+                match_threshold=0.3,
+                match_count=50,
+                language=requirements.get("language"),
+                category_slug=requirements.get("category_slug"),
+                license=requirements.get("license"),
+                technologies=None,
+                min_stars=requirements.get("min_stars"),
+                min_health_score=requirements.get("min_health_score"),
+                exclude_archived=requirements.get("exclude_archived", True),
+            ),
         )
 
         logger.info(
@@ -172,17 +254,6 @@ class AssistantOrchestrator:
 
         logger.info("Detected requirements: %s", requirements)
 
-        # 2. Search repositories using SQL filters.
-        sql_results = self.sql_search.search_repositories(
-            category_slug=requirements.get("category_slug"),
-            language=requirements.get("language"),
-            license=requirements.get("license"),
-            min_stars=requirements.get("min_stars"),
-            min_health_score=requirements.get("min_health_score"),
-            exclude_archived=requirements.get("exclude_archived", True),
-            limit=100,
-        )
-
         logger.info(
             "Vector search parameters: %s",
             {
@@ -195,20 +266,6 @@ class AssistantOrchestrator:
                 "min_health_score": requirements.get("min_health_score"),
                 "exclude_archived": requirements.get("exclude_archived", True),
             },
-        )
-
-        # 3. Search semantically using README embeddings.
-        semantic_results = await self.vector_search.search(
-            query=message,
-            match_threshold=0.3,
-            match_count=50,
-            language=requirements.get("language"),
-            category_slug=requirements.get("category_slug"),
-            license=requirements.get("license"),
-            technologies=None,
-            min_stars=requirements.get("min_stars"),
-            min_health_score=requirements.get("min_health_score"),
-            exclude_archived=requirements.get("exclude_archived", True),
         )
 
         logger.info("SQL repositories found: %s", len(sql_results))
@@ -547,6 +604,82 @@ class AssistantOrchestrator:
                 "components": architecture_data.get("components", []),
                 "connections": architecture_data.get("connections", []),
             },
+        }
+
+    @staticmethod
+    def _fixed_response(answer: str) -> dict:
+        """Respuesta fija: sin fuentes ni arquitectura, sin llamar al modelo."""
+        return {
+            "answer": answer,
+            "sources": [],
+            "suggested_questions": NO_STACK_QUESTIONS,
+            "architecture": {"components": [], "connections": []},
+        }
+
+    def _out_of_catalog_response(self, message: str) -> dict | None:
+        """Respuesta fija si el usuario nombra herramientas fuera del catálogo."""
+        try:
+            mentions = extract_tool_mentions(message)
+
+            if not mentions:
+                return None
+
+            resolved = [
+                (token, self.catalog_index.lookup(token))
+                for token in mentions
+            ]
+        except Exception:
+            # Si el catálogo no responde, el asistente sigue con el flujo normal.
+            logger.exception("Failed to validate mentioned tools against the catalog")
+            return None
+
+        present = [
+            (token, repository)
+            for token, repository in resolved
+            if repository is not None
+        ]
+        missing = [
+            token
+            for token, repository in resolved
+            if repository is None
+        ]
+
+        if not missing:
+            return None
+
+        alternatives = []
+        present_token = None
+        present_repository = None
+
+        if present:
+            present_token, present_repository = present[0]
+
+            try:
+                alternatives = self.catalog_index.alternatives(present_repository)
+            except Exception:
+                logger.exception("Failed to load catalog alternatives")
+                alternatives = []
+
+        answer = out_of_catalog_message(
+            missing,
+            present_repository,
+            alternatives,
+            present_label=present_token,
+        )
+
+        if present_repository and alternatives:
+            suggested_questions = [
+                f"¿Cómo se compara {present_token} con {alternative.get('name')}?"
+                for alternative in alternatives[:3]
+            ]
+        else:
+            suggested_questions = NO_STACK_QUESTIONS
+
+        return {
+            "answer": answer,
+            "sources": [],
+            "suggested_questions": suggested_questions,
+            "architecture": {"components": [], "connections": []},
         }
 
     @staticmethod
