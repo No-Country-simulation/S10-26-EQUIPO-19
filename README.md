@@ -416,7 +416,6 @@ La paleta completa, los tokens y las reglas de contraste están en la [guía de 
 | Demian Naon | Full Stack Developer |
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
-| Juan Espinosa | Backend Developer |
 | Martin Valdes | Ethical Hacker |
 | Maria Fatima Soares Gomes | Project Manager |
 | Melina Daniela Martinez | Backend Developer |
