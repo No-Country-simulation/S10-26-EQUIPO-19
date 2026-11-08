@@ -86,10 +86,19 @@ export default function AssistantChat() {
   const [openId, setOpenId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [restored, setRestored] = useState(false);
+  // true si al entrar se recuperó una conversación guardada: se muestra un aviso arriba.
+  const [resumed, setResumed] = useState(false);
+  // Al recuperar la conversación no se baja al final, para que se vean el saludo y el aviso.
+  const skipScrollRef = useRef(false);
 
   // Se lee después de montar para que el HTML del servidor y el del navegador coincidan.
   useEffect(() => {
-    setTurns(loadTurns());
+    const saved = loadTurns();
+    if (saved.length > 0) {
+      skipScrollRef.current = true;
+      setResumed(true);
+    }
+    setTurns(saved);
     setRestored(true);
   }, []);
 
@@ -98,12 +107,17 @@ export default function AssistantChat() {
   }, [turns, restored]);
 
   function newConversation() {
+    setResumed(false);
     setTurns([]);
     setError(null);
     setInput("");
   }
 
   useEffect(() => {
+    if (skipScrollRef.current) {
+      skipScrollRef.current = false;
+      return;
+    }
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns, loading]);
 
@@ -142,6 +156,19 @@ export default function AssistantChat() {
       </header>
 
       <section aria-label="Conversación" aria-live="polite" className="flex flex-col gap-4">
+        {resumed && turns.length > 0 && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-hover px-4 py-3 text-sm">
+            <span>Continuamos tu conversación anterior.</span>
+            <button
+              type="button"
+              onClick={newConversation}
+              disabled={loading}
+              className="font-semibold text-primary hover:underline disabled:opacity-50"
+            >
+              + Nueva conversación
+            </button>
+          </div>
+        )}
         {turns.length === 0 && (
           <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
             <p className="text-text-muted">Por ejemplo:</p>
