@@ -6,7 +6,7 @@ import { AlertList } from "@/components/RiskAlerts";
 import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { getRepository } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
-import { compactNumber, formatDate, fullNumber, relativeTime, splitUrls, urlHost } from "@/lib/format";
+import { compactNumber, formatDate, fullNumber, relativeTime, safeExternalUrl, splitUrls, urlHost } from "@/lib/format";
 import type { HealthScoreDetails, Integration, RepositoryDetail } from "@/types/api";
 
 type Status = { kind: "idle" } | { kind: "loading" } | { kind: "ok"; repo: RepositoryDetail } | { kind: "error"; error: FriendlyError };
@@ -133,7 +133,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id: number) => void }) {
   const description = repo.description_es || repo.description || "Sin descripción.";
-  const docsUrl = repo.homepage || repo.integrations.flatMap((i) => splitUrls(i.documentation_url))[0] || null;
+  const docsUrl = safeExternalUrl(repo.homepage) || repo.integrations.flatMap((i) => splitUrls(i.documentation_url))[0] || null;
 
   // Casos de negocio y repositorios relacionados de todas las ideas, sin repetidos.
   const cases = [...new Map(repo.integrations.flatMap((i) => i.business_cases).map((c) => [c.id, c])).values()];
@@ -165,7 +165,7 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
             </a>
           )}
           <a
-            href={repo.url}
+            href={safeExternalUrl(repo.url) ?? undefined}
             target="_blank"
             rel="noreferrer"
             className={`inline-flex h-11 items-center gap-2 rounded-[var(--radius-pill)] px-5 font-semibold ${
@@ -197,8 +197,8 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
                 value={repo.maintainer_active === null ? "Sin datos" : repo.maintainer_active ? "Sí" : "No"}
               />
             </dl>
-            {!repo.has_issues && repo.issues_url && (
-              <a href={repo.issues_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">
+            {!repo.has_issues && safeExternalUrl(repo.issues_url) && (
+              <a href={safeExternalUrl(repo.issues_url) ?? undefined} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">
                 Sistema de incidencias ↗
               </a>
             )}

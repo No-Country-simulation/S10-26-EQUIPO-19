@@ -45,4 +45,12 @@ def generate_compose(payload: ComposeRequest):
                 detail=f"El formato del repositorio '{repo}' es inválido. Debe ser 'owner/repo'."
             )
 
+        if len(repo) > 140:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El nombre del repositorio no puede superar los 140 caracteres."
+            )
+
+    repos = list(dict.fromkeys(repos))
+
     return generator_service.generate(repos)

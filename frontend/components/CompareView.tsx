@@ -9,7 +9,7 @@ import { AlertBadges } from "@/components/RiskAlerts";
 import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { ApiError, compareRepositories } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
-import { compactNumber, formatDate, fullNumber, relativeTime } from "@/lib/format";
+import { compactNumber, formatDate, fullNumber, relativeTime, safeExternalUrl } from "@/lib/format";
 import type { CompareResponse, RepositoryDetail } from "@/types/api";
 
 // Comparador de herramientas lado a lado (9.5): consume /repositories/compare.
@@ -257,6 +257,7 @@ function CompareTable({ data, onOpen }: { data: CompareResponse; onOpen: (id: nu
           Mostrar solo diferencias
         </label>
       </div>
+      <p className="text-xs text-text-muted md:hidden">Desliza la tabla hacia el lado para ver todas las herramientas →</p>
       <div ref={wrapRef} className="relative overflow-x-auto rounded-[var(--radius-card)] border border-border bg-card">
         <table ref={tableRef} className="w-full min-w-[640px] table-fixed border-collapse text-sm break-words">
           <caption className="sr-only">Comparación lado a lado de {repos.length} herramientas</caption>
@@ -289,7 +290,7 @@ function CompareTable({ data, onOpen }: { data: CompareResponse; onOpen: (id: nu
                       <button type="button" onClick={() => onOpen(r.id)} className="text-primary hover:underline">
                         Ver ficha
                       </button>
-                      <a href={r.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      <a href={safeExternalUrl(r.url) ?? undefined} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                         GitHub ↗
                       </a>
                     </span>

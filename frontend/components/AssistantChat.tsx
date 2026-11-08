@@ -11,6 +11,7 @@ import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { ApiError, askAssistant } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { downloadProposal } from "@/lib/exportProposal";
+import { safeExternalUrl } from "@/lib/format";
 import type { ArchitectureComponent, ChatMessage, ChatResponse } from "@/types/api";
 
 // Interfaz del asistente consultor (5.9): el usuario describe su negocio y recibe un stack
@@ -25,6 +26,47 @@ const EXAMPLES = [
 ];
 
 type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; response: ChatResponse };
+
+// QA N3 vid-3 (opción A): la última conversación se guarda solo en este navegador (localStorage).
+const STORAGE_KEY = "openbridge.asistente.conversacion.v1";
+const MAX_SAVED_TURNS = 20;
+
+function isTurn(value: unknown): value is Turn {
+  if (!value || typeof value !== "object") return false;
+  const t = value as Record<string, unknown>;
+  if (typeof t.content !== "string") return false;
+  if (t.role === "user") return true;
+  return t.role === "assistant" && !!t.response && typeof t.response === "object";
+}
+
+/** Recorta a los últimos mensajes y evita empezar con una respuesta sin su pregunta. */
+function trimTurns(turns: Turn[]): Turn[] {
+  const recent = turns.slice(-MAX_SAVED_TURNS);
+  return recent[0]?.role === "assistant" ? recent.slice(1) : recent;
+}
+
+function loadTurns(): Turn[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.every(isTurn)) return [];
+    const turns = trimTurns(parsed);
+    // Una pregunta sin respuesta (se cerró la página mientras esperaba) no se restaura.
+    return turns[turns.length - 1]?.role === "user" ? turns.slice(0, -1) : turns;
+  } catch {
+    return [];
+  }
+}
+
+function saveTurns(turns: Turn[]) {
+  try {
+    if (turns.length === 0) window.localStorage.removeItem(STORAGE_KEY);
+    else window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trimTurns(turns)));
+  } catch {
+    // Almacenamiento lleno o bloqueado (p. ej., navegación privada): la conversación sigue en pantalla.
+  }
+}
 
 function assistantError(err: unknown): FriendlyError {
   if (err instanceof ApiError && err.kind === "invalid") {
@@ -43,6 +85,23 @@ export default function AssistantChat() {
   const [error, setError] = useState<{ error: FriendlyError; message: string; history: ChatMessage[] } | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [restored, setRestored] = useState(false);
+
+  // Se lee después de montar para que el HTML del servidor y el del navegador coincidan.
+  useEffect(() => {
+    setTurns(loadTurns());
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (restored) saveTurns(turns);
+  }, [turns, restored]);
+
+  function newConversation() {
+    setTurns([]);
+    setError(null);
+    setInput("");
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -76,16 +135,16 @@ export default function AssistantChat() {
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold">Asistente de arquitectura</h1>
+        <h1 className="text-3xl font-bold">Hola, soy Toby, tu asistente de arquitectura 👋</h1>
         <p className="max-w-2xl text-text-muted">
-          Cuéntame qué estás construyendo y te propongo un stack open source con sus conexiones, usando solo herramientas del catálogo.
+          ¡Bienvenido a OpenBridge! Cuéntame, ¿qué quieres construir? Aunque no sepas qué tecnologías necesitas, te propongo un stack open source con sus conexiones, solo con herramientas de nuestro catálogo revisadas a diario.
         </p>
       </header>
 
       <section aria-label="Conversación" aria-live="polite" className="flex flex-col gap-4">
         {turns.length === 0 && (
           <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
-            <p className="text-text-muted">Describe tu negocio o producto, aunque no sepas qué tecnologías necesitas. Por ejemplo:</p>
+            <p className="text-text-muted">Por ejemplo:</p>
             <div className="flex flex-col gap-2">
               {EXAMPLES.map((ex) => (
                 <button
@@ -160,9 +219,24 @@ export default function AssistantChat() {
             Enviar
           </button>
         </div>
-        <span className="self-end text-xs text-text-muted">
-          {input.length}/{MAX_LENGTH}
-        </span>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-text-muted">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {turns.length > 0 && (
+              <button
+                type="button"
+                onClick={newConversation}
+                disabled={loading}
+                className="font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                + Nueva conversación
+              </button>
+            )}
+            <span>Tu conversación se guarda solo en este navegador. Descarga la propuesta si quieres conservarla.</span>
+          </span>
+          <span>
+            {input.length}/{MAX_LENGTH}
+          </span>
+        </div>
       </form>
 
       <RepositoryDetailDialog repoId={openId} onClose={() => setOpenId(null)} onSelect={setOpenId} />
@@ -230,7 +304,7 @@ function AssistantAnswer({
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {response.sources.map((s) => (
               <li key={s.repository_id}>
-                <a href={s.url} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
+                <a href={safeExternalUrl(s.url) ?? undefined} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
                   {s.full_name} ↗
                 </a>{" "}
                 <span className="text-text-muted">· {Math.round(s.relevance_score * 100)} % de coincidencia</span>
@@ -256,7 +330,10 @@ function AssistantAnswer({
         </div>
       )}
 
-      <ComposePanel fullNames={components.map((c) => c.full_name)} />
+      {/* vid-1 (QA N3): con varias herramientas y sin conexiones es una comparación de alternativas, no un stack para levantar junto. */}
+      {(components.length <= 1 || connections.length > 0) && (
+        <ComposePanel fullNames={components.map((c) => c.full_name)} />
+      )}
 
       <div className="flex justify-end border-t border-border pt-3">
         <button

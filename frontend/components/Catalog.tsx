@@ -167,8 +167,8 @@ export default function Catalog() {
             {status.kind === "error" && "No se pudieron cargar las herramientas"}
             {data && `${data.total} herramienta${data.total === 1 ? "" : "s"}`}
           </h2>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-xs font-medium">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 whitespace-nowrap text-xs font-medium">
               Ordenar por
               <select
                 value={request.sort.sort_by}
