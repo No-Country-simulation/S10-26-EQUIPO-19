@@ -11,6 +11,7 @@ import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
 import { ApiError, askAssistant } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { downloadProposal } from "@/lib/exportProposal";
+import { safeExternalUrl } from "@/lib/format";
 import type { ArchitectureComponent, ChatMessage, ChatResponse } from "@/types/api";
 
 // Interfaz del asistente consultor (5.9): el usuario describe su negocio y recibe un stack
@@ -134,9 +135,9 @@ export default function AssistantChat() {
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold">Hola, soy Toby 👋</h1>
+        <h1 className="text-3xl font-bold">Hola, soy Toby, tu asistente de arquitectura 👋</h1>
         <p className="max-w-2xl text-text-muted">
-          Soy el asistente de OpenBridge. Cuéntame qué quieres construir, aunque no sepas qué tecnologías necesitas, y te propongo un stack open source con sus conexiones, solo con herramientas de nuestro catálogo revisadas a diario.
+          ¡Bienvenido a OpenBridge! Cuéntame, ¿qué quieres construir? Aunque no sepas qué tecnologías necesitas, te propongo un stack open source con sus conexiones, solo con herramientas de nuestro catálogo revisadas a diario.
         </p>
       </header>
 
@@ -303,7 +304,7 @@ function AssistantAnswer({
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {response.sources.map((s) => (
               <li key={s.repository_id}>
-                <a href={s.url} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
+                <a href={safeExternalUrl(s.url) ?? undefined} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
                   {s.full_name} ↗
                 </a>{" "}
                 <span className="text-text-muted">· {Math.round(s.relevance_score * 100)} % de coincidencia</span>
