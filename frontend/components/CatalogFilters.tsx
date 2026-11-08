@@ -31,8 +31,11 @@ export default function CatalogFilters({
   onChange: (next: Filters) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  // En celular y tablet los filtros avanzados se pliegan para mostrar antes los resultados.
+  const [open, setOpen] = useState(false);
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) => onChange({ ...filters, [key]: value });
   const active = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const activeCount = [filters.categoryId !== null, filters.language, filters.license, filters.healthStatus, filters.minStars > 0].filter(Boolean).length;
 
   // Primero las categorías con repositorios; la seleccionada siempre queda visible.
   const sorted = [...categories].sort((a, b) => (b.repositories_count ?? 0) - (a.repositories_count ?? 0));
@@ -53,6 +56,20 @@ export default function CatalogFilters({
         />
       </label>
 
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls="filtros-avanzados"
+        className="flex h-10 items-center justify-between rounded-xl border border-border px-3 text-sm font-semibold hover:bg-surface-hover lg:hidden"
+      >
+        <span>
+          Filtros{activeCount > 0 && <span className="text-primary"> · {activeCount} activo{activeCount === 1 ? "" : "s"}</span>}
+        </span>
+        <span aria-hidden="true">{open ? "▴" : "▾"}</span>
+      </button>
+
+      <div id="filtros-avanzados" className={`${open ? "flex" : "hidden"} flex-col gap-4 lg:flex`}>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="mb-1.5 text-xs font-medium">Categoría</legend>
         <div className="flex flex-wrap gap-1.5">
@@ -131,6 +148,7 @@ export default function CatalogFilters({
       >
         Limpiar filtros
       </button>
+      </div>
     </aside>
   );
 }

@@ -165,7 +165,7 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
             </a>
           )}
           <a
-            href={repo.url}
+            href={safeExternalUrl(repo.url) ?? undefined}
             target="_blank"
             rel="noreferrer"
             className={`inline-flex h-11 items-center gap-2 rounded-[var(--radius-pill)] px-5 font-semibold ${
@@ -197,8 +197,8 @@ function DetailBody({ repo, onSelect }: { repo: RepositoryDetail; onSelect: (id:
                 value={repo.maintainer_active === null ? "Sin datos" : repo.maintainer_active ? "Sí" : "No"}
               />
             </dl>
-            {!repo.has_issues && repo.issues_url && (
-              <a href={repo.issues_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">
+            {!repo.has_issues && safeExternalUrl(repo.issues_url) && (
+              <a href={safeExternalUrl(repo.issues_url) ?? undefined} target="_blank" rel="noreferrer" className="text-sm font-semibold text-primary hover:underline">
                 Sistema de incidencias ↗
               </a>
             )}

@@ -14,7 +14,7 @@ import type {
 import { MOCK_CATEGORIES, compareMock, composeMock, getMockDetail, listMock, mockChat, searchMock } from "@/data/mock";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true") === "true";
+export const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK ?? "false") === "true";
 
 /** Tipo de falla, para mostrar al usuario un mensaje claro sin detalles técnicos (ver lib/errors.ts). */
 export type ApiErrorKind = "offline" | "timeout" | "unreachable" | "server" | "rate_limit" | "not_found" | "invalid" | "unavailable";
