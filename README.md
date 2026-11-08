@@ -25,6 +25,7 @@
 - [El problema](#-el-problema)
 - [Nuestra solución](#-nuestra-solución)
 - [Funcionalidades](#-funcionalidades)
+- [Capturas](#-capturas)
 - [Arquitectura](#️-arquitectura)
 - [Cómo funciona](#-cómo-funciona)
 - [Entregables](#-entregables)
@@ -95,6 +96,33 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 | 📝 **Descarga de la propuesta** | Exporta la recomendación del asistente en Markdown. |
 | 🌓 **Modo claro y oscuro** | Respeta la preferencia del sistema y se puede cambiar en cualquier momento. |
 | 💬 **Conversación guardada** | La última conversación con el asistente se guarda solo en el navegador del usuario. |
+
+## 📸 Capturas
+
+### Catálogo con buscador y filtros
+<p align="center"><img src="docs/img/catalogo.png" alt="Catálogo de OpenBridge" width="860"></p>
+
+### Ficha técnica con health score e ideas de integración
+<p align="center"><img src="docs/img/ficha.png" alt="Ficha técnica de Ollama" width="860"></p>
+
+### Asistente de arquitectura: stack recomendado y mapa
+<p align="center"><img src="docs/img/mapa.png" alt="Mapa de arquitectura del stack recomendado" width="860"></p>
+
+<details>
+<summary>Ver la respuesta completa del asistente (caso: clínicas que agendan citas con pago en línea)</summary>
+<p align="center"><img src="docs/img/asistente.png" alt="Respuesta completa del asistente" width="860"></p>
+</details>
+
+### Comparador de herramientas
+<p align="center"><img src="docs/img/comparador.png" alt="Comparador de Keycloak, Better-auth y Authelia" width="860"></p>
+
+### Modo oscuro y versión para celular
+<p align="center"><img src="docs/img/modo-oscuro.png" alt="Catálogo en modo oscuro" width="860"></p>
+<p align="center">
+  <img src="docs/img/celular-catalogo.jpeg" alt="Catálogo en celular" width="260">
+  &nbsp;&nbsp;
+  <img src="docs/img/celular-asistente.jpeg" alt="Asistente en celular" width="260">
+</p>
 
 ## 🏗️ Arquitectura
 
