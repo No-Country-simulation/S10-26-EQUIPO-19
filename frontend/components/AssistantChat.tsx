@@ -85,6 +85,8 @@ export default function AssistantChat() {
   const [error, setError] = useState<{ error: FriendlyError; message: string; history: ChatMessage[] } | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  // Última pregunta del usuario: al llegar la respuesta se muestra desde aquí, no desde el final.
+  const lastQuestionRef = useRef<HTMLDivElement>(null);
   const [restored, setRestored] = useState(false);
   // true si al entrar se recuperó una conversación guardada: se muestra un aviso arriba.
   const [resumed, setResumed] = useState(false);
@@ -116,6 +118,12 @@ export default function AssistantChat() {
   useEffect(() => {
     if (skipScrollRef.current) {
       skipScrollRef.current = false;
+      return;
+    }
+    const last = turns[turns.length - 1];
+    if (!loading && last?.role === "assistant" && lastQuestionRef.current) {
+      // Respuesta nueva: se ve la pregunta y el comienzo de la respuesta, para leerla de arriba hacia abajo.
+      lastQuestionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -189,7 +197,11 @@ export default function AssistantChat() {
 
         {turns.map((t, i) =>
           t.role === "user" ? (
-            <div key={i} className="max-w-[85%] self-end rounded-2xl bg-primary px-4 py-3 text-primary-contrast">
+            <div
+              key={i}
+              ref={turns.slice(i + 1).some((n) => n.role === "user") ? undefined : lastQuestionRef}
+              className="max-w-[85%] scroll-mt-4 self-end rounded-2xl bg-primary px-4 py-3 text-primary-contrast"
+            >
               {t.content}
             </div>
           ) : (
