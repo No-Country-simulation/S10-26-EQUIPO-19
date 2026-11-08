@@ -2,8 +2,6 @@
   <img src="frontend/public/logo-horizontal.png" alt="OpenBridge" width="440">
 </p>
 
-<p align="center"><b>El camino corto a tu stack open source</b></p>
-
 <p align="center">
   Catálogo inteligente de herramientas open source con asistente de arquitectura basado en IA (RAG).
 </p>
