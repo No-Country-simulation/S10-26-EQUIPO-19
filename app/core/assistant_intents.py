@@ -122,9 +122,11 @@ _SELF_IDENTITY_PATTERNS = re.compile(
     r"\bcual\s+es\s+tu\s+nombre\b|"
     r"\bpresentate\b|\bte\s+presentas\b|"
     r"\bque\s+eres\s*[?!.]*$|"
-    r"\bhablame\s+de\s+(vos|toby)\b|"
-    r"\bcontame\s+(de\s+)?(vos|toby)\b|"
-    r"\bcuentame\s+(de\s+)?(vos|toby)\b|"
+    r"\b(hablame|contame|cuentame|decime)\s+(de|sobre|acerca\s+de)\s+"
+    r"(vos|ti|toby)\b|"
+    r"\b(sobre|acerca\s+de)\s+(vos|ti)\b|"
+    r"\bde\s+(vos|ti)\b|"
+    r"\bque\s+sabes\s+de\s+(vos|ti)\b|"
     r"\bsobre\s+vos\b"
     r")"
 )
@@ -141,16 +143,30 @@ _PRESENTATION_CUES = re.compile(
     r")"
 )
 
+# Objeto de una presentación: solo el propio asistente o el producto. Evita que
+# el nombre del asistente se tome como contexto de una petición real (Bug-N3-4).
+_SELF_PRESENTATION_OBJECT = re.compile(
+    r"\b(hablame|contame|cuentame|decime|presentate|presentas|"
+    r"informacion|info)\b[^.!?]{0,24}?"
+    r"\b(de|sobre|acerca\s+de)\s+"
+    r"(vos|ti|toby|openbridge|el\s+producto|la\s+plataforma|el\s+asistente)\b"
+)
+
 # Pedidos que, aunque nombren a OpenBridge, necesitan el flujo normal.
 _PRESENTATION_EXCLUSIONS = re.compile(
     r"(\bcompara\w*\b|\bcomparar\b|\bvs\b|\bversus\b|\bstack\b|"
-    r"\brecomiend\w*\b|\brecomend\w*\b|\bprecio\w*\b)"
+    r"\brecomiend\w*\b|\brecomend\w*\b|\bprecio\w*\b|"
+    r"\brepositorios?\b|\bherramientas?\b|\bproyectos?\b|"
+    r"\btecnologias?\b|\bplataformas?\b|\bservicios?\b|"
+    r"\bopciones?\b|\balternativas?\b|\bsoluciones?\b|"
+    r"\bevaluacion\b|\bcomparacion\b|\bbase\s+de\s+datos\b)"
 )
 
 _DEICTIC_REFERENCE = re.compile(
     r"("
     r"\baquel\b|\baquella\b|\baquello\b|"
     r"\bese\b|\besa\b|\beso\b|\besos\b|\besas\b|"
+    r"\beste\b|\besta\b|\besto\b|\bestos\b|\bestas\b|"
     r"\bel anterior\b|\bla anterior\b|"
     r"\blos anteriores\b|\blas anteriores\b|"
     r"\bel primero\b|\bla primera\b|"
@@ -278,12 +294,19 @@ def is_toby_identity_request(text: str) -> bool:
         if re.search(r"\bcon\s+[a-z0-9]", plain):
             return False
 
+        # "¿Qué puedes hacer para un CRM?" también pide una respuesta sobre el pedido.
+        if re.search(
+            r"\bpara\s+(?:un|una|unos|unas|el|la|los|las|mi|tu|su|mis|tus|sus)\b",
+            plain,
+        ):
+            return False
+
         return True
 
     return bool(
         _PRODUCT_TERMS.search(normalized)
         and re.search(r"\btoby\b", plain)
-        and _PRESENTATION_CUES.search(plain)
+        and _SELF_PRESENTATION_OBJECT.search(plain)
     )
 
 
@@ -331,6 +354,21 @@ def has_unresolved_reference(text: str, has_history: bool) -> bool:
 
     if _REMOTE_PAST_REFERENCE.search(normalized):
         return True
+
+    return has_reference(text)
+
+
+def has_reference(text: str) -> bool:
+    """True si el mensaje señala una herramienta o proyecto sin nombrarlo.
+
+    "Hablame de esta herramienta" o "cuentame de este proyecto" necesitan un
+    antecedente, exista o no historial: con historial se resuelve la entidad;
+    sin historial (o sin entidad reconocible) corresponde pedir aclaración.
+    """
+    normalized = normalize_text(text)
+
+    if not normalized:
+        return False
 
     return bool(
         _DEICTIC_REFERENCE.search(normalized)
@@ -395,7 +433,34 @@ def extract_tool_mentions(text: str) -> list[str]:
 
     return mentions
 
-    return mentions
+
+_CANDIDATE_TOKEN_SEARCH = re.compile(r"[^\W_][\w.+#-]{2,}", re.UNICODE)
+
+
+def candidate_tool_tokens(text: str) -> list[str]:
+    """Posibles nombres de herramienta en un texto, sin palabras genéricas.
+
+    Se usa para resolver referencias ("esta herramienta") contra lo que el
+    usuario ya mencionó, validando cada candidato con el índice del catálogo.
+    """
+    tokens: list[str] = []
+    seen: set[str] = set()
+
+    for match in _CANDIDATE_TOKEN_SEARCH.finditer(text or ""):
+        token = _clean_token(match.group(0))
+
+        if not _is_candidate(token, allow_technologies=True):
+            continue
+
+        key = normalize_text(token)
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        tokens.append(token)
+
+    return tokens
 
 
 def _quoted(items: list[str]) -> str:

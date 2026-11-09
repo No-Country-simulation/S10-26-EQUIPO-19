@@ -17,17 +17,8 @@ if _token:
     HEADERS["Authorization"] = f"Bearer {_token}"
 
 
-def get_rate_limit_headers(response: httpx.Response) -> dict:
-    """Extrae los encabezados de cuota de GitHub."""
-    return {
-        "limit": response.headers.get("X-RateLimit-Limit"),
-        "remaining": response.headers.get("X-RateLimit-Remaining"),
-        "reset": response.headers.get("X-RateLimit-Reset"),
-    }
-
-
 async def github_get(endpoint: str, params: dict | None = None):
-    """Realiza un GET a GitHub y devuelve (JSON, encabezados de cuota)."""
+    """Realiza un GET a GitHub y devuelve el JSON de la respuesta."""
     async with httpx.AsyncClient(headers=HEADERS, timeout=25.0) as client:
         response = await client.get(
             f"{GITHUB_API_URL}{endpoint}",
@@ -37,18 +28,12 @@ async def github_get(endpoint: str, params: dict | None = None):
     if response.status_code == 404:
         raise ValueError("No se encontró el recurso solicitado en GitHub.")
     if response.status_code in (403, 429):
-        remaining = response.headers.get("X-RateLimit-Remaining")
-        if remaining == "0":
-            raise RuntimeError(
-                "Se agotó la cuota de GitHub. "
-                "Consultá /github/rate-limit para ver el reinicio."
-            )
         raise RuntimeError(
-            "GitHub rechazó la solicitud. Revisá el token o los límites de la API."
+            "GitHub rechazó la solicitud. Intenta nuevamente más tarde."
         )
 
     response.raise_for_status()
-    return response.json(), get_rate_limit_headers(response)
+    return response.json()
 
 
 async def get_commit_activity(owner: str, repo_name: str) -> dict:

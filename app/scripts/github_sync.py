@@ -163,7 +163,7 @@ async def get_last_commit_at(
 ) -> str | None:
     """Obtiene la fecha del último commit."""
     try:
-        commits, _ = await github_get(
+        commits = await github_get(
             f"/repos/{owner}/{repo_name}/commits",
             params={"per_page": 1},
         )
@@ -194,7 +194,7 @@ async def get_commit_activity_metrics(
     }
 
     try:
-        activity, _ = await github_get(
+        activity = await github_get(
             f"/repos/{owner}/{repo_name}/stats/commit_activity"
         )
 
@@ -283,7 +283,7 @@ async def sync_repository(repository: dict) -> dict:
     full_name = repository["full_name"]
     owner, repo_name = full_name.split("/", maxsplit=1)
 
-    data, _ = await github_get(
+    data = await github_get(
         f"/repos/{owner}/{repo_name}"
     )
 
