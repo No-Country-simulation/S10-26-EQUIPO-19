@@ -34,14 +34,17 @@ function download(data: ComposeResponse) {
   URL.revokeObjectURL(url);
 }
 
-export default function ComposePanel({ fullNames }: { fullNames: string[] }) {
+export default function ComposePanel({ fullNames, onGenerated }: { fullNames: string[]; onGenerated?: (data: ComposeResponse) => void }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [copied, setCopied] = useState(false);
 
   async function generate() {
     setStatus({ kind: "loading" });
     try {
-      setStatus({ kind: "ok", data: await generateCompose(fullNames) });
+      const data = await generateCompose(fullNames);
+      setStatus({ kind: "ok", data });
+      // El chat reutiliza este mismo archivo en la descarga de la propuesta.
+      onGenerated?.(data);
     } catch (err) {
       console.warn(err);
       setStatus({ kind: "error", error: composeError(err) });
