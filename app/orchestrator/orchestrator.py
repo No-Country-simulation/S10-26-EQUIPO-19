@@ -18,6 +18,7 @@ from app.core.assistant_intents import (
     THANKS_ANSWER,
     TOBY_ANSWER,
     extract_tool_mentions,
+    has_reference,
     has_unresolved_reference,
     is_product_presentation_request,
     is_thanks,
@@ -27,7 +28,11 @@ from app.core.assistant_intents import (
 from app.orchestrator.requirements_analyzer import RequirementsAnalyzer
 from app.orchestrator.compatibility_engine import CompatibilityEngine
 from app.orchestrator.context_builder import ContextBuilder
-from app.orchestrator.query_context import build_retrieval_query, last_user_message
+from app.orchestrator.query_context import (
+    build_retrieval_query,
+    last_user_message,
+    resolve_reference_target,
+)
 
 from app.services.catalog_name_index import CatalogNameIndex
 from app.services.gemini_embedding_service import GeminiEmbeddingService
@@ -141,8 +146,25 @@ class AssistantOrchestrator:
             logger.info("Assistant product presentation answered without model")
             return self._fixed_response(PRODUCT_ANSWER)
 
-        # "Aquel repositorio" en una conversación nueva: falta el antecedente.
-        if has_unresolved_reference(
+        # Referencias sin nombre ("esta herramienta", "aquel repositorio"):
+        # se resuelven contra lo ya mencionado antes de buscar en el catálogo.
+        # Si no hay antecedente reconocible, se pide aclaración en lugar de
+        # recomendar un stack por coincidencia de palabras.
+        retrieval_message = message
+        reference = resolve_reference_target(
+            message,
+            history,
+            self.catalog_index.lookup_known,
+        )
+
+        if reference is not None:
+            retrieval_message = reference["query"]
+            logger.info(
+                "Assistant reference resolved to catalog tool: %s",
+                reference["entry"].get("full_name")
+                or reference["entry"].get("name"),
+            )
+        elif has_reference(message) or has_unresolved_reference(
             message,
             last_user_message(history) is not None,
         ):
@@ -159,9 +181,15 @@ class AssistantOrchestrator:
 
         # Un seguimiento corto no describe la necesidad por sí solo: se busca
         # con el mensaje anterior del usuario, sin llamadas extra al modelo.
-        retrieval_query = build_retrieval_query(message, history)
+        retrieval_query = (
+            retrieval_message
+            if reference is not None
+            else build_retrieval_query(message, history)
+        )
 
-        if retrieval_query != message.strip():
+        if reference is not None:
+            logger.info("Assistant retrieval query resolved from a reference")
+        elif retrieval_query != message.strip():
             logger.info(
                 "Assistant retrieval query expanded with the previous user message"
             )
@@ -359,7 +387,7 @@ class AssistantOrchestrator:
 
         # 6. Build LLM context.
         context = self.context_builder.build(
-            query=message,
+            query=retrieval_message,
             requirements=requirements,
             repositories=ranked_repositories,
             semantic_results=semantic_results,
