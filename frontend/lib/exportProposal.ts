@@ -1,7 +1,12 @@
-import type { ChatResponse } from "@/types/api";
+import { createZip, type ZipFile } from "@/lib/zip";
+import type { ChatResponse, ComposeResponse } from "@/types/api";
 
-// Exportar la propuesta del asistente (9.6) como Markdown: se lee en cualquier editor, y en
-// GitHub o HackMD el bloque Mermaid se dibuja como diagrama.
+// Exportar la propuesta del asistente (9.6) en un ZIP: el Markdown de la conversación (se lee en
+// cualquier editor, y en GitHub o HackMD el bloque Mermaid se dibuja como diagrama) junto con el
+// docker-compose de arranque (9.2) del stack recomendado, cuando corresponde incluirlo.
+
+const PROPOSAL_FILE = "propuesta.md";
+const COMPOSE_FILE = "docker-compose.yml";
 
 const shortName = (fullName: string) => fullName.split("/")[1] ?? fullName;
 const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ");
@@ -66,13 +71,22 @@ export function proposalMarkdown(question: string | null, r: ChatResponse, date 
   return lines.join("\n");
 }
 
-export function downloadProposal(question: string | null, r: ChatResponse) {
-  const date = new Date();
-  const blob = new Blob([proposalMarkdown(question, r, date)], { type: "text/markdown;charset=utf-8" });
+/** Arma el ZIP de la propuesta: siempre el Markdown; el docker-compose cuando viene en `compose`. */
+export function proposalZip(question: string | null, r: ChatResponse, compose: ComposeResponse | null, date = new Date()): Blob {
+  const files: ZipFile[] = [{ name: PROPOSAL_FILE, content: proposalMarkdown(question, r, date) }];
+  if (compose && compose.services.length > 0) {
+    files.push({ name: compose.filename || COMPOSE_FILE, content: compose.content });
+  }
+  return createZip(files, date);
+}
+
+/** Descarga el ZIP de la propuesta. `compose` llega ya preparado (o null si no corresponde incluirlo). */
+export function downloadProposal(question: string | null, r: ChatResponse, compose: ComposeResponse | null, date = new Date()): void {
+  const blob = proposalZip(question, r, compose, date);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `openbridge-propuesta-${date.toISOString().slice(0, 10)}.md`;
+  a.download = `openbridge-propuesta-${date.toISOString().slice(0, 10)}.zip`;
   document.body.appendChild(a);
   a.click();
   a.remove();

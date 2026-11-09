@@ -91,7 +91,7 @@ Hoy sus arquitectos y líderes técnicos invierten **entre 15 y 20 horas por pro
 | 🐳 **Docker-compose de arranque** | Genera un archivo `docker-compose.yml` con las herramientas del stack, usando solo imágenes oficiales y sin secretos. |
 | ⚠️ **Alertas de riesgo** | Avisos por licencias con obligaciones (AGPL, GPL), proyectos archivados o sin actividad reciente. |
 | ⚖️ **Comparador** | Comparación lado a lado de 2 o 3 herramientas, con las métricas clave y la mejor opción destacada cuando son de la misma categoría. |
-| 📝 **Descarga de la propuesta** | Exporta la recomendación del asistente en Markdown. |
+| 📝 **Descarga de la propuesta** | Exporta un ZIP con la recomendación del asistente en Markdown y, cuando el stack lo permite, el `docker-compose.yml` de arranque. |
 | 🌓 **Modo claro y oscuro** | Respeta la preferencia del sistema y se puede cambiar en cualquier momento. |
 | 💬 **Conversación guardada** | La última conversación con el asistente se guarda solo en el navegador del usuario. |
 
