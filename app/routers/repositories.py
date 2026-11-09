@@ -442,16 +442,21 @@ def get_repositories(
             )
 
             if sort_by == "health_score":
-                query = query.order("health_score", desc=is_desc, foreign_table="metrics")
+                response = query.execute()
             else:
                 query = query.order(sort_by, desc=is_desc)
-
-            response = query.range(start, end).execute()
+                response = query.range(start, end).execute()
 
             if response.data is not None and (response.count or 0) > 0:
                 total = response.count or len(response.data)
                 total_pages = math.ceil(total / page_size) if total > 0 else 1
                 items = [_map_repository_row(row) for row in response.data]
+                if sort_by == "health_score":
+                    items.sort(
+                        key=lambda r: (r.metrics.health_score if r.metrics else 0, r.stars),
+                        reverse=is_desc,
+                    )
+                    items = items[start : start + page_size]
                 return RepositoryPaginationResponse(
                     total=total,
                     page=page,
@@ -574,16 +579,21 @@ def search_repositories(
                 query = query.eq("metrics.health_status", health_status)
 
             if sort_by == "health_score":
-                query = query.order("health_score", desc=is_desc, foreign_table="metrics")
+                response = query.execute()
             else:
                 query = query.order(sort_by, desc=is_desc)
-
-            response = query.range(start, end).execute()
+                response = query.range(start, end).execute()
 
             if response.data is not None and (response.count or 0) > 0:
                 total = response.count or len(response.data)
                 total_pages = math.ceil(total / page_size) if total > 0 else 1
                 items = [_map_repository_row(row) for row in response.data]
+                if sort_by == "health_score":
+                    items.sort(
+                        key=lambda r: (r.metrics.health_score if r.metrics else 0, r.stars),
+                        reverse=is_desc,
+                    )
+                    items = items[start : start + page_size]
                 return RepositoryPaginationResponse(
                     total=total,
                     page=page,
