@@ -1,0 +1,65 @@
+from playwright.sync_api import expect
+from pages.catalog_page import CatalogPage
+import pytest
+
+pytestmark = pytest.mark.e2e
+def test_filter_by_language(page):
+    catalog = CatalogPage(page)
+    catalog.open()
+
+    catalog.select_language("Java")
+
+    repositories = catalog.get_visible_repository_cards()
+
+    expect(repositories.first).to_be_visible()
+
+    for index in range(repositories.count()):
+        expect(repositories.nth(index)).to_contain_text("Java")
+
+
+def test_filter_by_license(page):
+    catalog = CatalogPage(page)
+    catalog.open()
+
+    catalog.select_license("Apache-2.0")
+
+    repositories = catalog.get_visible_repository_cards()
+
+    expect(repositories.first).to_be_visible()
+
+    for index in range(repositories.count()):
+        expect(repositories.nth(index)).to_contain_text(
+            "Apache-2.0"
+        )
+
+
+def test_filter_by_maintenance(page):
+    catalog = CatalogPage(page)
+    catalog.open()
+
+    catalog.select_maintenance("Activo")
+
+    repositories = catalog.get_visible_repository_cards()
+
+    expect(repositories.first).to_be_visible()
+
+    for index in range(repositories.count()):
+        expect(repositories.nth(index)).to_contain_text("Activo")
+#---------------------------------------------------
+
+def test_clear_catalog_filters(page):
+    catalog = CatalogPage(page)
+    catalog.open()
+
+    # Apply multiple filters
+    catalog.select_language("Java")
+    catalog.select_license("Apache-2.0")
+    catalog.select_maintenance("Activo")
+
+    # Clear filters
+    catalog.clear_filters()
+
+    # Validate default values
+    expect(catalog.language_filter).to_have_value("")
+    expect(catalog.license_filter).to_have_value("")
+    expect(catalog.maintenance_filter).to_have_value("")
