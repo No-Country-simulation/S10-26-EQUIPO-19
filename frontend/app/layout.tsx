@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Poppins, Roboto } from "next/font/google";
-import Link from "next/link";
 import ConnectionBanner from "@/components/ConnectionBanner";
 import Header from "@/components/Header";
 import "./globals.css";
@@ -41,8 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Header />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="border-t border-border px-4 py-6 text-center text-sm text-text-muted">
-          OpenBridge · <span className="italic text-accent">El camino corto a tu stack open source</span> ·{" "}
-          <Link href="/guia-de-estilo" className="text-primary hover:underline">Guía de estilo</Link>
+          OpenBridge · <span className="italic text-accent">El camino corto a tu stack open source</span>
         </footer>
       </body>
     </html>
