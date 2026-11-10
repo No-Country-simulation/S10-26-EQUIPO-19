@@ -160,6 +160,27 @@ class CatalogNameIndex:
 
         return self._lookup_in_database(candidate)
 
+    def lookup_known(self, candidate: str) -> dict | None:
+        """Como lookup, pero solo con el índice en memoria (sin consulta extra).
+
+        Para resolver referencias se prueban muchos candidatos; consultar la
+        base por cada palabra sería costoso. El índice ya contiene el catálogo.
+        """
+        key = _normalize(candidate)
+
+        if len(key) < 2:
+            return None
+
+        if self._is_stale():
+            self._refresh()
+
+        entry = self._entries_by_key.get(key)
+
+        if entry is not None:
+            return entry
+
+        return self._prefix_match(key)
+
     def alternatives(self, repository: dict, limit: int = 3) -> list[dict]:
         """Herramientas del catálogo en la misma categoría que el repositorio."""
         if not repository or not repository.get("category_id"):

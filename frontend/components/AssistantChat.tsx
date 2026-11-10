@@ -8,16 +8,36 @@ import Markdown from "@/components/Markdown";
 import RepositoryDetailDialog from "@/components/RepositoryDetailDialog";
 import { AlertList } from "@/components/RiskAlerts";
 import ErrorNotice, { SlowNotice } from "@/components/ErrorNotice";
-import { ApiError, askAssistant } from "@/lib/api";
+import { ApiError, askAssistant, COMPOSE_ENABLED, generateCompose } from "@/lib/api";
 import { friendlyError, type FriendlyError } from "@/lib/errors";
 import { downloadProposal } from "@/lib/exportProposal";
 import { safeExternalUrl } from "@/lib/format";
-import type { ArchitectureComponent, ChatMessage, ChatResponse } from "@/types/api";
+import type { ArchitectureComponent, ChatMessage, ChatResponse, ComposeResponse } from "@/types/api";
 
 // Interfaz del asistente consultor (5.9): el usuario describe su negocio y recibe un stack
 // open source justificado, con sus conexiones, alertas de riesgo y fuentes del catálogo (4.4).
 
 const MAX_LENGTH = 2000;
+
+// Tope de espera del docker-compose al descargar: si el endpoint tarda, el ZIP sale solo con la propuesta.
+const COMPOSE_WAIT_MS = 15_000;
+
+/** Pide el docker-compose sin bloquear la descarga: ante error o demora devuelve null. */
+async function composeWithTimeout(fullNames: string[]): Promise<ComposeResponse | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), COMPOSE_WAIT_MS);
+  });
+  const request = generateCompose(fullNames).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  try {
+    return await Promise.race([request, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Casos de negocio del inventario, para probar el asistente con un clic.
 const EXAMPLES = [
@@ -300,6 +320,37 @@ function AssistantAnswer({
   const connections = response.architecture?.connections ?? [];
   const byKey = new Map(components.map((c) => [c.key, c]));
   const name = (key: string) => byKey.get(key)?.full_name.split("/")[1] ?? key;
+  // vid-1 (QA N3) y bandera 9.2: la descarga incluye docker-compose solo cuando el panel lo mostraría.
+  // Con varias herramientas y sin conexiones es una comparación de alternativas, no un stack para levantar junto.
+  const composeApplies = COMPOSE_ENABLED && components.length > 0 && (components.length <= 1 || connections.length > 0);
+  // Compose generado en el panel (o al descargar): se reutiliza para no llamar dos veces al endpoint.
+  const [compose, setCompose] = useState<ComposeResponse | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+
+  async function onDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    setDownloadNotice(null);
+    try {
+      // Solo se pide al servidor si corresponde incluirlo y el panel todavía no lo generó.
+      let data = compose;
+      if (composeApplies && !data) {
+        data = await composeWithTimeout(components.map((c) => c.full_name));
+        if (data) setCompose(data);
+      }
+      const included = composeApplies && data && data.services.length > 0 ? data : null;
+      downloadProposal(question, response, included);
+      if (composeApplies && !included) {
+        setDownloadNotice("No se pudo preparar el docker-compose: el ZIP trae solo la propuesta.");
+      }
+    } catch (err) {
+      console.warn(err);
+      setDownloadNotice("No pudimos armar el ZIP. Inténtalo de nuevo.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <article className="flex max-w-full flex-col gap-4 self-start rounded-[var(--radius-card)] border border-border bg-card p-5">
@@ -369,19 +420,29 @@ function AssistantAnswer({
         </div>
       )}
 
-      {/* vid-1 (QA N3): con varias herramientas y sin conexiones es una comparación de alternativas, no un stack para levantar junto. */}
-      {(components.length <= 1 || connections.length > 0) && (
-        <ComposePanel fullNames={components.map((c) => c.full_name)} />
-      )}
+      {composeApplies && <ComposePanel fullNames={components.map((c) => c.full_name)} onGenerated={setCompose} />}
 
-      <div className="flex justify-end border-t border-border pt-3">
+      <div className="flex flex-col items-end gap-2 border-t border-border pt-3">
         <button
           type="button"
-          onClick={() => downloadProposal(question, response)}
-          className="inline-flex h-10 items-center gap-2 rounded-[var(--radius-pill)] border border-border px-4 text-sm font-semibold hover:border-primary hover:bg-surface-hover"
+          onClick={() => void onDownload()}
+          disabled={downloading}
+          aria-busy={downloading}
+          className="inline-flex h-10 items-center gap-2 rounded-[var(--radius-pill)] border border-border px-4 text-sm font-semibold hover:border-primary hover:bg-surface-hover disabled:opacity-50"
         >
-          ↓ Descargar propuesta (.md)
+          {downloading ? "Preparando descarga…" : "↓ Descargar propuesta (.zip)"}
         </button>
+        <p className="text-xs text-text-muted">
+          {composeApplies
+            ? "Incluye la propuesta en Markdown y el docker-compose de arranque."
+            : "Incluye la propuesta en Markdown."}
+        </p>
+        <SlowNotice active={downloading} />
+        {downloadNotice && (
+          <p role="status" className="text-sm text-text-muted">
+            {downloadNotice}
+          </p>
+        )}
       </div>
     </article>
   );

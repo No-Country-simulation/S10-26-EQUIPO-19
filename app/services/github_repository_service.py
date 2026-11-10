@@ -36,7 +36,7 @@ async def _get_optional_detail(
 ):
     """Consulta un endpoint secundario; si falla, devuelve None."""
     try:
-        data, _ = await github_get(endpoint, params=params)
+        data = await github_get(endpoint, params=params)
         return data
     except (ValueError, httpx.HTTPError, RuntimeError):
         return None
@@ -366,7 +366,7 @@ async def get_repository(
     license_from_inventory: str | None = None,
 ) -> dict:
     """Obtiene y prepara toda la información del repositorio."""
-    data, rate_limit = await github_get(
+    data = await github_get(
         f"/repos/{owner}/{repo}"
     )
 
@@ -384,23 +384,4 @@ async def get_repository(
             extra,
             license_from_inventory=license_from_inventory,
         ),
-        "rate_limit_headers": rate_limit,
     }
-
-
-async def get_rate_limit() -> dict:
-    """Devuelve los límites actuales de la API de GitHub."""
-    data, _ = await github_get("/rate_limit")
-    resources = data.get("resources", {})
-
-    output = {}
-
-    for name in ("core", "search"):
-        quota = resources.get(name, {})
-        output[name] = {
-            "limit": quota.get("limit"),
-            "remaining": quota.get("remaining"),
-            "reset": quota.get("reset"),
-        }
-
-    return output

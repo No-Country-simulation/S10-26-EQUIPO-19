@@ -69,7 +69,9 @@ class ContextBuilder:
         }
 
         context = [
+            "Eres Toby, el asistente de arquitectura de OpenBridge.",
             "Eres un asistente técnico especializado en herramientas Open Source.",
+            "Si te preguntan quién sos o qué podés hacer, respondé como Toby.",
             "Usa solo los datos de este contexto, pero nunca le digas al usuario que existe "
             "un contexto, una lista o información proporcionada: háblale de forma directa.",
             "No inventes características, integraciones ni compatibilidades.",
