@@ -33,6 +33,7 @@
 - [Instalación y ejecución](#️-instalación-y-ejecución)
 - [Despliegue](#-despliegue)
 - [Calidad y seguridad](#-calidad-y-seguridad)
+- [Pentesting y hacking ético](#-pentesting-y-hacking-ético)
 - [Flujo de trabajo](#-flujo-de-trabajo)
 - [Identidad visual](#-identidad-visual)
 - [Equipo](#-equipo)
@@ -377,6 +378,84 @@ Respuesta esperada (HTTP 200):
   - Documentación interactiva deshabilitada en producción.
   - Enlaces externos validados.
   - Secretos solo en variables de entorno.
+
+## 🕵️ Pentesting y hacking ético
+
+La plataforma se somete a un programa de **seguridad ofensiva continua** a cargo del rol de *Ethical Hacker* del equipo. El objetivo es validar, con la misma rigurosidad que en un entorno profesional, que los controles de seguridad del catálogo, la API y el asistente con IA resisten abuso real, y acompañar cada hallazgo con su remediación verificada.
+
+> ⚖️ **Marco ético y autorización.** Todas las pruebas se ejecutan **dentro del propio equipo y sobre infraestructura propia** (instancias de desarrollo y producción de OpenBridge), con autorización explícita. Se aplican pruebas **no destructivas** (solo *payloads* de detección), sin exfiltración de datos reales, sin denegación de servicio y sin abuso de cuota de terceros (GitHub / Gemini). Los hallazgos se reportan de forma privada al equipo antes de cualquier publicación (*responsible disclosure*).
+
+### 🎯 Marcos de referencia
+
+El trabajo se alinea con estándares reconocidos de la industria:
+
+- **OWASP Top 10** — riesgos web clásicos (inyección, XSS, mala configuración, exposición de información).
+- **OWASP API Security Top 10** — foco en la API FastAPI (consumo sin control, *broken function level authorization*, SSRF).
+- **OWASP Top 10 for LLM Applications** — específico para el asistente RAG (LLM01: *prompt injection* directo e indirecto).
+- **OWASP WSTG** (*Web Security Testing Guide*) y **PTES** como guía metodológica.
+
+### 🧩 Enfoque: caja gris (*graybox*)
+
+Se combina **DAST** (pruebas dinámicas sobre la aplicación desplegada) con **revisión de código fuente** (análisis estático manual del backend y el frontend), lo que permite confirmar cada vulnerabilidad desde afuera y, a la vez, localizar su causa raíz en el código y proponer el *fix* exacto.
+
+| Fase | Actividad |
+|---|---|
+| 1. Reconocimiento | Mapeo de superficie: endpoints, cabeceras, orígenes CORS, tecnologías y puntos de entrada de datos. |
+| 2. Análisis estático | Revisión del código (routers, *rate limiting*, validación de entradas, cliente de GitHub, renderizado del asistente, middleware de seguridad). |
+| 3. Pruebas dinámicas | Sondeo en vivo con *payloads* de detección: inyección, XSS, SSRF, *path traversal*, *spoofing* de cabeceras, CORS, exposición de información. |
+| 4. Explotación controlada | Pruebas de concepto no destructivas (p. ej. ráfagas concurrentes para validar el *rate limiting*). |
+| 5. Reporte y revalidación | Documentación de cada hallazgo (impacto, evidencia, CVSS orientativo, remediación) y verificación tras el *fix*. |
+
+### 📚 Pruebas por niveles
+
+La seguridad se evalúa de forma incremental, acompañando a QA en cada nivel de la aplicación:
+
+| Nivel | Alcance de seguridad |
+|---|---|
+| **N1** | Datos e ingesta: integridad de la carga desde GitHub, secretos y configuración. |
+| **N2** | API: validación de entradas, *rate limiting*, cabeceras, exposición de documentación y errores. |
+| **N3** | Asistente RAG: resistencia a *prompt injection*, separación de canales de confianza y renderizado seguro de la salida. |
+| **N4** | Plataforma integrada: *pentest* de extremo a extremo (frontend + backend + integraciones) y revalidación de todas las remediaciones previas. |
+
+### 🛠️ Herramientas y entorno de pruebas
+
+| Herramienta | Versión | Uso |
+|---|---|---|
+| Windows 11 (build 26100) | — | Host de ejecución |
+| Windows PowerShell | 5.1 | Automatización de sondeos |
+| Git Bash (MinGW-w64) | — | Scripting POSIX de pruebas |
+| **curl** | 8.14.1 | DAST: cabeceras, códigos de estado, *rate limiting*, captura de evidencia |
+| Navegador (Chromium) | — | DAST interactivo: CORS, cabeceras, Swagger, manejo de errores |
+| Git | 2.50.0 | Revisión de código y seguimiento de remediaciones |
+| Python + xhtml2pdf / Pillow / pypdf | 3.14 / 0.2.26 / 12.0 / 6.21.1 | Generación de los informes de pentest |
+
+> ℹ️ Al tratarse de una evaluación de caja gris sobre una aplicación web desplegada, las pruebas se realizan desde el host del analista con `curl` y navegador; **no requiere una máquina virtual dedicada ni distribución ofensiva** (tipo Kali Linux), que quedan reservadas para escenarios de red interna o *red team* fuera de este alcance.
+
+### 📊 Estado de seguridad
+
+Al cierre del nivel N4, la plataforma presenta una **postura de seguridad sólida**: las remediaciones de los niveles previos están verificadas en producción.
+
+| Categoría (OWASP) | Control verificado | Estado |
+|---|---|---|
+| A05 · Mala configuración | Cabeceras de seguridad (CSP, HSTS, `X-Frame-Options`, `nosniff`) en backend y frontend | ✅ Verificado en vivo |
+| A05 · CORS | Lista blanca de orígenes, sin `allow-credentials` | ✅ Verificado |
+| A01/A04 · Control de consumo | *Rate limiting* por IP (429 con `Retry-After`) en rutas sensibles | ✅ Activo (PoC concurrente) |
+| A03 · Inyección / *path traversal* | Validación estricta de `owner`/`repo` y del *payload* de compose | ✅ Mitigado |
+| A07 · XSS en salida del asistente | Renderizador Markdown seguro (sin `dangerouslySetInnerHTML` dinámico, URLs `https` únicamente) | ✅ Mitigado |
+| LLM01 · *Prompt injection* | Separación de instrucciones, respuestas fijas fuera de catálogo, salida acotada | ✅ Controlado (residual bajo) |
+| A01 · Autorización de función | Endpoint de sincronización protegido con `X-API-Key` *fail-closed* | ✅ Verificado |
+| A05 · Exposición de información | Documentación interactiva deshabilitada en producción; mensajes de error genéricos | ✅ Verificado |
+
+
+### 📄 Entregables de seguridad
+
+Cada nivel produce un informe profesional con resumen ejecutivo, alcance, metodología, hallazgos con evidencia y recomendaciones priorizadas:
+
+- Informes de pentest por nivel (N1–N4).
+- Informe de *prompt injection* del asistente (N3).
+- Informe consolidado y plan de seguridad de la plataforma.
+
+> Los informes detallados con evidencia se gestionan de forma privada dentro del equipo y no se publican en el repositorio.
 
 ## 🔀 Flujo de trabajo
 
