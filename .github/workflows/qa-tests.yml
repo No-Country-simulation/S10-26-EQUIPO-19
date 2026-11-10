@@ -1,0 +1,95 @@
+name: OpenBridge QA - Automated Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: "Selecciona la suite de pruebas"
+        required: true
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - e2e
+          - all
+
+permissions:
+  contents: read
+
+jobs:
+  qa-tests:
+    name: QA Tests - DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: qa/automation/requirements.txt
+
+      - name: Install Python dependencies
+        working-directory: qa/automation
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        working-directory: qa/automation
+        run: python -m playwright install --with-deps chromium
+
+      - name: Create reports directory
+        working-directory: qa/automation
+        run: mkdir -p reports
+
+      - name: Run selected QA tests
+        id: tests
+        continue-on-error: true
+        working-directory: qa/automation
+        env:
+          TEST_SUITE: ${{ inputs.test_suite }}
+        run: |
+          if [ "$TEST_SUITE" = "smoke" ]; then
+            pytest -m smoke --junitxml=reports/junit.xml
+
+          elif [ "$TEST_SUITE" = "e2e" ]; then
+            pytest -m e2e --junitxml=reports/junit.xml
+
+          elif [ "$TEST_SUITE" = "all" ]; then
+            pytest --junitxml=reports/junit.xml
+
+          else
+            echo "Suite de pruebas no reconocida: $TEST_SUITE"
+            exit 1
+          fi
+
+      - name: Generate executive report
+        id: report
+        if: always() && steps.tests.outcome != 'skipped'
+        working-directory: qa/automation
+        run: |
+          if [ -f reports/junit.xml ]; then
+            python scripts/generate_executive_report.py
+          else
+            echo "JUnit report was not generated."
+            exit 1
+          fi
+
+      - name: Upload QA reports and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbridge-qa-reports-${{ github.run_number }}
+          path: |
+            qa/automation/reports/
+            qa/automation/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Set final workflow status
+        if: always() && (steps.tests.outcome == 'failure' || steps.report.outcome == 'failure')
+        run: exit 1
