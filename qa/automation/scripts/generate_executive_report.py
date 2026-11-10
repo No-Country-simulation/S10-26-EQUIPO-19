@@ -3,6 +3,9 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from html import escape
 
+import os
+
+QA_ENVIRONMENT = os.getenv("QA_ENVIRONMENT", "DEV").upper()
 
 REPORTS_DIR = Path("reports")
 INPUT_FILE = REPORTS_DIR / "junit.xml"
@@ -232,7 +235,7 @@ def generate_html(results):
 <header>
     <h1>Reporte ejecutivo de calidad</h1>
     <p class="muted">OpenBridge · Automatización QA</p>
-    <p><strong>Entorno evaluado:</strong> DEV</p>
+    <p><strong>Entorno evaluado:</strong> {QA_ENVIRONMENT}</p>
     <p><strong>Fecha de generación:</strong> {generated_at}</p>
     <h2>{overall_status}</h2>
     <p>{escape(conclusion)}</p>
