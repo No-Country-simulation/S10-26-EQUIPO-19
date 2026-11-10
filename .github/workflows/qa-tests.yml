@@ -3,6 +3,15 @@ name: OpenBridge QA - Automated Tests
 on:
   workflow_dispatch:
     inputs:
+      target_environment:
+        description: "Selecciona el entorno que deseas evaluar"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
       test_suite:
         description: "Selecciona la suite de pruebas"
         required: true
@@ -18,7 +27,7 @@ permissions:
 
 jobs:
   qa-tests:
-    name: QA Tests - DEV
+    name: QA Tests - ${{ inputs.target_environment }}
     runs-on: ubuntu-latest
 
     steps:
@@ -42,6 +51,26 @@ jobs:
         working-directory: qa/automation
         run: python -m playwright install --with-deps chromium
 
+      - name: Configure target environment
+        env:
+          TARGET_ENV: ${{ inputs.target_environment }}
+        run: |
+          if [ "$TARGET_ENV" = "dev" ]; then
+            echo "BASE_URL=https://openbridge-dev.vercel.app" >> $GITHUB_ENV
+            echo "QA_ENVIRONMENT=DEV" >> $GITHUB_ENV
+          elif [ "$TARGET_ENV" = "prod" ]; then
+            echo "BASE_URL=https://openbridge-seven.vercel.app" >> $GITHUB_ENV
+            echo "QA_ENVIRONMENT=PROD" >> $GITHUB_ENV
+          else
+            echo "Invalid environment: $TARGET_ENV"
+            exit 1
+          fi
+
+      - name: Display selected environment
+        run: |
+          echo "Environment: $QA_ENVIRONMENT"
+          echo "Base URL: $BASE_URL"
+
       - name: Create reports directory
         working-directory: qa/automation
         run: mkdir -p reports
@@ -54,16 +83,16 @@ jobs:
           TEST_SUITE: ${{ inputs.test_suite }}
         run: |
           if [ "$TEST_SUITE" = "smoke" ]; then
-            pytest -m smoke --junitxml=reports/junit.xml
+            pytest -m smoke --base-url="$BASE_URL" --junitxml=reports/junit.xml
 
           elif [ "$TEST_SUITE" = "e2e" ]; then
-            pytest -m e2e --junitxml=reports/junit.xml
+            pytest -m e2e --base-url="$BASE_URL" --junitxml=reports/junit.xml
 
           elif [ "$TEST_SUITE" = "all" ]; then
-            pytest --junitxml=reports/junit.xml
+            pytest --base-url="$BASE_URL" --junitxml=reports/junit.xml
 
           else
-            echo "Suite de pruebas no reconocida: $TEST_SUITE"
+            echo "Invalid test suite: $TEST_SUITE"
             exit 1
           fi
 
@@ -83,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: openbridge-qa-reports-${{ github.run_number }}
+          name: openbridge-qa-${{ inputs.target_environment }}-${{ github.run_number }}
           path: |
             qa/automation/reports/
             qa/automation/test-results/
