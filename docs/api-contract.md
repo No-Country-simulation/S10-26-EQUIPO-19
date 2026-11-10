@@ -1,25 +1,46 @@
 # Contrato de API - OpenBridge Backend
 
 - **Versión:** 1.0.0
-- **Base URL:** `/api/v1` (Desarrollo local: `http://localhost:8000/api/v1`)
+- **Base URL:** `/api/v1`
+  - **Producción:** `https://openbridge-rcv2.onrender.com/api/v1`
+  - **Desarrollo local:** `http://localhost:8000/api/v1`
+  - *(Las rutas operativas `/health` y `/github/*` se sirven desde la raíz del dominio, sin el prefijo `/api/v1`).*
 - **Formato:** `application/json; charset=utf-8`
-- **Autenticación en MVP:** Ninguna (Catálogo público)
+- **Autenticación en MVP:**
+  - **Catálogo, Asistente y Compose:** Pública (sin autenticación).
+  - **Sincronización de inventario (`POST /github/repositories/sync`):** Protegida mediante cabecera `X-API-Key`.
 
 ---
 
-## 1. Convenciones y Códigos de Estado
+## 1. Convenciones, Códigos de Estado y Límites de Uso
+
+### 1.1 Códigos de Estado HTTP
 
 | Código HTTP | Significado | Descripción |
 |---|---|---|
 | `200 OK` | Éxito | Solicitud procesada correctamente. |
-| `400 Bad Request` | Error de cliente | Parámetros inválidos en la petición. |
+| `400 Bad Request` | Error de cliente | Parámetros inválidos en la petición (ej. cantidad de IDs en el comparador o formato inválido). |
+| `401 Unauthorized` | No autorizado | Falta o es inválida la cabecera `X-API-Key` en endpoints protegidos. |
 | `404 Not Found` | No encontrado | El recurso solicitado no existe. |
-| `422 Unprocessable Entity` | Error de validación | El cuerpo del request no cumple con el esquema esperado. |
-| `500 Internal Error` | Error de servidor | Fallo inesperado en el backend o conexión con Supabase. |
+| `422 Unprocessable Entity` | Error de validación | El cuerpo o los parámetros de la petición no cumplen con el esquema esperado. |
+| `429 Too Many Requests` | Límite excedido | Se superó el límite de solicitudes permitido en la ventana de 60 segundos (incluye cabecera `Retry-After`). |
+| `500 Internal Error` | Error de servidor | Fallo inesperado en el backend. |
+| `502 Bad Gateway` | Error de pasarela | Fallo al comunicarse con la API externa de GitHub. |
+| `503 Service Unavailable` | Servicio no disponible | Base de datos (Supabase) o proveedor de IA (Gemini) no disponibles temporalmente, o tiempo de espera agotado. |
+
+### 1.2 Límites de Solicitudes (Rate Limiting)
+
+Todas las rutas públicas y de ingesta cuentan con limitación de tasa en ventana deslizante de 60 segundos (por IP de cliente y tope global de protección):
+
+| Grupo de Endpoints | Límite por IP | Tope Global |
+|---|---|---|
+| Catálogo y Compose (`/api/v1/repositories*`, `/api/v1/compose`) | 60 req / 60s | 300 req / 60s |
+| Asistente Consultor RAG (`/api/v1/assistant/chat`) | 10 req / 60s | 50 req / 60s |
+| Consultas y Sincronización GitHub (`/github/*`) | 20 req / 60s | 100 req / 60s |
 
 ---
 
-## 2. Endpoints del Catálogo
+## 2. Endpoints del Catálogo (`/api/v1`)
 
 ### 2.1 Listar Categorías
 Obtiene la taxonomía completa de categorías disponibles para filtros y navegación.
@@ -51,13 +72,13 @@ Obtiene la taxonomía completa de categorías disponibles para filtros y navegac
 ---
 
 ### 2.2 Listar Repositorios (Catálogo Paginado)
-Devuelve la lista paginada de repositorios aprobados para el catálogo principal.
+Devuelve la lista paginada de repositorios aprobados para el catálogo principal, incluyendo su categoría, métricas resumidas y alertas de riesgo (`alerts`) evaluadas automáticamente por licencia y estado de mantenimiento.
 
 - **Método:** `GET`
 - **Ruta:** `/repositories`
 - **Query Params:**
-  - `page` *(int, default: 1)*: Número de página.
-  - `page_size` *(int, default: 10, max: 50)*: Cantidad de items por página.
+  - `page` *(int, default: 1, min: 1)*: Número de página.
+  - `page_size` *(int, default: 10, min: 1, max: 50)*: Cantidad de items por página.
   - `sort_by` *(string, default: "stars")*: Campo de ordenación (`stars`, `forks`, `last_commit_at`, `health_score`).
   - `order` *(string, default: "desc")*: Dirección (`asc` o `desc`).
 - **Respuesta `200 OK`:**
@@ -90,7 +111,8 @@ Devuelve la lista paginada de repositorios aprobados para el catálogo principal
       "metrics": {
         "health_score": 91,
         "health_status": "Activo"
-      }
+      },
+      "alerts": []
     },
     {
       "id": 102,
@@ -114,7 +136,8 @@ Devuelve la lista paginada de repositorios aprobados para el catálogo principal
       "metrics": {
         "health_score": 92,
         "health_status": "Activo"
-      }
+      },
+      "alerts": []
     }
   ]
 }
@@ -128,16 +151,16 @@ Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.
 - **Método:** `GET`
 - **Ruta:** `/repositories/search`
 - **Query Params:**
-  - `q` *(string, opcional)*: Texto a buscar en nombre, descripción o tópicos.
-  - `category_id` *(int, opcional)*: ID de la categoría a filtrar.
+  - `q` *(string, opcional)*: Texto a buscar en nombre, nombre completo o descripción (en inglés y español).
+  - `category_id` *(int, opcional, min: 1)*: ID de la categoría a filtrar.
   - `language` *(string, opcional)*: Lenguaje principal (ej. `"Python"`, `"Rust"`, `"TypeScript"`).
-  - `min_stars` *(int, opcional)*: Cantidad mínima de estrellas en GitHub.
+  - `min_stars` *(int, opcional, min: 0)*: Cantidad mínima de estrellas en GitHub.
   - `license` *(string, opcional)*: Licencia (ej. `"MIT"`, `"Apache-2.0"`). Se compara con `repositories.license`.
   - `health_status` *(string, opcional)*: Nivel de mantenimiento: `Activo`, `En riesgo` o `Abandonado`. Se compara con `metrics.health_status`. Los repositorios con `health_status` en `null` (fecha del último commit desconocida) no aparecen al aplicar este filtro.
   - `sort_by` *(string, default: "stars")*: Campo de ordenación: `stars`, `forks`, `last_commit_at` o `health_score`.
   - `order` *(string, default: "desc")*: Dirección de ordenación: `asc` o `desc`.
-  - `page` *(int, default: 1)*: Número de página.
-  - `page_size` *(int, default: 10)*: Cantidad por página.
+  - `page` *(int, default: 1, min: 1)*: Número de página.
+  - `page_size` *(int, default: 10, min: 1, max: 50)*: Cantidad por página.
 - **Ejemplo de petición con los 5 filtros:**  
   `GET /repositories/search?q=embedding&category_id=1&language=Python&license=Apache-2.0&health_status=Activo&min_stars=1000`
 - **Respuesta `200 OK`:** (Estructura idéntica al listado paginado).
@@ -170,7 +193,8 @@ Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.
       "metrics": {
         "health_score": 92,
         "health_status": "Activo"
-      }
+      },
+      "alerts": []
     }
   ]
 }
@@ -179,7 +203,7 @@ Permite filtrar el catálogo combinando búsqueda textual y filtros facetados.
 ---
 
 ### 2.4 Ficha Técnica de Repositorio (Detalle)
-Devuelve la ficha completa con métricas detalladas e ideas de integración relacionadas. Incluye además `detected_stack` e `integration_methods_suggested`, que usa el asistente para recomendar y conectar herramientas. Cada idea incluye los cinco campos que pide la consigna: tipo de integración, disparadores o webhooks, snippet de ejemplo, compatibilidad de stack y nivel de dificultad.
+Devuelve la ficha completa con métricas detalladas, alertas de riesgo (`alerts`) e ideas de integración relacionadas. Incluye además `detected_stack` e `integration_methods_suggested`, que usa el asistente para recomendar y conectar herramientas. Cada idea incluye los cinco campos que pide la consigna: tipo de integración, disparadores o webhooks, snippet de ejemplo, compatibilidad de stack y nivel de dificultad.
 
 - **Método:** `GET`
 - **Ruta:** `/repositories/{id}`
@@ -230,6 +254,7 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
     "commit_activity_status": "available",
     "measured_at": "2026-10-22T08:00:00Z"
   },
+  "alerts": [],
   "integrations": [
     {
       "id": 16,
@@ -274,6 +299,14 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
   ]
 }
 ```
+- **Nota sobre `alerts`:** cuando un repositorio presenta riesgos de licencia (ej. `AGPL-3.0`, `GPL-3.0`, `SSPL` o sin licencia) o de mantenimiento (`En riesgo`, `Abandonado` o `archived: true`), la lista `alerts` incluye objetos con la estructura:
+```json
+{
+  "type": "license",
+  "title": "Obligación de compartir mejoras",
+  "message": "Usa AGPL-3.0. Si la modificas y la ofreces como servicio en la nube, debes publicar el código de esos cambios."
+}
+```
 - **Nota sobre `documentation_url`:** en cada idea de integración puede traer varios enlaces separados por ` ; ` (normalmente uno por cada repositorio de la integración). Ejemplo: `"https://docs.paperless-ngx.com/api ; https://docs.documenso.com/docs/developers/webhooks/events"`. El frontend los separa y muestra un enlace por cada uno.
 - **Respuesta `404 Not Found`:**
 ```json
@@ -284,13 +317,59 @@ Devuelve la ficha completa con métricas detalladas e ideas de integración rela
 
 ---
 
-## 3. Asistente Consultor (RAG)
+### 2.5 Comparar Repositorios Lado a Lado
+Permite comparar de 2 a 3 herramientas lado a lado devolviendo sus fichas técnicas completas, métricas detalladas e indicando si pertenecen a la misma categoría funcional.
+
+- **Método:** `GET`
+- **Ruta:** `/repositories/compare`
+- **Query Params:**
+  - `ids` *(list[string] o string separado por comas, obligatorio)*: Lista de 2 o 3 IDs de repositorios a comparar. Soporta formato separado por comas (`?ids=101,102`) o parámetros repetidos (`?ids=101&ids=102`).
+- **Respuesta `200 OK`:**
+```json
+{
+  "repositories": [
+    {
+      "id": 101,
+      "full_name": "qdrant/qdrant",
+      "name": "qdrant",
+      "...": "Estructura completa de RepositoryDetailResponse (igual a GET /repositories/{id})"
+    },
+    {
+      "id": 102,
+      "full_name": "chroma-core/chroma",
+      "name": "chroma",
+      "...": "Estructura completa de RepositoryDetailResponse (igual a GET /repositories/{id})"
+    }
+  ],
+  "same_category": true,
+  "category_name": "Búsqueda Vectorial"
+}
+```
+- **Respuesta `400 Bad Request` (Cantidad inválida, IDs duplicados o formato no numérico):**
+```json
+{
+  "detail": "Se requieren al menos 2 repositorios para realizar la comparación."
+}
+```
+- **Respuesta `404 Not Found` (Uno o más repositorios no existen):**
+```json
+{
+  "detail": "No se encontraron los siguientes repositorios: 999."
+}
+```
+
+---
+
+## 3. Asistente Consultor (RAG) y Generador Compose (`/api/v1`)
 
 ### 3.1 Consultar al Asistente
-Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con recomendaciones y fuentes citadas. Devuelve además la arquitectura recomendada en formato estructurado (componentes y conexiones) para que el frontend la dibuje con React Flow. Cada conexión indica si corresponde a una idea de integración aprobada del catálogo (`verified: true` e `integration_code`) o si es una propuesta de la IA (`verified: false`). El bloque `architecture` puede ser `null` cuando la consulta no genera una arquitectura.
+Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con recomendaciones y fuentes citadas. Devuelve además la arquitectura recomendada en formato estructurado (componentes y conexiones) para que el frontend la dibuje con React Flow. Cada componente incluye sus alertas de riesgo (`alerts`) y puntaje de salud (`health_score`), y cada conexión indica si corresponde a una idea de integración aprobada del catálogo (`verified: true` e `integration_code`) o si es una propuesta de la IA (`verified: false`). El bloque `architecture` puede ser `null` cuando la consulta no genera una arquitectura.
 
 - **Método:** `POST`
 - **Ruta:** `/assistant/chat`
+- **Validaciones del cuerpo de la petición:**
+  - `message` *(string, obligatorio, entre 1 y 2000 caracteres)*: Pregunta o consulta del usuario.
+  - `conversation_history` *(array, opcional, máximo 20 mensajes)*: Historial previo de la conversación. Cada mensaje requiere `role` (`"user"` o `"assistant"`) y `content` *(entre 1 y 4000 caracteres)*.
 - **Cuerpo de la petición (Request Body):**
 ```json
 {
@@ -339,8 +418,10 @@ Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con 
         "full_name": "Unstructured-IO/unstructured",
         "role": "Extrae el texto de manuales y PDF",
         "license": "Apache-2.0",
+        "health_score": 89,
         "health_status": "Activo",
-        "justification": "Procesa documentos en Python sin servicios externos."
+        "justification": "Procesa documentos en Python sin servicios externos.",
+        "alerts": []
       },
       {
         "key": "vectores",
@@ -348,8 +429,10 @@ Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con 
         "full_name": "chroma-core/chroma",
         "role": "Guarda los embeddings y busca fragmentos similares",
         "license": "Apache-2.0",
+        "health_score": 92,
         "health_status": "Activo",
-        "justification": "Base vectorial ligera, con cliente oficial de Python y configuración mínima."
+        "justification": "Base vectorial ligera, con cliente oficial de Python y configuración mínima.",
+        "alerts": []
       },
       {
         "key": "orquestacion",
@@ -357,8 +440,10 @@ Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con 
         "full_name": "langchain-ai/langchain",
         "role": "Orquesta la búsqueda y la respuesta",
         "license": "MIT",
+        "health_score": 95,
         "health_status": "Activo",
-        "justification": "Integra Chroma y el modelo de lenguaje en pocas líneas."
+        "justification": "Integra Chroma y el modelo de lenguaje en pocas líneas.",
+        "alerts": []
       }
     ],
     "connections": [
@@ -386,9 +471,244 @@ Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con 
   "detail": [
     {
       "loc": ["body", "message"],
-      "msg": "El campo 'message' es obligatorio y no puede estar vacío.",
-      "type": "value_error.missing"
+      "msg": "String should have at least 1 character",
+      "type": "string_too_short"
     }
   ]
+}
+```
+- **Respuesta `429 Too Many Requests` (Límite de solicitudes excedido):**
+```json
+{
+  "detail": "Límite de solicitudes excedido (10 req/60s). Reintente en 45 segundos."
+}
+```
+- **Respuesta `503 Service Unavailable` (Tiempo de espera agotado o servicio no disponible):**
+```json
+{
+  "detail": "El asistente no está disponible en este momento."
+}
+```
+
+---
+
+### 3.2 Generar Docker Compose del Stack Recomendado
+Genera un archivo `docker-compose.yml` funcional a partir de la lista de repositorios (`owner/repo`) de un stack recomendado, empleando únicamente imágenes oficiales con versión fija y resolviendo dependencias entre servicios del catálogo.
+
+- **Método:** `POST`
+- **Ruta:** `/compose`
+- **Validaciones del cuerpo de la petición:**
+  - `repositories` *(list[string], obligatorio, entre 1 y 10 elementos)*: Nombres completos de los repositorios en formato `owner/repo` (máximo 140 caracteres por elemento).
+- **Cuerpo de la petición (Request Body):**
+```json
+{
+  "repositories": [
+    "qdrant/qdrant",
+    "langchain-ai/langchain"
+  ]
+}
+```
+- **Respuesta `200 OK`:**
+```json
+{
+  "filename": "docker-compose.yml",
+  "content": "services:\n  qdrant:\n    image: qdrant/qdrant:v1.13.4\n    ports:\n    - 6333:6333\n    - 6334:6334\n",
+  "services": [
+    {
+      "full_name": "qdrant/qdrant",
+      "service": "qdrant",
+      "image": "qdrant/qdrant:v1.13.4",
+      "ports": ["6333:6333", "6334:6334"]
+    }
+  ],
+  "skipped": [
+    {
+      "full_name": "langchain-ai/langchain",
+      "reason": "Es una librería ejecutable en código fuente y se instala como dependencia, no como un servicio en Docker Compose."
+    }
+  ],
+  "warnings": []
+}
+```
+- **Respuesta `422 Unprocessable Entity`:**
+```json
+{
+  "detail": "El formato del repositorio 'invalido' es inválido. Debe ser 'owner/repo'."
+}
+```
+
+---
+
+## 4. Estado del Servicio e Ingesta de GitHub (Rutas Raíz)
+
+*(Nota: Estas rutas cuelgan directamente de la raíz del servidor, fuera del prefijo `/api/v1`).*
+
+### 4.1 Estado del Servicio (Health Check)
+Verifica que el backend se encuentre activo.
+
+- **Método:** `GET`
+- **Ruta:** `/health`
+- **Respuesta `200 OK`:**
+```json
+{
+  "status": "ok",
+  "message": "El backend de OpenBridge está activo y funcionando"
+}
+```
+
+---
+
+### 4.2 Consultar Datos Enriquecidos de un Repositorio en GitHub
+Consulta la API de GitHub y devuelve los metadatos enriquecidos y el cálculo de salud de un repositorio específico.
+
+- **Método:** `GET`
+- **Ruta:** `/github/repository/{owner}/{repo}`
+- **Parámetros de ruta:**
+  - `owner` *(string, obligatorio)*: Propietario u organización en GitHub (solo caracteres alfanuméricos, guiones y puntos).
+  - `repo` *(string, obligatorio)*: Nombre del repositorio en GitHub.
+- **Respuestas:** `200 OK` con los metadatos enriquecidos del repositorio, `400 Bad Request` si el identificador no es válido, `404 Not Found` si no existe en GitHub, `429 Too Many Requests` o `502 Bad Gateway`.
+
+---
+
+### 4.3 Sincronizar Inventario de Repositorios
+Ejecuta el proceso de ingesta y actualización de repositorios hacia Supabase a partir del inventario curado.
+
+- **Método:** `POST`
+- **Ruta:** `/github/repositories/sync`
+- **Cabeceras requeridas:**
+  - `X-API-Key`: Clave secreta configurada en `SYNC_API_KEY`.
+- **Query Params:**
+  - `limit` *(int, opcional, min: 1)*: Cantidad máxima de repositorios a sincronizar en la ejecución.
+- **Respuesta `200 OK`:**
+```json
+{
+  "total": 3,
+  "successful": 3,
+  "failed": 0,
+  "repositories": []
+}
+```
+- **Respuesta `401 Unauthorized`:**
+```json
+{
+  "detail": "No autorizado: se requiere un encabezado 'X-API-Key' válido y la clave debe estar configurada en el servidor."
+}
+```
+
+- **Respuesta `429 Too Many Requests` (Límite de solicitudes excedido):**
+```json
+{
+  "detail": "Límite de solicitudes excedido (10 req/60s). Reintente en 45 segundos."
+}
+```
+- **Respuesta `503 Service Unavailable` (Tiempo de espera agotado o servicio no disponible):**
+```json
+{
+  "detail": "El asistente no está disponible en este momento."
+}
+```
+
+---
+
+### 3.2 Generar Docker Compose del Stack Recomendado
+Genera un archivo `docker-compose.yml` funcional a partir de la lista de repositorios (`owner/repo`) de un stack recomendado, empleando únicamente imágenes oficiales con versión fija y resolviendo dependencias entre servicios del catálogo.
+
+- **Método:** `POST`
+- **Ruta:** `/compose`
+- **Validaciones del cuerpo de la petición:**
+  - `repositories` *(list[string], obligatorio, entre 1 y 10 elementos)*: Nombres completos de los repositorios en formato `owner/repo` (máximo 140 caracteres por elemento).
+- **Cuerpo de la petición (Request Body):**
+```json
+{
+  "repositories": [
+    "qdrant/qdrant",
+    "langchain-ai/langchain"
+  ]
+}
+```
+- **Respuesta `200 OK`:**
+```json
+{
+  "filename": "docker-compose.yml",
+  "content": "services:\n  qdrant:\n    image: qdrant/qdrant:v1.13.4\n    ports:\n    - 6333:6333\n    - 6334:6334\n",
+  "services": [
+    {
+      "full_name": "qdrant/qdrant",
+      "service": "qdrant",
+      "image": "qdrant/qdrant:v1.13.4",
+      "ports": ["6333:6333", "6334:6334"]
+    }
+  ],
+  "skipped": [
+    {
+      "full_name": "langchain-ai/langchain",
+      "reason": "Es una librería ejecutable en código fuente y se instala como dependencia, no como un servicio en Docker Compose."
+    }
+  ],
+  "warnings": []
+}
+```
+- **Respuesta `422 Unprocessable Entity`:**
+```json
+{
+  "detail": "El formato del repositorio 'invalido' es inválido. Debe ser 'owner/repo'."
+}
+```
+
+---
+
+## 4. Estado del Servicio e Ingesta de GitHub (Rutas Raíz)
+
+*(Nota: Estas rutas cuelgan directamente de la raíz del servidor, fuera del prefijo `/api/v1`).*
+
+### 4.1 Estado del Servicio (Health Check)
+Verifica que el backend se encuentre activo.
+
+- **Método:** `GET`
+- **Ruta:** `/health`
+- **Respuesta `200 OK`:**
+```json
+{
+  "status": "ok",
+  "message": "El backend de OpenBridge está activo y funcionando"
+}
+```
+
+---
+
+### 4.2 Consultar Datos Enriquecidos de un Repositorio en GitHub
+Consulta la API de GitHub y devuelve los metadatos enriquecidos y el cálculo de salud de un repositorio específico.
+
+- **Método:** `GET`
+- **Ruta:** `/github/repository/{owner}/{repo}`
+- **Parámetros de ruta:**
+  - `owner` *(string, obligatorio)*: Propietario u organización en GitHub (solo caracteres alfanuméricos, guiones y puntos).
+  - `repo` *(string, obligatorio)*: Nombre del repositorio en GitHub.
+- **Respuestas:** `200 OK` con los metadatos enriquecidos del repositorio, `400 Bad Request` si el identificador no es válido, `404 Not Found` si no existe en GitHub, `429 Too Many Requests` o `502 Bad Gateway`.
+
+---
+
+### 4.3 Sincronizar Inventario de Repositorios
+Ejecuta el proceso de ingesta y actualización de repositorios hacia Supabase a partir del inventario curado.
+
+- **Método:** `POST`
+- **Ruta:** `/github/repositories/sync`
+- **Cabeceras requeridas:**
+  - `X-API-Key`: Clave secreta configurada en `SYNC_API_KEY`.
+- **Query Params:**
+  - `limit` *(int, opcional, min: 1)*: Cantidad máxima de repositorios a sincronizar en la ejecución.
+- **Respuesta `200 OK`:**
+```json
+{
+  "total": 3,
+  "successful": 3,
+  "failed": 0,
+  "repositories": []
+}
+```
+- **Respuesta `401 Unauthorized`:**
+```json
+{
+  "detail": "No autorizado: se requiere un encabezado 'X-API-Key' válido y la clave debe estar configurada en el servidor."
 }
 ```
