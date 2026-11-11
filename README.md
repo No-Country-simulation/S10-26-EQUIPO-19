@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/estado-MVP%20desplegado-1BDBC5?style=for-the-badge" alt="Estado">
 </p>
 
-**Simulación Laboral Abierta · NoCountry** · Equipo **S10-26-equipo 19**
+**Simulación Laboral Abierta · NoCountry** · Equipo **S10-26-equipo 19**<br>
 **Sector:** Developer Tools / Servicios de Consultoría Tech (B2B)
 
 ---
@@ -511,7 +511,6 @@ La paleta completa, los tokens y las reglas de contraste están en la [guía de 
 | Integrante | Rol |
 |---|---|
 | Alexis Albarenga | Backend Developer |
-| Demian Naon | Full Stack Developer |
 | Francisco Aguilar García | QA Engineer |
 | Gabriela Valdivia | QA Engineer |
 | Martin Valdes | Ethical Hacker |
