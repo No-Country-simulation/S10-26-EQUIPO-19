@@ -55,9 +55,6 @@
 | 🗄️ Modelo de datos | [`docs/OpenBridge-Modelo-de-datos.md`](docs/OpenBridge-Modelo-de-datos.md) |
 | 📊 Health score | [`docs/OpenBridge-Health-Score-de-repositorios.md`](docs/OpenBridge-Health-Score-de-repositorios.md) |
 | ✅ Pruebas automatizadas (QA) | [`qa/README.md`](qa/README.md) |
-| 🏗️ Arquitectura | [`docs/OpenBridge-Arquitectura.md`](docs/OpenBridge-Arquitectura.md) |
-| 📊 Health score | [`docs/OpenBridge-Health-Score-de-repositorios.md`](docs/OpenBridge-Health-Score-de-repositorios.md) |
-| 🗄️ Modelo de datos | [`docs/OpenBridge-Modelo-de-datos.md`](docs/OpenBridge-Modelo-de-datos.md) |
 
 > ⏱️ La API usa el plan gratuito de Render: si estuvo inactiva, la primera consulta puede tardar cerca de un minuto en responder.
 
