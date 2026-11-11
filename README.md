@@ -169,12 +169,14 @@ Según su último commit, cada herramienta se clasifica como **Activa** (hasta 9
 
 | Capa | Tecnologías |
 |---|---|
-| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · React Flow |
+| Frontend\* | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · React Flow |
 | Backend | FastAPI (Python) |
 | Base de datos y búsqueda vectorial | Supabase (PostgreSQL + pgvector) |
 | IA | Gemini: `gemini-3.1-flash-lite` (con `gemini-3.5-flash-lite` como respaldo) y `gemini-embedding-2` (768 dimensiones) |
 | Datos | API REST de GitHub |
 | Infraestructura | Vercel (frontend) · Render (backend) · GitHub Actions (carga diaria y keep-alive) |
+
+\* El frontend se desarrolló con apoyo de IA (Claude Opus 5.5, de Anthropic), coordinado por la Project Manager, porque el equipo no contó con el rol de desarrollo frontend durante la simulación. El código generado fue validado por QA, con pruebas funcionales y automatizadas, y auditado por el hacker ético en las pruebas de seguridad y el pentest.
 
 ## 🔌 API
 
