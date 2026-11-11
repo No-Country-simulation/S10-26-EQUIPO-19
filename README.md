@@ -33,7 +33,7 @@
 - [Instalación y ejecución](#️-instalación-y-ejecución)
 - [Despliegue](#-despliegue)
 - [Calidad y seguridad](#-calidad-y-seguridad)
-- [Pentesting y hacking ético](#-pentesting-y-hacking-ético)
+- [Pentesting y hacking ético](#️-pentesting-y-hacking-ético)
 - [Flujo de trabajo](#-flujo-de-trabajo)
 - [Identidad visual](#-identidad-visual)
 - [Equipo](#-equipo)
@@ -47,9 +47,14 @@
 | 🌐 Aplicación (producción) | [openbridge-seven.vercel.app](https://openbridge-seven.vercel.app) |
 | ⚙️ API (producción) | [openbridge-rcv2.onrender.com/api/v1](https://openbridge-rcv2.onrender.com/health) |
 | 🧪 Aplicación (desarrollo) | [openbridge-dev.vercel.app](https://openbridge-dev.vercel.app) |
+| 🖼️ Prototipo de interfaz (datos de ejemplo) | [Ver prototipo](https://claude.ai/artifact/K7pnK5ivzTAT6yc4vkKeym) |
 | 📦 Versiones | [Releases](https://github.com/No-Country-simulation/S10-26-EQUIPO-19/releases) |
 | 📄 Contrato de API | [`docs/api-contract.md`](docs/api-contract.md) |
 | 🎨 Guía de estilo | [`docs/guia-de-estilo.md`](docs/guia-de-estilo.md) |
+| 🏛️ Arquitectura | [`docs/OpenBridge-Arquitectura.md`](docs/OpenBridge-Arquitectura.md) |
+| 🗄️ Modelo de datos | [`docs/OpenBridge-Modelo-de-datos.md`](docs/OpenBridge-Modelo-de-datos.md) |
+| 📊 Health score | [`docs/OpenBridge-Health-Score-de-repositorios.md`](docs/OpenBridge-Health-Score-de-repositorios.md) |
+| ✅ Pruebas automatizadas (QA) | [`qa/README.md`](qa/README.md) |
 | 🏗️ Arquitectura | [`docs/OpenBridge-Arquitectura.md`](docs/OpenBridge-Arquitectura.md) |
 | 📊 Health score | [`docs/OpenBridge-Health-Score-de-repositorios.md`](docs/OpenBridge-Health-Score-de-repositorios.md) |
 | 🗄️ Modelo de datos | [`docs/OpenBridge-Modelo-de-datos.md`](docs/OpenBridge-Modelo-de-datos.md) |
@@ -137,6 +142,8 @@ flowchart LR
     WEB --> U((Usuario))
 ```
 
+El detalle de los módulos, el flujo del asistente y la sincronización está en el [documento de arquitectura](docs/OpenBridge-Arquitectura.md), y las entidades, relaciones y reglas de negocio de la base de datos, en el [modelo de datos](docs/OpenBridge-Modelo-de-datos.md).
+
 ## 🧠 Cómo funciona
 
 ### Asistente de arquitectura (RAG)
@@ -154,12 +161,16 @@ Cada herramienta tiene un puntaje de 0 a 100, que se recalcula a diario y se pue
 
 | Componente | Peso | Qué mide |
 |---|---|---|
-| Mantenimiento | 30 | Días desde el último commit en la rama principal (0 si el repositorio está archivado). |
+| Mantenimiento | 30 | Días desde el último commit en la rama principal. |
 | Actividad | 25 | Commits de los últimos 90 días. |
 | Popularidad | 15 | Estrellas. |
 | Forks | 10 | Adopción y contribuciones externas. |
 
+Si no hay datos de actividad, el puntaje se calcula sobre los otros tres componentes. Un repositorio archivado tiene un *health score* de 0.
+
 Según su último commit, cada herramienta se clasifica como **Activa** (hasta 90 días), **En riesgo** (91 a 180 días) o **Abandonada** (más de 180 días o archivada).
+
+La fórmula completa, el tratamiento de casos especiales y sus limitaciones están en el [documento del health score](docs/OpenBridge-Health-Score-de-repositorios.md).
 
 ## 📦 Entregables
 
@@ -177,7 +188,8 @@ Según su último commit, cada herramienta se clasifica como **Activa** (hasta 9
 | Base de datos y búsqueda vectorial | Supabase (PostgreSQL + pgvector) |
 | IA | Gemini: `gemini-3.1-flash-lite` (con `gemini-3.5-flash-lite` como respaldo) y `gemini-embedding-2` (768 dimensiones) |
 | Datos | API REST de GitHub |
-| Infraestructura | Vercel (frontend) · Render (backend) · GitHub Actions (carga diaria y keep-alive) |
+| Infraestructura | Vercel (frontend) · Render (backend) · GitHub Actions (carga diaria, keep-alive y pruebas) |
+| Pruebas | Pytest · Playwright |
 
 \* El frontend se desarrolló con apoyo de IA (Claude Opus 5.5, de Anthropic), coordinado por la Project Manager, porque el equipo no contó con el rol de desarrollo frontend durante la simulación. El código generado fue validado por QA, con pruebas funcionales y automatizadas, y auditado por el hacker ético en las pruebas de seguridad y el pentest.
 
@@ -217,8 +229,9 @@ S10-26-EQUIPO-19/
 │   ├── services/         # Búsqueda SQL y semántica, embeddings, Gemini y docker-compose
 │   ├── database.py       # Cliente de Supabase
 │   └── main.py           # Aplicación, CORS, cabeceras de seguridad y rutas
-├── docs/                 # Contrato de API y guía de estilo
+├── docs/                 # Arquitectura, modelo de datos, health score, contrato de API, guía de estilo y capturas
 ├── frontend/             # Interfaz web (Next.js + TypeScript + Tailwind CSS)
+├── qa/automation/        # Pruebas automatizadas Smoke y E2E (Pytest + Playwright)
 ├── .env.example          # Plantilla de variables del backend (sin secretos)
 ├── requirements.txt      # Dependencias de Python
 └── README.md
@@ -372,7 +385,8 @@ Respuesta esperada (HTTP 200):
 ## 🛡️ Calidad y seguridad
 
 - **Pruebas por niveles (QA):** datos e ingesta (N1), API (N2), asistente RAG (N3) y plataforma integrada (N4), con matrices de casos y criterios de aceptación.
-- **Pruebas de seguridad** en cada nivel y un pentest de la plataforma integrada.
+- **Pruebas automatizadas** Smoke y E2E con Pytest y Playwright, ejecutables desde GitHub Actions sobre desarrollo o producción, con reportes y evidencias. Ver la [guía de QA](qa/README.md).
+- **Pruebas de seguridad** en cada nivel y un pentest de la plataforma integrada (ver [Pentesting y hacking ético](#️-pentesting-y-hacking-ético)).
 - **Medidas aplicadas:**
   - Cabeceras de seguridad en backend y frontend (CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, HSTS).
   - CORS con lista blanca de dominios.
@@ -477,6 +491,8 @@ Cada nivel produce un informe profesional con resumen ejecutivo, alcance, metodo
 
 **Eslogan:** *El camino corto a tu stack open source*
 **Tipografías:** Poppins (títulos) y Roboto (texto)
+
+El diseño de la interfaz se validó primero en un [prototipo interactivo](https://claude.ai/artifact/K7pnK5ivzTAT6yc4vkKeym) con datos de ejemplo.
 
 | Color | HEX | Uso |
 |---|---|---|
