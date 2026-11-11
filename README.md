@@ -50,6 +50,9 @@
 | 📦 Versiones | [Releases](https://github.com/No-Country-simulation/S10-26-EQUIPO-19/releases) |
 | 📄 Contrato de API | [`docs/api-contract.md`](docs/api-contract.md) |
 | 🎨 Guía de estilo | [`docs/guia-de-estilo.md`](docs/guia-de-estilo.md) |
+| 🎨 Arquitectura | [`docs/OpenBridge-Arquitectura.md`](docs/OpenBridge-Arquitectura.md) |
+| 🎨 Health score | [`docs/OpenBridge-Health-Score-de-repositorios.md`](docs/OpenBridge-Health-Score-de-repositorios.md) |
+| 🎨 Modelo de datos | [`docs/OpenBridge-Modelo-de-datos.md`](docs/OpenBridge-Modelo-de-datos.md) |
 
 > ⏱️ La API usa el plan gratuito de Render: si estuvo inactiva, la primera consulta puede tardar cerca de un minuto en responder.
 
