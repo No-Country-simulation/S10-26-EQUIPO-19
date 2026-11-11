@@ -11,7 +11,8 @@ principales de OpenBridge operan correctamente, detectar regresiones y
 generar reportes que faciliten la revisión de resultados por parte del
 equipo.
 
-**Entorno predeterminado:** https://openbridge-dev.vercel.app/\
+**Entorno predeterminado (local):** https://openbridge-dev.vercel.app/\
+**Entornos en GitHub Actions:** DEV (https://openbridge-dev.vercel.app/) y PROD (https://openbridge-seven.vercel.app/)\
 **Navegador:** Chromium\
 **Ejecución en GitHub Actions:** manual mediante `workflow_dispatch`.
 
@@ -161,10 +162,16 @@ asistente ni valida la respuesta generada.
 La ejecución completa de Pytest incluye todos los tests descubiertos,
 independientemente de su marcador.
 
-**Referencia de validación local:** en la última validación documentada
-se ejecutaron 25 pruebas: 5 Smoke y 20 E2E, todas aprobadas. Es el
-resultado de esa ejecución concreta, no una garantía sobre ejecuciones
-futuras.
+**Referencia de validación local:** en la validación local documentada
+se ejecutaron 25 pruebas: 5 Smoke y 20 E2E, todas aprobadas.
+
+**Validación final en GitHub Actions:** el 10/11/2026 se ejecutó la suite
+completa (`all`) sobre el entorno de producción (PROD) y todas las
+pruebas resultaron aprobadas, confirmando el funcionamiento del happy
+path del catálogo y del asistente en la versión definitiva.
+
+Estos resultados corresponden a ejecuciones concretas y no constituyen
+una garantía sobre ejecuciones futuras.
 
 ## 5. Requerimientos
 
@@ -301,6 +308,21 @@ los artefactos locales configurados.
 El generador ejecutivo requiere que exista `reports/junit.xml`; por
 ello, primero se debe ejecutar Pytest con `--junitxml`.
 
+### Resumen ejecutivo
+
+`reports/resumen_ejecutivo.html` presenta los resultados en lenguaje no
+técnico y de forma visual: cada verificación aparece con su resultado
+(Aprobada o Fallida) y su duración, para que cualquier integrante del
+equipo pueda revisar el estado de la plataforma.
+
+Cuando una prueba falla:
+
+-   el resumen ejecutivo incluye el detalle técnico del error;
+-   el reporte HTML de Pytest muestra la traza del fallo;
+-   Playwright conserva una captura de pantalla y la traza de la
+    ejecución en `test-results/` (`--screenshot only-on-failure` y
+    `--tracing retain-on-failure`).
+
 ## 9. GitHub Actions
 
 El workflow está ubicado en:
@@ -315,17 +337,52 @@ La ejecución es manual:
 2.  Entrar en **Actions**.
 3.  Seleccionar **OpenBridge QA - Automated Tests**.
 4.  Pulsar **Run workflow**.
-5.  Seleccionar la rama que contiene el workflow.
-6.  Elegir una suite:
-    -   `smoke`: pruebas críticas.
-    -   `e2e`: pruebas end-to-end.
+5.  Seleccionar la rama que contiene el workflow (normalmente `main`).
+6.  Elegir el entorno que se desea evaluar:
+    -   `dev`: https://openbridge-dev.vercel.app/
+    -   `prod`: https://openbridge-seven.vercel.app/
+7.  Elegir una suite:
+    -   `smoke`: comprobaciones rápidas de que la página y sus
+        funciones críticas están operativas.
+    -   `e2e`: recorridos completos (happy path) del catálogo y del
+        asistente.
     -   `all`: suite completa.
-7.  Ejecutar y revisar el resultado.
+8.  Pulsar **Run workflow** y revisar el resultado.
 
 El workflow instala Python y dependencias, instala Chromium, ejecuta la
-suite seleccionada, genera el resumen ejecutivo e intenta cargar
-reportes y evidencias como artefactos. La retención configurada para
-estos artefactos es de 14 días.
+suite seleccionada contra la URL del entorno elegido, genera el resumen
+ejecutivo y carga reportes y evidencias como artefactos.
+
+### Resultados y artefactos
+
+Al terminar cada ejecución, los reportes quedan disponibles en la
+sección **Artifacts** del resumen de la ejecución, con el nombre
+`openbridge-qa-<entorno>-<número de ejecución>` (por ejemplo,
+`openbridge-qa-prod-6`). El archivo descargable incluye el reporte HTML,
+los resultados JUnit XML, el resumen ejecutivo y, si hubo fallos, las
+capturas de pantalla y trazas.
+
+El workflow solicita una retención de 14 días, pero la configuración del
+repositorio permite un máximo de 3 días, por lo que los artefactos se
+conservan durante 3 días.
+
+### Cuándo ejecutarlo
+
+El workflow no se dispara automáticamente para evitar ejecuciones por
+cambios menores. Se recomienda ejecutarlo:
+
+-   antes de integrar un pull request con cambios grandes;
+-   cuando un cambio afecta funciones críticas (catálogo, filtros,
+    comparador o asistente);
+-   antes de publicar una nueva versión en producción.
+
+### Permisos
+
+El workflow no requiere secretos ni credenciales: solo usa permisos de
+lectura del repositorio (`contents: read`) y prueba las URL públicas de
+la aplicación. Para iniciarlo con **Run workflow** se necesita acceso de
+escritura al repositorio, como cualquier ejecución manual en GitHub
+Actions.
 
 La carga de evidencias se intenta incluso si las pruebas fallan. Al
 final, el workflow marca la ejecución como fallida si fallaron las
