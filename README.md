@@ -165,7 +165,7 @@ Cada herramienta tiene un puntaje de 0 a 100, que se recalcula a diario y se pue
 
 Si no hay datos de actividad, el puntaje se calcula sobre los otros tres componentes. Un repositorio archivado tiene un *health score* de 0.
 
-Según su último commit, cada herramienta se clasifica como **Activa** (hasta 90 días), **En riesgo** (91 a 180 días) o **Abandonada** (más de 180 días o archivada).
+Según su último commit, cada herramienta se clasifica como **Activo** (hasta 90 días), **En riesgo** (91 a 180 días) o **Abandonado** (más de 180 días o archivada).
 
 La fórmula completa, el tratamiento de casos especiales y sus limitaciones están en el [documento del health score](docs/OpenBridge-Health-Score-de-repositorios.md).
 
