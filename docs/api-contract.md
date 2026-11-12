@@ -6,6 +6,7 @@
   - **Desarrollo local:** `http://localhost:8000/api/v1`
   - *(Las rutas operativas `/health` y `/github/*` se sirven desde la raíz del dominio, sin el prefijo `/api/v1`).*
 - **Formato:** `application/json; charset=utf-8`
+- **Documentación interactiva:** Swagger UI (`/docs`) y Redoc (`/redoc`) solo fuera de producción; en producción (`ENVIRONMENT=production`) están deshabilitadas por seguridad.
 - **Autenticación en MVP:**
   - **Catálogo, Asistente y Compose:** Pública (sin autenticación).
   - **Sincronización de inventario (`POST /github/repositories/sync`):** Protegida mediante cabecera `X-API-Key`.
@@ -35,8 +36,8 @@ Todas las rutas públicas y de ingesta cuentan con limitación de tasa en ventan
 | Grupo de Endpoints | Límite por IP | Tope Global |
 |---|---|---|
 | Catálogo y Compose (`/api/v1/repositories*`, `/api/v1/compose`) | 60 req / 60s | 300 req / 60s |
-| Asistente Consultor RAG (`/api/v1/assistant/chat`) | 10 req / 60s | 50 req / 60s |
-| Consultas y Sincronización GitHub (`/github/*`) | 20 req / 60s | 100 req / 60s |
+| Asistente Consultor RAG (`/api/v1/assistant/chat`) | 10 req / 60s | 30 req / 60s |
+| Consultas y Sincronización GitHub (`/github/*`) | 20 req / 60s | 60 req / 60s |
 
 ---
 
@@ -493,7 +494,7 @@ Recibe la pregunta del usuario en lenguaje natural y devuelve una respuesta con 
 ---
 
 ### 3.2 Generar Docker Compose del Stack Recomendado
-Genera un archivo `docker-compose.yml` funcional a partir de la lista de repositorios (`owner/repo`) de un stack recomendado, empleando únicamente imágenes oficiales con versión fija y resolviendo dependencias entre servicios del catálogo.
+Genera un archivo `docker-compose.yml` de arranque a partir de la lista de repositorios (`owner/repo`) de un stack recomendado, empleando únicamente imágenes oficiales con versión fija y resolviendo dependencias entre servicios del catálogo.
 
 - **Método:** `POST`
 - **Ruta:** `/compose`
@@ -594,121 +595,15 @@ Ejecuta el proceso de ingesta y actualización de repositorios hacia Supabase a 
   "detail": "No autorizado: se requiere un encabezado 'X-API-Key' válido y la clave debe estar configurada en el servidor."
 }
 ```
-
 - **Respuesta `429 Too Many Requests` (Límite de solicitudes excedido):**
 ```json
 {
-  "detail": "Límite de solicitudes excedido (10 req/60s). Reintente en 45 segundos."
+  "detail": "Límite de solicitudes excedido (20 req/60s). Reintente en 45 segundos."
 }
 ```
-- **Respuesta `503 Service Unavailable` (Tiempo de espera agotado o servicio no disponible):**
+- **Otras respuestas:** `400 Bad Request` si los parámetros no son válidos, `404 Not Found` si no se encuentra el recurso solicitado y `502 Bad Gateway` si falla la consulta a GitHub:
 ```json
 {
-  "detail": "El asistente no está disponible en este momento."
-}
-```
-
----
-
-### 3.2 Generar Docker Compose del Stack Recomendado
-Genera un archivo `docker-compose.yml` funcional a partir de la lista de repositorios (`owner/repo`) de un stack recomendado, empleando únicamente imágenes oficiales con versión fija y resolviendo dependencias entre servicios del catálogo.
-
-- **Método:** `POST`
-- **Ruta:** `/compose`
-- **Validaciones del cuerpo de la petición:**
-  - `repositories` *(list[string], obligatorio, entre 1 y 10 elementos)*: Nombres completos de los repositorios en formato `owner/repo` (máximo 140 caracteres por elemento).
-- **Cuerpo de la petición (Request Body):**
-```json
-{
-  "repositories": [
-    "qdrant/qdrant",
-    "langchain-ai/langchain"
-  ]
-}
-```
-- **Respuesta `200 OK`:**
-```json
-{
-  "filename": "docker-compose.yml",
-  "content": "services:\n  qdrant:\n    image: qdrant/qdrant:v1.13.4\n    ports:\n    - 6333:6333\n    - 6334:6334\n",
-  "services": [
-    {
-      "full_name": "qdrant/qdrant",
-      "service": "qdrant",
-      "image": "qdrant/qdrant:v1.13.4",
-      "ports": ["6333:6333", "6334:6334"]
-    }
-  ],
-  "skipped": [
-    {
-      "full_name": "langchain-ai/langchain",
-      "reason": "Es una librería ejecutable en código fuente y se instala como dependencia, no como un servicio en Docker Compose."
-    }
-  ],
-  "warnings": []
-}
-```
-- **Respuesta `422 Unprocessable Entity`:**
-```json
-{
-  "detail": "El formato del repositorio 'invalido' es inválido. Debe ser 'owner/repo'."
-}
-```
-
----
-
-## 4. Estado del Servicio e Ingesta de GitHub (Rutas Raíz)
-
-*(Nota: Estas rutas cuelgan directamente de la raíz del servidor, fuera del prefijo `/api/v1`).*
-
-### 4.1 Estado del Servicio (Health Check)
-Verifica que el backend se encuentre activo.
-
-- **Método:** `GET`
-- **Ruta:** `/health`
-- **Respuesta `200 OK`:**
-```json
-{
-  "status": "ok",
-  "message": "El backend de OpenBridge está activo y funcionando"
-}
-```
-
----
-
-### 4.2 Consultar Datos Enriquecidos de un Repositorio en GitHub
-Consulta la API de GitHub y devuelve los metadatos enriquecidos y el cálculo de salud de un repositorio específico.
-
-- **Método:** `GET`
-- **Ruta:** `/github/repository/{owner}/{repo}`
-- **Parámetros de ruta:**
-  - `owner` *(string, obligatorio)*: Propietario u organización en GitHub (solo caracteres alfanuméricos, guiones y puntos).
-  - `repo` *(string, obligatorio)*: Nombre del repositorio en GitHub.
-- **Respuestas:** `200 OK` con los metadatos enriquecidos del repositorio, `400 Bad Request` si el identificador no es válido, `404 Not Found` si no existe en GitHub, `429 Too Many Requests` o `502 Bad Gateway`.
-
----
-
-### 4.3 Sincronizar Inventario de Repositorios
-Ejecuta el proceso de ingesta y actualización de repositorios hacia Supabase a partir del inventario curado.
-
-- **Método:** `POST`
-- **Ruta:** `/github/repositories/sync`
-- **Cabeceras requeridas:**
-  - `X-API-Key`: Clave secreta configurada en `SYNC_API_KEY`.
-- **Query Params:**
-  - `limit` *(int, opcional, min: 1)*: Cantidad máxima de repositorios a sincronizar en la ejecución.
-- **Respuesta `200 OK`:**
-```json
-{
-  "total": 3,
-  "successful": 3,
-  "failed": 0,
-  "repositories": []
-}
-```
-- **Respuesta `401 Unauthorized`:**
-```json
-{
-  "detail": "No autorizado: se requiere un encabezado 'X-API-Key' válido y la clave debe estar configurada en el servidor."
+  "detail": "No se pudo completar la consulta a GitHub."
 }
 ```
