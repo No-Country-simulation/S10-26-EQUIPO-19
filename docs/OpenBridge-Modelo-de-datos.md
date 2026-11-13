@@ -34,8 +34,8 @@ Representa un repositorio open source aprobado en el inventario.
 | `description_es`                | Text / null     | Descripción curada en español; es la que se muestra en la ficha                                             |
 | `license`                       | String / null   | Licencia declarada                                                                                          |
 | `language`                      | String / null   | Lenguaje principal                                                                                          |
-| `detected_stack`                | JSON            | Stack Tecnologico detectado                                                                                 |
-| `integration_methods_suggested` | JSON            | Metodos sugeridos de integracion                                                                            |
+| `detected_stack`                | JSON            | Stack tecnológico detectado                                                                                 |
+| `integration_methods_suggested` | JSON            | Métodos sugeridos de integración                                                                            |
 | `topics`                        | Array\[String\] | Temas asociados                                                                                             |
 | `homepage`                      | String / null   | Sitio web del proyecto                                                                                      |
 | `stars`                         | Integer         | Cantidad de estrellas                                                                                       |
@@ -46,7 +46,10 @@ Representa un repositorio open source aprobado en el inventario.
 | `archived`                      | Boolean         | Indica si el repositorio está archivado                                                                     |
 | `maintainer_active`             | Boolean         | Indica si cumple el criterio de actividad                                                                   |
 | `updated_at`                    | DateTime / null | Última modificación de los metadatos en GitHub; cambia también con nuevas estrellas u otros cambios menores |
-| `readme_hash`                   | text            | Detectar si cambió el README completo del repositorio.                                                      |
+| `readme_hash`                   | Text            | Detectar si cambió el README completo del repositorio.                                                      |
+| `last_commit_at`                | DateTime / null | Fecha del último commit de la rama principal; define el estado de mantenimiento y es la «última actualización» de la ficha |
+| `pushed_at`                     | DateTime / null | Último push a cualquier rama; dato complementario                                                      |
+| `synced_at`                     | DateTime / null | Fecha de la última sincronización con GitHub                                                            |
 
 ## 3.2 Categoría (categories)
 
@@ -141,19 +144,19 @@ Almacena las representaciones vectoriales de los contenidos que se usan en las b
 | `id`             | Integer        | Identificador interno                                             |
 | `repository_id`  | Integer / null | Repositorio asociado                                              |
 | `integration_id` | Integer / null | Idea de integración asociada                                      |
-| `content_type`   | String         | Tipo de contenido vectorizado                                     |
+| `content_type`   | String         | Tipo de contenido vectorizado (hoy, `readme_chunk`)                                     |
 | `source_text`    | Text           | Texto usado para generar el embedding                             |
 | `embedding`      | Vector         | Representación vectorial                                          |
 | `updated_at`     | DateTime       | Última actualización del embedding                                |
-| `chunk_index`    | integer        | Posición del fragmento dentro del README                          |
-| `content_hash`   | text           | Detectar si el contenido del fragmento cambió                     |
-| `metadata`       | jsonb          | Guardar información adicional, como sección y ruta de encabezados |
+| `chunk_index`    | Integer        | Posición del fragmento dentro del README                          |
+| `content_hash`   | Text           | Detectar si el contenido del fragmento cambió                     |
+| `metadata`       | JSONB          | Guardar información adicional, como sección y ruta de encabezados |
 
 Cada embedding se asocia a un único contenido: un repositorio o una idea de integración.
 
-El texto que se vectoriza de cada repositorio incluye su nombre (name), la descripción original de GitHub (description), sus temas (topics) y su lenguaje principal (language). Las ideas de integración pueden vectorizarse de forma independiente para permitir búsquedas semánticas de propuestas.
+De cada repositorio se vectoriza su README, dividido en fragmentos de hasta 500 tokens con 75 de solapamiento: cada fragmento es un registro con `content_type = readme_chunk` y su posición en `chunk_index`. Solo se vuelven a procesar los README cuyo `readme_hash` cambió. Las ideas de integración pueden vectorizarse de forma independiente para permitir búsquedas semánticas de propuestas en versiones posteriores; hoy no se vectorizan.
 
-Los embeddings se generan con un modelo de embeddings de Gemini (Google AI Studio), y la dimensión del vector debe coincidir con la del modelo elegido. Para indexar con HNSW, pgvector admite vectores de hasta 2.000 dimensiones: si el modelo entrega más (por ejemplo, 3.072), se configura una dimensión de salida menor (768 o 1.536).
+Los embeddings se generan con `gemini-embedding-2` (Google AI Studio), con una dimensión de salida de 768. Para indexar con HNSW, pgvector admite vectores de hasta 2.000 dimensiones: si el modelo entrega más (por ejemplo, 3.072), se configura una dimensión de salida menor (768 o 1.536).
 
 # 4. Relaciones entre entidades
 
@@ -197,7 +200,7 @@ Los embeddings se generan con un modelo de embeddings de Gemini (Google AI Studi
 
 12. Los secretos deben representarse mediante variables de entorno o marcadores, nunca con valores reales.
 
-13. Los embeddings se generan con un único modelo y se almacenan mediante pgvector.
+13. Los embeddings se generan con un único modelo (`gemini-embedding-2`, 768 dimensiones) y se almacenan mediante pgvector.
 
 # 6. Alcance de implementación
 
@@ -221,9 +224,7 @@ Al pasar del modelo a PostgreSQL se aplican estas restricciones:
 
 - integration_repositories e integration_business_cases: la clave primaria es la combinación de sus dos referencias.
 
-- embeddings: content_type es UNIQUE
-
-- embeddings: chunk_index es UNIQUE
+- embeddings: la combinación de repository_id, content_type y chunk_index es UNIQUE, para que cada fragmento de un README se guarde una sola vez.
 
 # 7. Diagrama entidad-relación
 
