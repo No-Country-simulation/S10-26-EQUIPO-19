@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="https://hackmd.io/_uploads/rJit2jU3Gg.png" alt="OpenBridge" height="120">
+</p>
+
 # Guía de estilo y design tokens · OpenBridge
 
 Tarea 5.2. Define cómo se aplica la identidad visual de OpenBridge (tarea 5.1) en la interfaz. Los tokens están implementados en `frontend/app/globals.css` y se pueden ver en vivo en `/guia-de-estilo`.
