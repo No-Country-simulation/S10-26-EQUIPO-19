@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="https://hackmd.io/_uploads/rJit2jU3Gg.png" alt="OpenBridge" height="120">
+</p>
+
 # Contrato de API - OpenBridge Backend
 
 - **Versión:** 1.0.0
